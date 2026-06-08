@@ -2517,3 +2517,435 @@ input {
     height: 152px;
   }
 }
+/* ================================
+   Recommendation Page
+================================ */
+
+.recommend-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
+  gap: 42px;
+  align-items: center;
+  padding: 56px 0 44px;
+}
+
+.recommend-copy h1 {
+  margin: 24px 0 18px;
+  color: var(--color-secondary);
+  font-size: clamp(42px, 5vw, 68px);
+  line-height: 1.05;
+  letter-spacing: -0.07em;
+}
+
+.recommend-copy p {
+  max-width: 640px;
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 18px;
+  line-height: 1.85;
+}
+
+.recommend-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 34px;
+}
+
+.recommend-summary-card {
+  padding: 30px;
+}
+
+.recommend-summary-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.summary-icon,
+.ingredient-icon,
+.reason-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  background: var(--color-primary);
+  box-shadow: 0 14px 28px rgba(22, 125, 127, 0.22);
+}
+
+.summary-icon {
+  width: 58px;
+  height: 58px;
+  flex: 0 0 auto;
+  border-radius: 22px;
+}
+
+.recommend-card-label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.recommend-summary-header h2,
+.recommend-card-title-row h2,
+.recommend-care-card h2,
+.recommend-reason-card h2 {
+  margin: 0;
+  color: var(--color-secondary);
+  font-size: 28px;
+  line-height: 1.2;
+  letter-spacing: -0.045em;
+}
+
+.recommend-summary-list {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.recommend-summary-list div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 15px 16px;
+  border-radius: 18px;
+  background: #f8fafc;
+}
+
+.recommend-summary-list span {
+  color: var(--color-muted);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.recommend-summary-list strong {
+  color: var(--color-secondary);
+  font-size: 15px;
+}
+
+.recommend-summary-notice {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 18px;
+  color: var(--color-secondary);
+  background: rgba(22, 125, 127, 0.1);
+  font-size: 14px;
+  line-height: 1.6;
+  font-weight: 800;
+}
+
+.recommend-summary-notice svg {
+  color: var(--color-primary);
+}
+
+.recommend-section {
+  padding: 28px 0 44px;
+}
+
+.ingredient-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+
+.ingredient-card {
+  padding: 28px;
+}
+
+.ingredient-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.ingredient-icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 20px;
+}
+
+.ingredient-card h3 {
+  margin: 22px 0 8px;
+  color: var(--color-secondary);
+  font-size: 24px;
+  letter-spacing: -0.045em;
+}
+
+.ingredient-type,
+.product-brand {
+  display: block;
+  color: var(--color-primary);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.match-row {
+  display: grid;
+  gap: 10px;
+  margin: 22px 0 16px;
+}
+
+.match-row > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.match-row span {
+  color: var(--color-muted);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.match-row strong {
+  color: var(--color-secondary);
+  font-size: 20px;
+}
+
+.match-bar {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e2e8f0;
+}
+
+.match-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--color-primary), #22c5c8);
+}
+
+.ingredient-card p {
+  margin: 0;
+  color: var(--color-muted);
+  line-height: 1.75;
+}
+
+.ingredient-footer {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+  color: var(--color-primary);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+
+.product-card {
+  overflow: hidden;
+}
+
+.product-image-box {
+  position: relative;
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  color: var(--color-primary);
+  background:
+    radial-gradient(circle at top left, rgba(22, 125, 127, 0.16), transparent 34%),
+    linear-gradient(135deg, rgba(22, 125, 127, 0.08), rgba(244, 63, 94, 0.06)),
+    #f8fafc;
+}
+
+.product-image-box .sf-badge {
+  position: absolute;
+  right: 18px;
+  top: 18px;
+}
+
+.product-content {
+  padding: 24px;
+}
+
+.product-content h3 {
+  margin: 8px 0 12px;
+  color: var(--color-secondary);
+  font-size: 22px;
+  line-height: 1.25;
+  letter-spacing: -0.045em;
+}
+
+.product-content p {
+  margin: 0 0 20px;
+  color: var(--color-muted);
+  line-height: 1.75;
+}
+
+.product-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.product-meta div {
+  padding: 13px 14px;
+  border-radius: 16px;
+  background: #f8fafc;
+}
+
+.product-meta span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.product-meta strong {
+  color: var(--color-secondary);
+  font-size: 15px;
+}
+
+.product-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.recommend-bottom-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+  gap: 18px;
+  padding: 0 0 88px;
+}
+
+.recommend-reason-card,
+.recommend-care-card {
+  padding: 28px;
+}
+
+.recommend-card-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.recommend-card-title-row svg {
+  color: var(--color-primary);
+}
+
+.reason-list {
+  display: grid;
+  gap: 14px;
+}
+
+.reason-item {
+  display: grid;
+  grid-template-columns: 46px 1fr;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 16px;
+  border-radius: 18px;
+  background: #f8fafc;
+}
+
+.reason-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+}
+
+.reason-item strong {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--color-secondary);
+  font-size: 15px;
+}
+
+.reason-item span {
+  color: var(--color-muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.care-tip-list {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.care-tip-item {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 10px;
+  padding: 15px;
+  border-radius: 18px;
+  background: #f8fafc;
+  color: var(--color-secondary);
+  font-size: 14px;
+  line-height: 1.65;
+  font-weight: 800;
+}
+
+.care-tip-item svg {
+  color: var(--color-primary);
+}
+
+.recommend-next-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 1020px) {
+  .recommend-hero,
+  .recommend-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ingredient-grid,
+  .product-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .recommend-copy h1 {
+    font-size: 38px;
+  }
+
+  .recommend-copy p {
+    font-size: 16px;
+  }
+
+  .recommend-action-row .sf-button,
+  .product-actions .sf-button,
+  .recommend-next-actions .sf-button {
+    width: 100%;
+  }
+
+  .recommend-summary-card,
+  .ingredient-card,
+  .product-content,
+  .recommend-reason-card,
+  .recommend-care-card {
+    padding: 22px;
+  }
+
+  .product-actions,
+  .recommend-next-actions,
+  .product-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .reason-item {
+    grid-template-columns: 42px 1fr;
+  }
+}
