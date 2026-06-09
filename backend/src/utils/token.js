@@ -10,6 +10,13 @@ function signToken(payload) {
     });
 }
 
+function verifyToken(token) {
+    const secret = process.env.JWT_SECRET || 'skinflow-dev-secret';
+
+    return jwt.verify(token, secret);
+}
+
 module.exports = {
     signToken,
+    verifyToken,
 };
