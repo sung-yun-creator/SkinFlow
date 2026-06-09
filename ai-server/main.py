@@ -23,3 +23,15 @@ async def analyze_skin(file: UploadFile = File(...)):
         "roi": roi,
         "prediction": prediction,
     }
+
+
+@app.post("/extract-roi")
+async def extract_skin_roi(file: UploadFile = File(...)):
+    image_bytes = await file.read()
+    roi = extract_roi(image_bytes)
+
+    return {
+        "filename": file.filename,
+        "content_type": file.content_type,
+        "roi": roi,
+    }
