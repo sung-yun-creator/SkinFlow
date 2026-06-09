@@ -1,11 +1,59 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Mail, LockKeyhole, ArrowRight, ShieldCheck } from "lucide-react";
 import PageLayout from "../components/layout/PageLayout";
-import Button from "../components/common/Button";
 import Card from "../components/common/Card";
 import Badge from "../components/common/Badge";
+import { login, saveLoginSession } from "../api/authApi";
 
 function LoginPage() {
+  const navigate = useNavigate();
+
+  const [form, setForm] = useState({
+    email: "",
+    password: "",
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [loginError, setLoginError] = useState("");
+
+  function handleChange(event) {
+    const { name, value } = event.target;
+
+    setForm((prevForm) => ({
+      ...prevForm,
+      [name]: value,
+    }));
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+
+    if (!form.email || !form.password) {
+      setLoginError("이메일과 비밀번호를 모두 입력해주세요.");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setLoginError("");
+
+      const data = await login({
+        email: form.email,
+        password: form.password,
+      });
+
+      saveLoginSession(data, form.email);
+      navigate("/dashboard");
+    } catch (error) {
+      console.error("로그인 API 호출 실패:", error);
+      setLoginError(
+        error?.message || "로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   return (
     <PageLayout showBottomNav={false}>
       <section className="auth-page">
@@ -19,8 +67,8 @@ function LoginPage() {
           </h1>
 
           <p>
-            로그인하면 최근 피부 분석 결과, 맞춤 성분·제품 추천,
-            식습관 가이드와 분석 이력을 한 곳에서 확인할 수 있습니다.
+            로그인하면 최근 피부 분석 결과, 맞춤 성분·제품 추천, 식습관 가이드와
+            분석 이력을 한곳에서 확인할 수 있습니다.
           </p>
 
           <div className="auth-benefit-list">
@@ -30,7 +78,7 @@ function LoginPage() {
             </div>
             <div className="auth-benefit-item">
               <ShieldCheck size={20} />
-              <span>색소침착·주름 분석 결과 저장</span>
+              <span>색소침착·주름 분석 결과 확인</span>
             </div>
             <div className="auth-benefit-item">
               <ShieldCheck size={20} />
@@ -46,12 +94,18 @@ function LoginPage() {
             <p>이메일과 비밀번호를 입력해 서비스를 시작하세요.</p>
           </div>
 
-          <form className="auth-form">
+          <form className="auth-form" onSubmit={handleSubmit}>
             <label className="form-field">
               <span>이메일</span>
               <div className="input-box">
                 <Mail size={18} />
-                <input type="email" placeholder="skinflow@example.com" />
+                <input
+                  type="email"
+                  name="email"
+                  placeholder="skinflow@example.com"
+                  value={form.email}
+                  onChange={handleChange}
+                />
               </div>
             </label>
 
@@ -59,9 +113,17 @@ function LoginPage() {
               <span>비밀번호</span>
               <div className="input-box">
                 <LockKeyhole size={18} />
-                <input type="password" placeholder="비밀번호를 입력하세요" />
+                <input
+                  type="password"
+                  name="password"
+                  placeholder="비밀번호를 입력하세요"
+                  value={form.password}
+                  onChange={handleChange}
+                />
               </div>
             </label>
+
+            {loginError && <p className="form-error-text">{loginError}</p>}
 
             <div className="auth-form-options">
               <label className="check-row">
@@ -74,9 +136,10 @@ function LoginPage() {
               </button>
             </div>
 
-            <Button to="/dashboard" size="lg" full>
-              로그인하기 <ArrowRight size={18} />
-            </Button>
+            <button className="auth-submit-button" type="submit" disabled={isLoading}>
+              {isLoading ? "로그인 중..." : "로그인하기"}
+              <ArrowRight size={18} />
+            </button>
           </form>
 
           <div className="auth-switch">

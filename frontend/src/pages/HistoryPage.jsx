@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   CalendarDays,
@@ -15,68 +16,178 @@ import Button from "../components/common/Button";
 import Card from "../components/common/Card";
 import Badge from "../components/common/Badge";
 import SectionTitle from "../components/common/SectionTitle";
+import { getHistory, getHistoryDetail } from "../api/historyApi";
 
-const historyItems = [
-  {
-    date: "2026.06.08",
-    title: "최근 피부 분석",
-    score: 82,
-    status: "주의",
-    pigmentation: 72,
-    wrinkle: 86,
-    recommendation: "나이아신아마이드 · 선크림 · 수분 관리",
+const defaultHistoryData = {
+  summary: {
+    analysisCount: 0,
+    latestTotalScore: null,
+    latestAnalyzedAt: null,
+    latestStatus: null,
+    scoreDiff: null,
   },
-  {
-    date: "2026.06.01",
-    title: "이전 피부 분석",
-    score: 78,
-    status: "주의",
-    pigmentation: 68,
-    wrinkle: 84,
-    recommendation: "비타민 C 유도체 · 보습 크림 · 항산화 식품",
-  },
-  {
-    date: "2026.05.25",
-    title: "초기 피부 분석",
-    score: 74,
-    status: "주의",
-    pigmentation: 65,
-    wrinkle: 82,
-    recommendation: "자외선 차단 · 수분 섭취 · 피부 자극 줄이기",
-  },
-];
+  records: [],
+};
 
-const trendItems = [
-  {
-    label: "2026.05.25",
-    score: 74,
-  },
-  {
-    label: "2026.06.01",
-    score: 78,
-  },
-  {
-    label: "2026.06.08",
-    score: 82,
-  },
-];
+function formatDate(dateValue) {
+  if (!dateValue) return "기록 없음";
 
-const summaryItems = [
-  {
-    label: "총 분석 횟수",
-    value: "3회",
-  },
-  {
-    label: "최근 종합 점수",
-    value: "82점",
-  },
-  {
-    label: "점수 변화",
-    value: "+8점",
-  },
-];
+  const date = new Date(dateValue);
+
+  if (Number.isNaN(date.getTime())) {
+    return "기록 없음";
+  }
+
+  return date.toLocaleDateString("ko-KR");
+}
+
+function getMetricScore(metrics, keyword) {
+  if (!Array.isArray(metrics)) return "기록 없음";
+
+  const matchedMetric = metrics.find((metric) => {
+    const name =
+      metric.metricName ||
+      metric.name ||
+      metric.label ||
+      metric.metricType ||
+      "";
+
+    return String(name).includes(keyword);
+  });
+
+  return (
+    matchedMetric?.score ??
+    matchedMetric?.metricScore ??
+    matchedMetric?.value ??
+    matchedMetric?.metricValue ??
+    "기록 없음"
+  );
+}
+
+function getRecommendationText(recommendations) {
+  if (!Array.isArray(recommendations) || recommendations.length === 0) {
+    return "추천 요약 정보가 없습니다.";
+  }
+
+  const textList = recommendations
+    .map(
+      (item) =>
+        item.title ||
+        item.name ||
+        item.recommendationTitle ||
+        item.recommendationName ||
+        item.summary ||
+        item.content ||
+        item.recommendationContent
+    )
+    .filter(Boolean);
+
+  return textList.length > 0 ? textList.join(" · ") : "추천 요약 정보가 없습니다.";
+}
 
 function HistoryPage() {
+  const [historyData, setHistoryData] = useState(defaultHistoryData);
+  const [selectedDetail, setSelectedDetail] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [historyError, setHistoryError] = useState("");
+  const [detailError, setDetailError] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadHistory() {
+      try {
+        setIsLoading(true);
+        setHistoryError("");
+
+        const data = await getHistory();
+
+        if (isMounted) {
+          setHistoryData(data);
+        }
+      } catch (error) {
+        console.error("분석 이력 API 호출 실패:", error);
+
+        if (isMounted) {
+          setHistoryError("분석 이력을 불러오지 못했습니다.");
+          setHistoryData(defaultHistoryData);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadHistory();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const summary = historyData.summary;
+  const records = historyData.records;
+
+  const summaryItems = useMemo(
+    () => [
+      {
+        label: "총 분석 횟수",
+        value: `${summary.analysisCount ?? 0}회`,
+      },
+      {
+        label: "최근 종합 점수",
+        value:
+          summary.latestTotalScore === null || summary.latestTotalScore === undefined
+            ? "기록 없음"
+            : `${summary.latestTotalScore}점`,
+      },
+      {
+        label: "최근 분석일",
+        value: formatDate(summary.latestAnalyzedAt),
+      },
+      {
+        label: "최근 상태",
+        value: summary.latestStatus || "기록 없음",
+      },
+      {
+        label: "점수 변화",
+        value:
+          summary.scoreDiff === null || summary.scoreDiff === undefined
+            ? "기록 없음"
+            : `${summary.scoreDiff > 0 ? "+" : ""}${summary.scoreDiff}점`,
+      },
+    ],
+    [summary]
+  );
+
+  const trendItems = useMemo(
+    () =>
+      records
+        .slice(-3)
+        .map((record) => ({
+          label: formatDate(record.analyzedAt),
+          score: record.totalScore ?? 0,
+        })),
+    [records]
+  );
+
+  async function handleDetailClick(analysisId) {
+    if (!analysisId) {
+      setDetailError("분석 ID가 없어 상세 정보를 불러올 수 없습니다.");
+      return;
+    }
+
+    try {
+      setDetailError("");
+      const detail = await getHistoryDetail(analysisId);
+      setSelectedDetail(detail);
+    } catch (error) {
+      console.error("분석 이력 상세 API 호출 실패:", error);
+      setDetailError("상세 분석 정보를 불러오지 못했습니다.");
+    }
+  }
+
   return (
     <PageLayout>
       <section className="history-hero">
@@ -115,6 +226,9 @@ function HistoryPage() {
             </div>
           </div>
 
+          {isLoading && <p className="form-success-text">분석 이력을 불러오는 중입니다.</p>}
+          {historyError && <p className="form-error-text">{historyError}</p>}
+
           <div className="history-summary-list">
             {summaryItems.map((item) => (
               <div key={item.label}>
@@ -126,7 +240,13 @@ function HistoryPage() {
 
           <div className="history-summary-notice">
             <TrendingUp size={18} />
-            <span>최근 3회 분석 기준으로 종합 점수가 꾸준히 상승했습니다.</span>
+            <span>
+              {summary.scoreDiff === null || summary.scoreDiff === undefined
+                ? "아직 비교할 분석 이력이 없습니다."
+                : `최근 분석 기준 점수 변화는 ${summary.scoreDiff > 0 ? "+" : ""}${
+                    summary.scoreDiff
+                  }점입니다.`}
+            </span>
           </div>
         </Card>
       </section>
@@ -139,31 +259,47 @@ function HistoryPage() {
         />
 
         <Card className="history-trend-card">
-          <div className="trend-chart-area">
-            <div className="trend-line" />
-            {trendItems.map((item, index) => (
-              <div
-                className={`trend-point trend-point-${index + 1}`}
-                key={item.label}
-              >
-                <strong>{item.score}</strong>
-                <span>{item.label}</span>
+          {trendItems.length > 0 ? (
+            <div className="trend-chart-area">
+              <div className="trend-line" />
+              {trendItems.map((item, index) => (
+                <div
+                  className={`trend-point trend-point-${index + 1}`}
+                  key={`${item.label}-${index}`}
+                >
+                  <strong>{item.score}</strong>
+                  <span>{item.label}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="trend-insight">
+              <div className="trend-insight-icon">
+                <Trophy size={24} />
               </div>
-            ))}
-          </div>
+              <div>
+                <strong>아직 분석 이력이 없습니다</strong>
+                <span>
+                  첫 피부 분석을 진행하면 종합 점수 변화 흐름을 확인할 수 있습니다.
+                </span>
+              </div>
+            </div>
+          )}
 
-          <div className="trend-insight">
-            <div className="trend-insight-icon">
-              <Trophy size={24} />
+          {trendItems.length > 0 && (
+            <div className="trend-insight">
+              <div className="trend-insight-icon">
+                <Trophy size={24} />
+              </div>
+              <div>
+                <strong>분석 이력을 기준으로 변화 흐름을 확인할 수 있습니다</strong>
+                <span>
+                  동일한 조건에서 주기적으로 분석하면 피부 변화 흐름을 더 안정적으로
+                  비교할 수 있습니다.
+                </span>
+              </div>
             </div>
-            <div>
-              <strong>최근 분석 대비 점수가 개선되었습니다</strong>
-              <span>
-                동일한 조건에서 주기적으로 분석하면 피부 변화 흐름을 더 안정적으로
-                비교할 수 있습니다.
-              </span>
-            </div>
-          </div>
+          )}
         </Card>
       </section>
 
@@ -182,54 +318,133 @@ function HistoryPage() {
         </div>
 
         <div className="history-record-list">
-          {historyItems.map((item) => (
-            <Card className="history-record-card" key={item.date}>
+          {records.length > 0 ? (
+            records.map((item) => (
+              <Card className="history-record-card" key={item.analysisId}>
+                <div className="history-record-top">
+                  <div className="record-date-icon">
+                    <CalendarDays size={22} />
+                  </div>
+                  <div>
+                    <span>{formatDate(item.analyzedAt)}</span>
+                    <h3>{item.summary || "피부 분석 기록"}</h3>
+                  </div>
+                  <Badge variant="accent">{item.status || "상태 없음"}</Badge>
+                </div>
+
+                <div className="record-score-layout">
+                  <div className="record-score-box">
+                    <span>종합 점수</span>
+                    <strong>{item.totalScore ?? "-"}</strong>
+                    <small>/100</small>
+                  </div>
+
+                  <div className="record-metric-list">
+                    <div>
+                      <span>색소침착</span>
+                      <strong>{getMetricScore(item.metrics, "색소")}</strong>
+                    </div>
+                    <div>
+                      <span>주름</span>
+                      <strong>{getMetricScore(item.metrics, "주름")}</strong>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="record-recommendation">
+                  <Sparkles size={18} />
+                  <span>{item.summary || "분석 요약 정보가 없습니다."}</span>
+                </div>
+
+                <div className="record-actions">
+                  <button
+                    type="button"
+                    className="logout-button"
+                    onClick={() => handleDetailClick(item.analysisId)}
+                  >
+                    상세 결과 보기
+                  </button>
+                  <Button to="/recommendations" size="sm">
+                    추천 다시 보기 <ArrowRight size={15} />
+                  </Button>
+                </div>
+              </Card>
+            ))
+          ) : (
+            <Card className="history-record-card">
               <div className="history-record-top">
                 <div className="record-date-icon">
                   <CalendarDays size={22} />
                 </div>
                 <div>
-                  <span>{item.date}</span>
-                  <h3>{item.title}</h3>
-                </div>
-                <Badge variant="accent">{item.status}</Badge>
-              </div>
-
-              <div className="record-score-layout">
-                <div className="record-score-box">
-                  <span>종합 점수</span>
-                  <strong>{item.score}</strong>
-                  <small>/100</small>
-                </div>
-
-                <div className="record-metric-list">
-                  <div>
-                    <span>색소침착</span>
-                    <strong>{item.pigmentation}</strong>
-                  </div>
-                  <div>
-                    <span>주름</span>
-                    <strong>{item.wrinkle}</strong>
-                  </div>
+                  <span>기록 없음</span>
+                  <h3>아직 분석 이력이 없습니다</h3>
                 </div>
               </div>
 
               <div className="record-recommendation">
                 <Sparkles size={18} />
-                <span>{item.recommendation}</span>
+                <span>첫 피부 분석을 진행하면 이곳에 분석 기록이 표시됩니다.</span>
               </div>
 
               <div className="record-actions">
-                <Button to="/analysis/result" variant="secondary" size="sm">
-                  상세 결과 보기
-                </Button>
-                <Button to="/recommendations" size="sm">
-                  추천 다시 보기 <ArrowRight size={15} />
+                <Button to="/analysis/capture" size="sm">
+                  새 피부 분석 시작하기 <ArrowRight size={15} />
                 </Button>
               </div>
             </Card>
-          ))}
+          )}
         </div>
+
+        {detailError && <p className="form-error-text">{detailError}</p>}
+
+        {selectedDetail && (
+          <Card className="history-record-card">
+            <div className="history-record-top">
+              <div className="record-date-icon">
+                <CalendarDays size={22} />
+              </div>
+              <div>
+                <span>{formatDate(selectedDetail.analyzedAt)}</span>
+                <h3>상세 분석 정보</h3>
+              </div>
+              <Badge variant="accent">{selectedDetail.status || "상태 없음"}</Badge>
+            </div>
+
+            <div className="record-score-layout">
+              <div className="record-score-box">
+                <span>종합 점수</span>
+                <strong>{selectedDetail.totalScore ?? "-"}</strong>
+                <small>/100</small>
+              </div>
+
+              <div className="record-metric-list">
+                <div>
+                  <span>색소침착</span>
+                  <strong>{getMetricScore(selectedDetail.metrics, "색소")}</strong>
+                </div>
+                <div>
+                  <span>주름</span>
+                  <strong>{getMetricScore(selectedDetail.metrics, "주름")}</strong>
+                </div>
+              </div>
+            </div>
+
+            <div className="record-recommendation">
+              <Sparkles size={18} />
+              <span>
+                {selectedDetail.statusDescription ||
+                  selectedDetail.summary ||
+                  "상세 분석 설명이 없습니다."}
+              </span>
+            </div>
+
+            <div className="record-recommendation">
+              <Sparkles size={18} />
+              <span>{getRecommendationText(selectedDetail.recommendations)}</span>
+            </div>
+          </Card>
+        )}
       </section>
 
       <section className="history-bottom-grid">
