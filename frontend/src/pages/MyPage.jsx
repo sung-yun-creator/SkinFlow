@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   ArrowRight,
@@ -23,36 +24,7 @@ import Button from "../components/common/Button";
 import Card from "../components/common/Card";
 import Badge from "../components/common/Badge";
 import SectionTitle from "../components/common/SectionTitle";
-
-const profileStats = [
-  {
-    label: "총 분석 횟수",
-    value: "3회",
-  },
-  {
-    label: "최근 종합 점수",
-    value: "82점",
-  },
-  {
-    label: "관심 지표",
-    value: "색소침착",
-  },
-];
-
-const skinSettings = [
-  {
-    label: "피부 타입",
-    value: "복합성",
-  },
-  {
-    label: "관심 지표",
-    value: "색소침착 · 주름",
-  },
-  {
-    label: "주요 관리 방향",
-    value: "수분 · 자외선 차단 · 성분 추천",
-  },
-];
+import { getMyPage } from "../api/mypageApi";
 
 const analysisSettings = [
   {
@@ -75,25 +47,132 @@ const analysisSettings = [
   },
 ];
 
-const accountMenus = [
-  {
-    icon: Mail,
-    title: "이메일",
-    description: "skinflow@example.com",
-  },
-  {
-    icon: LockKeyhole,
-    title: "비밀번호",
-    description: "보안을 위해 주기적으로 변경하는 것을 권장합니다.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "개인정보 및 이미지 사용 안내",
-    description: "피부 분석과 이력 관리를 위한 정보 사용 기준을 확인합니다.",
-  },
-];
+function formatDate(dateValue) {
+  if (!dateValue) return "기록 없음";
+
+  const date = new Date(dateValue);
+
+  if (Number.isNaN(date.getTime())) {
+    return "기록 없음";
+  }
+
+  return date.toLocaleDateString("ko-KR");
+}
 
 function MyPage() {
+  const [mypage, setMypage] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [mypageError, setMypageError] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadMyPage() {
+      try {
+        setIsLoading(true);
+        setMypageError("");
+
+        const data = await getMyPage();
+
+        if (isMounted) {
+          setMypage(data);
+        }
+      } catch (error) {
+        console.error("마이페이지 API 호출 실패:", error);
+
+        if (isMounted) {
+          setMypageError("마이페이지 정보를 불러오지 못했습니다.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadMyPage();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const profile = mypage?.profile ?? {
+    name: "사용자",
+    email: "skinflow@example.com",
+    skinType: "미설정",
+    createdAt: null,
+  };
+
+  const stats = mypage?.stats ?? {
+    analysisCount: 0,
+    latestTotalScore: null,
+    mainConcern: null,
+    latestAnalyzedAt: null,
+  };
+
+  const recentActivity = mypage?.recentActivity ?? [];
+
+  const profileStats = useMemo(
+    () => [
+      {
+        label: "총 분석 횟수",
+        value: `${stats.analysisCount ?? 0}회`,
+      },
+      {
+        label: "최근 종합 점수",
+        value:
+          stats.latestTotalScore === null || stats.latestTotalScore === undefined
+            ? "기록 없음"
+            : `${stats.latestTotalScore}점`,
+      },
+      {
+        label: "관심 지표",
+        value: stats.mainConcern || "기록 없음",
+      },
+    ],
+    [stats]
+  );
+
+  const skinSettings = useMemo(
+    () => [
+      {
+        label: "피부 타입",
+        value: profile.skinType || "미설정",
+      },
+      {
+        label: "관심 지표",
+        value: stats.mainConcern || "색소침착 · 주름",
+      },
+      {
+        label: "주요 관리 방향",
+        value: "수분 · 자외선 차단 · 성분 추천",
+      },
+    ],
+    [profile.skinType, stats.mainConcern]
+  );
+
+  const accountMenus = useMemo(
+    () => [
+      {
+        icon: Mail,
+        title: "이메일",
+        description: profile.email || "이메일 정보 없음",
+      },
+      {
+        icon: LockKeyhole,
+        title: "비밀번호",
+        description: "보안을 위해 주기적으로 변경하는 것을 권장합니다.",
+      },
+      {
+        icon: ShieldCheck,
+        title: "개인정보 및 이미지 사용 안내",
+        description: "피부 분석과 이력 관리를 위한 정보 사용 기준을 확인합니다.",
+      },
+    ],
+    [profile.email]
+  );
+
   return (
     <PageLayout>
       <section className="mypage-hero">
@@ -129,14 +208,17 @@ function MyPage() {
 
             <div>
               <span className="mypage-card-label">Profile</span>
-              <h2>사용자님</h2>
-              <p>skinflow@example.com</p>
+              <h2>{profile.name}님</h2>
+              <p>{profile.email}</p>
             </div>
 
             <button className="profile-edit-button" type="button">
               <Edit3 size={18} />
             </button>
           </div>
+
+          {isLoading && <p>마이페이지 정보를 불러오는 중입니다.</p>}
+          {mypageError && <p>{mypageError}</p>}
 
           <div className="profile-stat-list">
             {profileStats.map((item) => (
@@ -149,7 +231,11 @@ function MyPage() {
 
           <div className="profile-status-box">
             <Sparkles size={18} />
-            <span>최근 분석 결과를 기준으로 색소침착 관리가 추천되었습니다.</span>
+            <span>
+              {stats.mainConcern
+                ? `최근 분석 결과를 기준으로 ${stats.mainConcern} 관리가 추천되었습니다.`
+                : "아직 분석 이력이 없습니다. 첫 피부 분석을 시작해보세요."}
+            </span>
           </div>
         </Card>
       </section>
@@ -190,19 +276,19 @@ function MyPage() {
           <div className="basic-info-list">
             <div>
               <span>이름</span>
-              <strong>사용자</strong>
+              <strong>{profile.name}</strong>
             </div>
             <div>
               <span>이메일</span>
-              <strong>skinflow@example.com</strong>
+              <strong>{profile.email}</strong>
             </div>
             <div>
               <span>가입일</span>
-              <strong>2026.06.08</strong>
+              <strong>{formatDate(profile.createdAt)}</strong>
             </div>
             <div>
               <span>최근 분석일</span>
-              <strong>2026.06.08</strong>
+              <strong>{formatDate(stats.latestAnalyzedAt)}</strong>
             </div>
           </div>
 
@@ -287,35 +373,31 @@ function MyPage() {
           </div>
 
           <div className="activity-list">
-            <div>
-              <div className="activity-icon">
-                <CalendarDays size={18} />
-              </div>
+            {recentActivity.length > 0 ? (
+              recentActivity.map((activity, index) => (
+                <div key={`${activity.title}-${index}`}>
+                  <div className="activity-icon">
+                    <CalendarDays size={18} />
+                  </div>
+                  <div>
+                    <strong>{activity.title}</strong>
+                    <span>
+                      {activity.description} · {formatDate(activity.occurredAt)}
+                    </span>
+                  </div>
+                </div>
+              ))
+            ) : (
               <div>
-                <strong>최근 피부 분석 완료</strong>
-                <span>2026.06.08 · 종합 점수 82점</span>
+                <div className="activity-icon">
+                  <Clock3 size={18} />
+                </div>
+                <div>
+                  <strong>아직 최근 활동이 없습니다</strong>
+                  <span>피부 분석을 진행하면 이곳에 활동 내역이 표시됩니다.</span>
+                </div>
               </div>
-            </div>
-
-            <div>
-              <div className="activity-icon">
-                <Sparkles size={18} />
-              </div>
-              <div>
-                <strong>맞춤 추천 결과 확인</strong>
-                <span>성분 3개 · 제품 3개 추천</span>
-              </div>
-            </div>
-
-            <div>
-              <div className="activity-icon">
-                <Clock3 size={18} />
-              </div>
-              <div>
-                <strong>식습관 가이드 확인</strong>
-                <span>수분 · 항산화 · 당 조절 가이드</span>
-              </div>
-            </div>
+            )}
           </div>
 
           <Button to="/history" full>
