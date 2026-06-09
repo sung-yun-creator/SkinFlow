@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const authRoutes = require('./routes/authRoutes');
+const historyRoutes = require('./routes/historyRoutes');
 const mypageRoutes = require('./routes/mypageRoutes');
 
 const app = express();
@@ -15,6 +16,7 @@ app.get('/', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api/history', historyRoutes);
 app.use('/api/mypage', mypageRoutes);
 
 app.use((error, req, res, next) => {
