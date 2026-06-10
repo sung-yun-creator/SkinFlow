@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Home, Camera, LineChart, Sparkles, User } from "lucide-react";
+import { Camera, History, Home, Sparkles, User } from "lucide-react";
 
 const navItems = [
   {
@@ -13,14 +13,14 @@ const navItems = [
     icon: Camera,
   },
   {
-    to: "/analysis/result",
-    label: "결과",
-    icon: LineChart,
-  },
-  {
     to: "/recommendations",
     label: "추천",
     icon: Sparkles,
+  },
+  {
+    to: "/history",
+    label: "이력",
+    icon: History,
   },
   {
     to: "/mypage",
@@ -31,7 +31,7 @@ const navItems = [
 
 function BottomNav() {
   return (
-    <nav className="bottom-nav">
+    <nav className="bottom-nav" aria-label="모바일 주요 메뉴">
       {navItems.map((item) => {
         const Icon = item.icon;
 
