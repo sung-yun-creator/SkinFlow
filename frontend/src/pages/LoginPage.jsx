@@ -4,7 +4,7 @@ import { Mail, LockKeyhole, ArrowRight, ShieldCheck } from "lucide-react";
 import PageLayout from "../components/layout/PageLayout";
 import Card from "../components/common/Card";
 import Badge from "../components/common/Badge";
-import { login, saveLoginSession } from "../api/authApi";
+import { getAuthErrorMessage, login, saveLoginSession } from "../api/authApi";
 
 function LoginPage() {
   const navigate = useNavigate();
@@ -47,10 +47,17 @@ function LoginPage() {
     } catch (error) {
       console.error("로그인 API 호출 실패:", error);
       setLoginError(
-        error?.message || "로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요."
+        getAuthErrorMessage(
+          error,
+          "로그인에 실패했습니다. 이메일 또는 비밀번호를 확인해주세요."
+        )
       );
     } finally {
       setIsLoading(false);
+      setForm((prevForm) => ({
+        ...prevForm,
+        password: "",
+      }));
     }
   }
 
@@ -119,6 +126,7 @@ function LoginPage() {
                   placeholder="비밀번호를 입력하세요"
                   value={form.password}
                   onChange={handleChange}
+                  autoComplete="current-password"
                 />
               </div>
             </label>

@@ -15,6 +15,7 @@ import Card from "../components/common/Card";
 import Badge from "../components/common/Badge";
 import {
   checkEmail,
+  getAuthErrorMessage,
   sendEmailCode,
   verifyEmailCode,
   signup,
@@ -77,7 +78,12 @@ function SignupPage() {
       setSignupMessage("사용 가능한 이메일입니다.");
     } catch (error) {
       console.error("이메일 중복 확인 API 호출 실패:", error);
-      setSignupError(error?.message || "이메일 중복 확인에 실패했습니다.");
+      setSignupError(
+        getAuthErrorMessage(
+          error,
+          "이메일 중복 확인에 실패했습니다. 잠시 후 다시 시도해주세요."
+        )
+      );
       setEmailChecked(false);
     } finally {
       setIsLoading(false);
@@ -101,7 +107,12 @@ function SignupPage() {
       setSignupMessage("이메일 인증번호를 발송했습니다.");
     } catch (error) {
       console.error("이메일 인증번호 발송 API 호출 실패:", error);
-      setSignupError(error?.message || "이메일 인증번호 발송에 실패했습니다.");
+      setSignupError(
+        getAuthErrorMessage(
+          error,
+          "인증번호 발송에 실패했습니다. 잠시 후 다시 시도해주세요."
+        )
+      );
       setCodeSent(false);
     } finally {
       setIsLoading(false);
@@ -128,7 +139,12 @@ function SignupPage() {
       setSignupMessage("이메일 인증이 완료되었습니다.");
     } catch (error) {
       console.error("이메일 인증번호 확인 API 호출 실패:", error);
-      setSignupError(error?.message || "이메일 인증번호 확인에 실패했습니다.");
+      setSignupError(
+        getAuthErrorMessage(
+          error,
+          "인증번호 확인에 실패했습니다. 인증번호를 다시 확인해주세요."
+        )
+      );
       setCodeVerified(false);
     } finally {
       setIsLoading(false);
@@ -161,7 +177,7 @@ function SignupPage() {
     }
 
     if (!codeVerified) {
-      setSignupError("이메일 인증을 먼저 완료해주세요.");
+      setSignupError("이메일 인증을 완료한 후 회원가입을 진행해주세요.");
       return;
     }
 
@@ -191,9 +207,18 @@ function SignupPage() {
       }, 700);
     } catch (error) {
       console.error("회원가입 API 호출 실패:", error);
-      setSignupError(error?.message || "회원가입에 실패했습니다.");
+      setSignupError(
+        getAuthErrorMessage(
+          error,
+          "회원가입에 실패했습니다. 입력 정보를 확인한 후 다시 시도해주세요."
+        )
+      );
     } finally {
       setIsLoading(false);
+      setForm((prevForm) => ({
+        ...prevForm,
+        password: "",
+      }));
     }
   }
 
@@ -308,6 +333,7 @@ function SignupPage() {
                   placeholder="비밀번호를 입력하세요"
                   value={form.password}
                   onChange={handleChange}
+                  autoComplete="new-password"
                 />
               </div>
             </label>

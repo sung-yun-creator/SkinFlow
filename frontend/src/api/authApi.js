@@ -53,3 +53,18 @@ export function saveLoginSession(data, email) {
     localStorage.setItem("skinflow_user", JSON.stringify(user));
   }
 }
+
+export function getAuthErrorMessage(error, fallbackMessage) {
+  const serverMessage = String(error?.message || "").toLowerCase();
+
+  if (
+    serverMessage.includes("internal server error") ||
+    serverMessage.includes("networkerror") ||
+    serverMessage.includes("failed to fetch") ||
+    serverMessage.includes("api 요청에 실패했습니다")
+  ) {
+    return fallbackMessage;
+  }
+
+  return fallbackMessage;
+}
