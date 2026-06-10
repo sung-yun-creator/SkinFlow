@@ -47,16 +47,32 @@ const analysisSettings = [
   },
 ];
 
-function formatDate(dateValue) {
-  if (!dateValue) return "기록 없음";
+function formatDate(dateValue, emptyText = "아직 없음") {
+  if (!dateValue) return emptyText;
 
   const date = new Date(dateValue);
 
   if (Number.isNaN(date.getTime())) {
-    return "기록 없음";
+    return emptyText;
   }
 
   return date.toLocaleDateString("ko-KR");
+}
+
+function formatScore(score) {
+  if (score === null || score === undefined) {
+    return "분석 전";
+  }
+
+  return `${score}점`;
+}
+
+function getDisplayValue(value, emptyText = "-") {
+  if (value === null || value === undefined || value === "") {
+    return emptyText;
+  }
+
+  return value;
 }
 
 function MyPage() {
@@ -81,7 +97,9 @@ function MyPage() {
         console.error("마이페이지 API 호출 실패:", error);
 
         if (isMounted) {
-          setMypageError("마이페이지 정보를 불러오지 못했습니다.");
+          setMypageError(
+            "마이페이지 정보를 불러오지 못했습니다. 로그인 상태를 확인한 후 다시 시도해주세요."
+          );
         }
       } finally {
         if (isMounted) {
@@ -121,14 +139,11 @@ function MyPage() {
       },
       {
         label: "최근 종합 점수",
-        value:
-          stats.latestTotalScore === null || stats.latestTotalScore === undefined
-            ? "기록 없음"
-            : `${stats.latestTotalScore}점`,
+        value: formatScore(stats.latestTotalScore),
       },
       {
         label: "관심 지표",
-        value: stats.mainConcern || "기록 없음",
+        value: getDisplayValue(stats.mainConcern),
       },
     ],
     [stats]
@@ -138,18 +153,21 @@ function MyPage() {
     () => [
       {
         label: "피부 타입",
-        value: profile.skinType || "미설정",
+        value: getDisplayValue(profile.skinType, "미설정"),
       },
       {
         label: "관심 지표",
-        value: stats.mainConcern || "색소침착 · 주름",
+        value: getDisplayValue(stats.mainConcern),
       },
       {
         label: "주요 관리 방향",
-        value: "수분 · 자외선 차단 · 성분 추천",
+        value:
+          stats.analysisCount > 0
+            ? "수분 · 자외선 차단 · 성분 추천"
+            : "첫 분석 후 맞춤 관리 방향이 표시됩니다",
       },
     ],
-    [profile.skinType, stats.mainConcern]
+    [profile.skinType, stats.mainConcern, stats.analysisCount]
   );
 
   const accountMenus = useMemo(
@@ -382,7 +400,7 @@ function MyPage() {
                   <div>
                     <strong>{activity.title}</strong>
                     <span>
-                      {activity.description} · {formatDate(activity.occurredAt)}
+                      {activity.description} · {formatDate(activity.occurredAt, "날짜 없음")}
                     </span>
                   </div>
                 </div>
@@ -393,8 +411,8 @@ function MyPage() {
                   <Clock3 size={18} />
                 </div>
                 <div>
-                  <strong>아직 최근 활동이 없습니다</strong>
-                  <span>피부 분석을 진행하면 이곳에 활동 내역이 표시됩니다.</span>
+                  <strong>아직 활동 내역이 없습니다</strong>
+                  <span>피부 분석을 시작하면 분석 결과와 추천 내용을 이곳에서 확인할 수 있어요.</span>
                 </div>
               </div>
             )}

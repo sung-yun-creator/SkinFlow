@@ -29,20 +29,48 @@ const defaultHistoryData = {
   records: [],
 };
 
-function formatDate(dateValue) {
-  if (!dateValue) return "기록 없음";
+function normalizeHistoryData(data) {
+  return {
+    summary: {
+      ...defaultHistoryData.summary,
+      ...(data?.summary || {}),
+    },
+    records: Array.isArray(data?.records) ? data.records : [],
+  };
+}
+
+function formatDate(dateValue, emptyText = "아직 없음") {
+  if (!dateValue) return emptyText;
 
   const date = new Date(dateValue);
 
   if (Number.isNaN(date.getTime())) {
-    return "기록 없음";
+    return emptyText;
   }
 
   return date.toLocaleDateString("ko-KR");
 }
 
+function formatScore(score) {
+  if (score === null || score === undefined) return "분석 전";
+
+  return `${score}점`;
+}
+
+function formatDiff(scoreDiff) {
+  if (scoreDiff === null || scoreDiff === undefined) return "비교 전";
+
+  const numericDiff = Number(scoreDiff);
+
+  if (Number.isNaN(numericDiff)) return "비교 전";
+  if (numericDiff > 0) return `+${numericDiff}점`;
+  if (numericDiff < 0) return `${numericDiff}점`;
+
+  return "변화 없음";
+}
+
 function getMetricScore(metrics, keyword) {
-  if (!Array.isArray(metrics)) return "기록 없음";
+  if (!Array.isArray(metrics) || metrics.length === 0) return "-";
 
   const matchedMetric = metrics.find((metric) => {
     const name =
@@ -55,13 +83,15 @@ function getMetricScore(metrics, keyword) {
     return String(name).includes(keyword);
   });
 
-  return (
-    matchedMetric?.score ??
+  const score =
     matchedMetric?.metricScore ??
+    matchedMetric?.score ??
     matchedMetric?.value ??
-    matchedMetric?.metricValue ??
-    "기록 없음"
-  );
+    matchedMetric?.metricValue;
+
+  if (score === null || score === undefined) return "-";
+
+  return `${score}점`;
 }
 
 function getRecommendationText(recommendations) {
@@ -103,13 +133,15 @@ function HistoryPage() {
         const data = await getHistory();
 
         if (isMounted) {
-          setHistoryData(data);
+          setHistoryData(normalizeHistoryData(data));
         }
       } catch (error) {
         console.error("분석 이력 API 호출 실패:", error);
 
         if (isMounted) {
-          setHistoryError("분석 이력을 불러오지 못했습니다.");
+          setHistoryError(
+            "분석 이력을 불러오지 못했습니다. 로그인 상태를 확인한 후 다시 시도해주세요."
+          );
           setHistoryData(defaultHistoryData);
         }
       } finally {
@@ -126,36 +158,30 @@ function HistoryPage() {
     };
   }, []);
 
-  const summary = historyData.summary;
-  const records = historyData.records;
+  const summary = historyData.summary || defaultHistoryData.summary;
+  const records = Array.isArray(historyData.records) ? historyData.records : [];
 
   const summaryItems = useMemo(
     () => [
       {
         label: "총 분석 횟수",
-        value: `${summary.analysisCount ?? 0}회`,
+        value: `${summary?.analysisCount ?? 0}회`,
       },
       {
         label: "최근 종합 점수",
-        value:
-          summary.latestTotalScore === null || summary.latestTotalScore === undefined
-            ? "기록 없음"
-            : `${summary.latestTotalScore}점`,
+        value: formatScore(summary?.latestTotalScore),
       },
       {
         label: "최근 분석일",
-        value: formatDate(summary.latestAnalyzedAt),
+        value: formatDate(summary?.latestAnalyzedAt, "아직 없음"),
       },
       {
         label: "최근 상태",
-        value: summary.latestStatus || "기록 없음",
+        value: summary?.latestStatus || "분석 전",
       },
       {
         label: "점수 변화",
-        value:
-          summary.scoreDiff === null || summary.scoreDiff === undefined
-            ? "기록 없음"
-            : `${summary.scoreDiff > 0 ? "+" : ""}${summary.scoreDiff}점`,
+        value: formatDiff(summary?.scoreDiff),
       },
     ],
     [summary]
@@ -163,12 +189,10 @@ function HistoryPage() {
 
   const trendItems = useMemo(
     () =>
-      records
-        .slice(-3)
-        .map((record) => ({
-          label: formatDate(record.analyzedAt),
-          score: record.totalScore ?? 0,
-        })),
+      records.slice(-3).map((record) => ({
+        label: formatDate(record.analyzedAt, "아직 없음"),
+        score: record.totalScore ?? 0,
+      })),
     [records]
   );
 
@@ -184,7 +208,9 @@ function HistoryPage() {
       setSelectedDetail(detail);
     } catch (error) {
       console.error("분석 이력 상세 API 호출 실패:", error);
-      setDetailError("상세 분석 정보를 불러오지 못했습니다.");
+      setDetailError(
+        "상세 분석 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
+      );
     }
   }
 
@@ -226,7 +252,9 @@ function HistoryPage() {
             </div>
           </div>
 
-          {isLoading && <p className="form-success-text">분석 이력을 불러오는 중입니다.</p>}
+          {isLoading && (
+            <p className="form-success-text">분석 이력을 불러오는 중입니다.</p>
+          )}
           {historyError && <p className="form-error-text">{historyError}</p>}
 
           <div className="history-summary-list">
@@ -241,11 +269,11 @@ function HistoryPage() {
           <div className="history-summary-notice">
             <TrendingUp size={18} />
             <span>
-              {summary.scoreDiff === null || summary.scoreDiff === undefined
+              {summary?.scoreDiff === null || summary?.scoreDiff === undefined
                 ? "아직 비교할 분석 이력이 없습니다."
-                : `최근 분석 기준 점수 변화는 ${summary.scoreDiff > 0 ? "+" : ""}${
+                : `최근 분석 기준 점수 변화는 ${formatDiff(
                     summary.scoreDiff
-                  }점입니다.`}
+                  )}입니다.`}
             </span>
           </div>
         </Card>
@@ -280,7 +308,8 @@ function HistoryPage() {
               <div>
                 <strong>아직 분석 이력이 없습니다</strong>
                 <span>
-                  첫 피부 분석을 진행하면 종합 점수 변화 흐름을 확인할 수 있습니다.
+                  첫 피부 분석을 진행하면 종합 점수 변화 흐름을 확인할 수
+                  있습니다.
                 </span>
               </div>
             </div>
@@ -294,8 +323,8 @@ function HistoryPage() {
               <div>
                 <strong>분석 이력을 기준으로 변화 흐름을 확인할 수 있습니다</strong>
                 <span>
-                  동일한 조건에서 주기적으로 분석하면 피부 변화 흐름을 더 안정적으로
-                  비교할 수 있습니다.
+                  동일한 조건에서 주기적으로 분석하면 피부 변화 흐름을 더
+                  안정적으로 비교할 수 있습니다.
                 </span>
               </div>
             </div>
@@ -326,17 +355,19 @@ function HistoryPage() {
                     <CalendarDays size={22} />
                   </div>
                   <div>
-                    <span>{formatDate(item.analyzedAt)}</span>
+                    <span>{formatDate(item.analyzedAt, "아직 없음")}</span>
                     <h3>{item.summary || "피부 분석 기록"}</h3>
                   </div>
-                  <Badge variant="accent">{item.status || "상태 없음"}</Badge>
+                  <Badge variant="accent">{item.status || "분석 전"}</Badge>
                 </div>
 
                 <div className="record-score-layout">
                   <div className="record-score-box">
                     <span>종합 점수</span>
-                    <strong>{item.totalScore ?? "-"}</strong>
-                    <small>/100</small>
+                    <strong>{item.totalScore ?? "분석 전"}</strong>
+                    {item.totalScore !== null && item.totalScore !== undefined && (
+                      <small>/100</small>
+                    )}
                   </div>
 
                   <div className="record-metric-list">
@@ -377,14 +408,17 @@ function HistoryPage() {
                   <CalendarDays size={22} />
                 </div>
                 <div>
-                  <span>기록 없음</span>
-                  <h3>아직 분석 이력이 없습니다</h3>
+                  <span>아직 없음</span>
+                  <h3>아직 분석 이력이 없습니다.</h3>
                 </div>
               </div>
 
               <div className="record-recommendation">
                 <Sparkles size={18} />
-                <span>첫 피부 분석을 진행하면 이곳에 분석 기록이 표시됩니다.</span>
+                <span>
+                  피부 분석을 시작하면 결과와 추천 내용을 이곳에서 확인할 수
+                  있어요.
+                </span>
               </div>
 
               <div className="record-actions">
@@ -405,17 +439,18 @@ function HistoryPage() {
                 <CalendarDays size={22} />
               </div>
               <div>
-                <span>{formatDate(selectedDetail.analyzedAt)}</span>
+                <span>{formatDate(selectedDetail.analyzedAt, "아직 없음")}</span>
                 <h3>상세 분석 정보</h3>
               </div>
-              <Badge variant="accent">{selectedDetail.status || "상태 없음"}</Badge>
+              <Badge variant="accent">{selectedDetail.status || "분석 전"}</Badge>
             </div>
 
             <div className="record-score-layout">
               <div className="record-score-box">
                 <span>종합 점수</span>
-                <strong>{selectedDetail.totalScore ?? "-"}</strong>
-                <small>/100</small>
+                <strong>{selectedDetail.totalScore ?? "분석 전"}</strong>
+                {selectedDetail.totalScore !== null &&
+                  selectedDetail.totalScore !== undefined && <small>/100</small>}
               </div>
 
               <div className="record-metric-list">
@@ -464,11 +499,16 @@ function HistoryPage() {
             </div>
             <div>
               <LineChart size={20} />
-              <span>점수 하나보다 장기적인 변화 흐름을 함께 확인하는 것이 좋습니다.</span>
+              <span>
+                점수 하나보다 장기적인 변화 흐름을 함께 확인하는 것이 좋습니다.
+              </span>
             </div>
             <div>
               <Sparkles size={20} />
-              <span>분석 이력은 추천 성분과 식습관 가이드를 다시 확인하는 기준이 됩니다.</span>
+              <span>
+                분석 이력은 추천 성분과 식습관 가이드를 다시 확인하는 기준이
+                됩니다.
+              </span>
             </div>
           </div>
         </Card>
