@@ -215,6 +215,10 @@ function SignupPage() {
       );
     } finally {
       setIsLoading(false);
+      setForm((prevForm) => ({
+        ...prevForm,
+        password: "",
+      }));
     }
   }
 

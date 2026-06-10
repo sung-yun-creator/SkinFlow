@@ -54,6 +54,10 @@ function LoginPage() {
       );
     } finally {
       setIsLoading(false);
+      setForm((prevForm) => ({
+        ...prevForm,
+        password: "",
+      }));
     }
   }
 
