@@ -18,8 +18,9 @@ async function request(path, options = {}) {
   });
 
   const contentType = response.headers.get("content-type");
-  const isJson = contentType?.includes("application/json");
-  const data = isJson ? await response.json() : null;
+  const data = contentType?.includes("application/json")
+    ? await response.json()
+    : null;
 
   if (!response.ok) {
     const message =
@@ -28,10 +29,7 @@ async function request(path, options = {}) {
       data?.detail ||
       `API 요청에 실패했습니다. 상태 코드: ${response.status}`;
 
-    const error = new Error(message);
-    error.status = response.status;
-    error.data = data;
-    throw error;
+    throw new Error(message);
   }
 
   return data;
