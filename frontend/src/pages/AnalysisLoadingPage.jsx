@@ -174,7 +174,18 @@ function AnalysisLoadingPage() {
 
           <Card className="loading-progress-card">
             <div className="loading-orbit">
-              <div className="loading-orbit-ring" />
+              <div
+                className="loading-orbit-ring"
+                style={{
+                  background: `
+                    radial-gradient(circle, #ffffff 56%, transparent 57%),
+                    conic-gradient(
+                      var(--color-primary) 0 ${progressValue}%,
+                    #e2e8f0 ${progressValue}% 100%
+                    )
+                  `,
+                }}
+              />
               <div className="loading-center">
                 {roiStatus.isReady ? (
                   <CheckCircle2 size={46} />
