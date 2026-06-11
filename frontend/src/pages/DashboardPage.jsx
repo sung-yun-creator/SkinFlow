@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   CalendarDays,
@@ -17,6 +18,7 @@ import Button from "../components/common/Button";
 import Card from "../components/common/Card";
 import Badge from "../components/common/Badge";
 import SectionTitle from "../components/common/SectionTitle";
+import { getDashboard } from "../api/dashboardApi";
 
 const flowSteps = [
   {
@@ -84,31 +86,248 @@ const quickActionCards = [
   },
 ];
 
-const recentMetrics = [
-  {
-    label: "색소침착",
-    value: "첫 분석 후 표시",
-    score: 0,
-  },
-  {
-    label: "주름",
-    value: "첫 분석 후 표시",
-    score: 0,
-  },
-  {
-    label: "종합 점수",
-    value: "분석 전",
-    score: 0,
-  },
-];
-
 const guideItems = [
   "분석 결과는 의료적 판단이 아닌 피부 관리 참고 정보로 제공됩니다.",
   "색소침착과 주름 지표를 중심으로 현재 피부 상태를 이해할 수 있게 돕습니다.",
   "추천 성분과 제품은 피부 관리 방향을 정리하기 위한 참고 정보입니다.",
 ];
 
+function formatDate(dateValue) {
+  if (!dateValue) return "첫 분석 후 표시";
+
+  const date = new Date(dateValue);
+
+  if (Number.isNaN(date.getTime())) {
+    return "첫 분석 후 표시";
+  }
+
+  return date.toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function formatScore(score) {
+  if (score === null || score === undefined || score === "") {
+    return null;
+  }
+
+  const numberScore = Number(score);
+
+  if (Number.isNaN(numberScore)) {
+    return null;
+  }
+
+  return Math.round(numberScore);
+}
+
+function getStatusLabel(status) {
+  if (!status) return "분석 전";
+
+  const statusMap = {
+    good: "양호",
+    normal: "보통",
+    caution: "주의",
+    severe: "집중 관리",
+    pending: "분석 대기",
+    completed: "분석 완료",
+    failed: "분석 실패",
+  };
+
+  return statusMap[status] || status;
+}
+
+function getMetricName(metric) {
+  return (
+    metric?.metricName ||
+    metric?.metric_name ||
+    metric?.name ||
+    metric?.label ||
+    metric?.type ||
+    "피부 지표"
+  );
+}
+
+function getMetricScore(metric) {
+  const rawScore =
+    metric?.score ??
+    metric?.metricScore ??
+    metric?.metric_score ??
+    metric?.value ??
+    metric?.metricValue ??
+    metric?.metric_value;
+
+  const score = Number(rawScore);
+
+  if (Number.isNaN(score)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+function getMetricValue(metric) {
+  const score = getMetricScore(metric);
+  const grade = metric?.gradeName || metric?.grade_name || metric?.status || metric?.level;
+
+  if (score > 0 && grade) {
+    return `${score}점 · ${getStatusLabel(grade)}`;
+  }
+
+  if (score > 0) {
+    return `${score}점`;
+  }
+
+  if (grade) {
+    return getStatusLabel(grade);
+  }
+
+  return "첫 분석 후 표시";
+}
+
+function normalizeMetricList(latestAnalysis) {
+  const metrics = Array.isArray(latestAnalysis?.metrics)
+    ? latestAnalysis.metrics
+    : [];
+
+  const mvpMetrics = metrics.filter((metric) => {
+    const name = getMetricName(metric);
+    return name.includes("색소") || name.includes("주름");
+  });
+
+  const visibleMetrics = mvpMetrics.length > 0 ? mvpMetrics : metrics;
+
+  if (visibleMetrics.length === 0) {
+    return [
+      {
+        label: "색소침착",
+        value: "첫 분석 후 표시",
+        score: 0,
+      },
+      {
+        label: "주름",
+        value: "첫 분석 후 표시",
+        score: 0,
+      },
+    ];
+  }
+
+  return visibleMetrics.slice(0, 2).map((metric) => ({
+    label: getMetricName(metric),
+    value: getMetricValue(metric),
+    score: getMetricScore(metric),
+  }));
+}
+
+function getItemTitle(item, fallback) {
+  return (
+    item?.title ||
+    item?.name ||
+    item?.recommendationName ||
+    item?.recommendation_name ||
+    item?.guideTitle ||
+    item?.guide_title ||
+    fallback
+  );
+}
+
+function getItemDescription(item, fallback) {
+  return (
+    item?.description ||
+    item?.summary ||
+    item?.reason ||
+    item?.recommendationReason ||
+    item?.recommendation_reason ||
+    item?.content ||
+    item?.guideContent ||
+    item?.guide_content ||
+    fallback
+  );
+}
+
 function DashboardPage() {
+  const [dashboard, setDashboard] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [dashboardError, setDashboardError] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadDashboard() {
+      try {
+        setIsLoading(true);
+        setDashboardError("");
+
+        const data = await getDashboard();
+
+        if (isMounted) {
+          setDashboard(data);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setDashboardError(
+            error?.message ||
+            "대시보드 정보를 불러오지 못했습니다. 로그인 상태를 확인한 뒤 다시 시도해주세요."
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadDashboard();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const summary = dashboard?.summary || {};
+  const latestAnalysis = dashboard?.latestAnalysis || null;
+  const mainConcern = dashboard?.mainConcern || null;
+  const nextAction = dashboard?.nextAction || {
+    label: "피부 분석 시작하기",
+    path: "/analysis/capture",
+    description: "첫 분석을 진행하고 맞춤 관리 흐름을 확인해보세요.",
+  };
+
+  const latestScore = formatScore(
+    latestAnalysis?.totalScore ||
+    latestAnalysis?.total_score ||
+    summary.latestTotalScore ||
+    summary.latest_total_score
+  );
+
+  const hasLatestAnalysis = Boolean(latestAnalysis);
+
+  const recentMetrics = useMemo(() => {
+    const metrics = normalizeMetricList(latestAnalysis);
+
+    return [
+      ...metrics,
+      {
+        label: "종합 점수",
+        value: latestScore === null ? "분석 전" : `${latestScore}점`,
+        score: latestScore || 0,
+      },
+    ];
+  }, [latestAnalysis, latestScore]);
+
+  const recentAnalyses = Array.isArray(dashboard?.recentAnalyses)
+    ? dashboard.recentAnalyses.slice(0, 3)
+    : [];
+
+  const recommendations = Array.isArray(dashboard?.recommendations)
+    ? dashboard.recommendations.slice(0, 2)
+    : [];
+
+  const dietGuides = Array.isArray(dashboard?.dietGuides)
+    ? dashboard.dietGuides.slice(0, 2)
+    : [];
+
   return (
     <PageLayout>
       <section className="dashboard-hero">
@@ -128,33 +347,82 @@ function DashboardPage() {
           </p>
 
           <div className="dashboard-actions">
-            <Button to="/analysis/capture" size="lg">
-              피부 분석 시작하기 <Camera size={18} />
+            <Button to={nextAction.path || "/analysis/capture"} size="lg">
+              {nextAction.label || "피부 분석 시작하기"} <Camera size={18} />
             </Button>
             <Button to="/recommendations" variant="secondary" size="lg">
               맞춤 추천 보기
             </Button>
           </div>
+
+          {dashboardError && (
+            <p className="form-message error">{dashboardError}</p>
+          )}
         </div>
 
         <Card className="dashboard-summary-card">
           <div className="dashboard-summary-top">
             <div>
-              <span className="dashboard-card-label">처음 시작하기</span>
-              <h2>첫 분석을 진행해보세요</h2>
-              <p>분석 완료 후 종합 점수와 추천 정보가 이곳에 표시됩니다.</p>
+              <span className="dashboard-card-label">
+                {hasLatestAnalysis ? "최근 분석 요약" : "처음 시작하기"}
+              </span>
+              <h2>
+                {hasLatestAnalysis
+                  ? "최근 분석 결과를 확인하세요"
+                  : "첫 분석을 진행해보세요"}
+              </h2>
+              <p>
+                {isLoading
+                  ? "대시보드 정보를 불러오는 중입니다."
+                  : hasLatestAnalysis
+                    ? latestAnalysis.summary ||
+                    latestAnalysis.description ||
+                    summary.latestSummary ||
+                    "최근 분석 결과와 추천 정보가 준비되었습니다."
+                    : nextAction.description ||
+                    "분석 완료 후 종합 점수와 추천 정보가 이곳에 표시됩니다."}
+              </p>
             </div>
-            <Badge variant="primary">분석 전</Badge>
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                minWidth: "72px",
+                padding: "0.5rem 0.85rem",
+                borderRadius: "999px",
+                background: "#E0F2F1",
+                color: "#167D7F",
+                fontSize: "0.8rem",
+                fontWeight: 800,
+                lineHeight: 1,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {getStatusLabel(
+                latestAnalysis?.status ||
+                latestAnalysis?.analysisStatus ||
+                summary.latestStatus
+              )}
+            </span>
           </div>
 
           <div className="dashboard-score-visual">
             <div className="dashboard-score-ring">
-              <span>0</span>
+              <span>{latestScore === null ? 0 : latestScore}</span>
               <small>/100</small>
             </div>
             <div className="dashboard-score-note">
               <ShieldCheck size={18} />
-              <span>사진 분석 후 결과와 추천이 연결됩니다</span>
+              <span>
+                {hasLatestAnalysis
+                  ? `최근 분석일: ${formatDate(
+                    latestAnalysis.analyzedAt ||
+                    latestAnalysis.analyzed_at ||
+                    summary.latestAnalyzedAt
+                  )}`
+                  : "사진 분석 후 결과와 추천이 연결됩니다"}
+              </span>
             </div>
           </div>
 
@@ -237,56 +505,99 @@ function DashboardPage() {
         <Card className="dashboard-history-card">
           <div className="card-title-row">
             <div>
-              <span className="dashboard-card-label">다음 단계</span>
-              <h2>추천 확인 전, 분석이 먼저 필요해요</h2>
+              <span className="dashboard-card-label">
+                {hasLatestAnalysis ? "최근 분석 이력" : "다음 단계"}
+              </span>
+              <h2>
+                {hasLatestAnalysis
+                  ? "최근 분석 흐름을 확인하세요"
+                  : "추천 확인 전, 분석이 먼저 필요해요"}
+              </h2>
             </div>
-            <Button to="/analysis/capture" variant="ghost" size="sm">
-              분석 시작 <ArrowRight size={16} />
+            <Button
+              to={hasLatestAnalysis ? "/history" : "/analysis/capture"}
+              variant="ghost"
+              size="sm"
+            >
+              {hasLatestAnalysis ? "이력 보기" : "분석 시작"}{" "}
+              <ArrowRight size={16} />
             </Button>
           </div>
 
           <div className="history-list">
-            <div className="history-item">
-              <div className="history-date-icon">
-                <CalendarDays size={18} />
-              </div>
-              <div className="history-content">
-                <strong>1단계. 피부 분석</strong>
-                <span>색소침착과 주름 중심으로 피부 상태를 분석합니다.</span>
-              </div>
-              <div className="history-score">
-                <strong>01</strong>
-                <span>시작</span>
-              </div>
-            </div>
+            {recentAnalyses.length > 0 ? (
+              recentAnalyses.map((analysis, index) => (
+                <div
+                  className="history-item"
+                  key={analysis.analysisId || analysis.id || index}
+                >
+                  <div className="history-date-icon">
+                    <CalendarDays size={18} />
+                  </div>
+                  <div className="history-content">
+                    <strong>
+                      {formatDate(analysis.analyzedAt || analysis.analyzed_at)}
+                    </strong>
+                    <span>
+                      {analysis.summary ||
+                        `${getStatusLabel(analysis.status)} 상태로 기록되었습니다.`}
+                    </span>
+                  </div>
+                  <div className="history-score">
+                    <strong>
+                      {formatScore(
+                        analysis.totalScore || analysis.total_score
+                      ) ?? "-"}
+                    </strong>
+                    <span>점수</span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <>
+                <div className="history-item">
+                  <div className="history-date-icon">
+                    <CalendarDays size={18} />
+                  </div>
+                  <div className="history-content">
+                    <strong>1단계. 피부 분석</strong>
+                    <span>색소침착과 주름 중심으로 피부 상태를 분석합니다.</span>
+                  </div>
+                  <div className="history-score">
+                    <strong>01</strong>
+                    <span>시작</span>
+                  </div>
+                </div>
 
-            <div className="history-item">
-              <div className="history-date-icon">
-                <Sparkles size={18} />
-              </div>
-              <div className="history-content">
-                <strong>2단계. 맞춤 추천</strong>
-                <span>분석 결과에 맞는 성분, 제품, 식습관 가이드를 확인합니다.</span>
-              </div>
-              <div className="history-score">
-                <strong>02</strong>
-                <span>추천</span>
-              </div>
-            </div>
+                <div className="history-item">
+                  <div className="history-date-icon">
+                    <Sparkles size={18} />
+                  </div>
+                  <div className="history-content">
+                    <strong>2단계. 맞춤 추천</strong>
+                    <span>분석 결과에 맞는 성분, 제품, 식습관 가이드를 확인합니다.</span>
+                  </div>
+                  <div className="history-score">
+                    <strong>02</strong>
+                    <span>추천</span>
+                  </div>
+                </div>
 
-            <div className="history-item">
-              <div className="history-date-icon">
-                <History size={18} />
-              </div>
-              <div className="history-content">
-                <strong>3단계. 이력 관리</strong>
-                <span>분석 이력에서 이전 결과와 추천 내용을 다시 확인합니다.</span>
-              </div>
-              <div className="history-score">
-                <strong>03</strong>
-                <span>관리</span>
-              </div>
-            </div>
+                <div className="history-item">
+                  <div className="history-date-icon">
+                    <History size={18} />
+                  </div>
+                  <div className="history-content">
+                    <strong>3단계. 이력 관리</strong>
+                    <span>분석 이력에서 이전 결과와 추천 내용을 다시 확인합니다.</span>
+                  </div>
+                  <div className="history-score">
+                    <strong>03</strong>
+                    <span>관리</span>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </Card>
 
@@ -295,19 +606,53 @@ function DashboardPage() {
             <ClipboardList size={28} />
           </div>
 
-          <h2>오늘의 관리 가이드</h2>
+          <h2>
+            {mainConcern
+              ? `${getMetricName(mainConcern)} 관리 가이드`
+              : "오늘의 관리 가이드"}
+          </h2>
           <p>
-            피부 관리는 한 번의 결과보다 꾸준한 기록과 생활 습관 관리가
-            중요합니다. 아래 내용은 피부 관리에 참고할 수 있는 일반 가이드입니다.
+            {mainConcern
+              ? getItemDescription(
+                mainConcern,
+                "최근 분석 결과에서 우선 관리가 필요한 항목입니다. 아래 추천과 식습관 가이드를 함께 확인해보세요."
+              )
+              : "피부 관리는 한 번의 결과보다 꾸준한 기록과 생활 습관 관리가 중요합니다. 아래 내용은 피부 관리에 참고할 수 있는 일반 가이드입니다."}
           </p>
 
           <div className="guide-check-list">
-            {guideItems.map((item) => (
-              <label key={item}>
-                <CheckCircle2 size={18} />
-                <span>{item}</span>
-              </label>
-            ))}
+            {recommendations.length > 0 || dietGuides.length > 0 ? (
+              <>
+                {recommendations.map((item, index) => (
+                  <label key={`recommendation-${index}`}>
+                    <CheckCircle2 size={18} />
+                    <span>
+                      {getItemTitle(item, "추천 정보")} -{" "}
+                      {getItemDescription(item, "분석 결과 기반 추천입니다.")}
+                    </span>
+                  </label>
+                ))}
+                {dietGuides.map((item, index) => (
+                  <label key={`diet-${index}`}>
+                    <CheckCircle2 size={18} />
+                    <span>
+                      {getItemTitle(item, "식습관 가이드")} -{" "}
+                      {getItemDescription(
+                        item,
+                        "피부 관리에 참고할 수 있는 식습관 가이드입니다."
+                      )}
+                    </span>
+                  </label>
+                ))}
+              </>
+            ) : (
+              guideItems.map((item) => (
+                <label key={item}>
+                  <CheckCircle2 size={18} />
+                  <span>{item}</span>
+                </label>
+              ))
+            )}
           </div>
 
           <Button to="/diet-guide" full>
