@@ -1,10 +1,16 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
+function isFormData(body) {
+  return typeof FormData !== "undefined" && body instanceof FormData;
+}
+
 async function request(path, options = {}) {
   const token = localStorage.getItem("skinflow_token");
+  const body = options.body;
+  const shouldSendFormData = isFormData(body);
 
   const headers = {
-    "Content-Type": "application/json",
+    ...(shouldSendFormData ? {} : { "Content-Type": "application/json" }),
     ...(options.headers || {}),
   };
 
@@ -48,6 +54,14 @@ const http = {
       ...options,
       method: "POST",
       body: JSON.stringify(body),
+    });
+  },
+
+  postForm(path, formData, options = {}) {
+    return request(path, {
+      ...options,
+      method: "POST",
+      body: formData,
     });
   },
 };
