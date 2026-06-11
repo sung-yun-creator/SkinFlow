@@ -1,5 +1,6 @@
 const pool = require('../config/db');
 
+// 로그인한 사용자가 가진 분석 이력인지 확인할 때 사용합니다.
 async function findAnalysisByIdAndUserId(userId, analysisId) {
     const [rows] = await pool.query(
         `
@@ -19,6 +20,7 @@ async function replaceAnalysisRois(analysisId, rois) {
     const connection = await pool.getConnection();
 
     try {
+        // 기존 ROI를 지우고 새 ROI를 넣는 작업은 하나의 트랜잭션으로 묶습니다.
         await connection.beginTransaction();
         await connection.query(
             `

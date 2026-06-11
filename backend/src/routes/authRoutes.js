@@ -6,18 +6,9 @@ const {
     signup,
     verifyEmail,
 } = require('../controllers/authController');
+const asyncHandler = require('../middlewares/asyncHandler');
 
 const router = express.Router();
-
-function asyncHandler(handler) {
-    return async (req, res, next) => {
-        try {
-            await handler(req, res, next);
-        } catch (error) {
-            next(error);
-        }
-    };
-}
 
 router.post('/check-email', asyncHandler(checkEmail));
 router.post('/send-email-code', asyncHandler(sendEmailCode));

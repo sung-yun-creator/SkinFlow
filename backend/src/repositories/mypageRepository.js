@@ -66,29 +66,6 @@ async function findMainConcernByAnalysisId(analysisId) {
     return rows[0] || null;
 }
 
-async function findRecentAnalysesByUserId(userId, limit = 3) {
-    const [rows] = await pool.query(
-        `
-            SELECT
-                sa.skin_analysis_id,
-                sa.total_skin_score,
-                sa.analysis_status,
-                sa.analyzed_at,
-                sa.created_at,
-                sg.grade_name
-            FROM t_skin_analysis sa
-            LEFT JOIN t_skin_grade sg
-                ON sg.skin_grade_id = sa.skin_grade_id
-            WHERE sa.user_id = ?
-            ORDER BY COALESCE(sa.analyzed_at, sa.created_at) DESC, sa.skin_analysis_id DESC
-            LIMIT ?
-        `,
-        [userId, limit],
-    );
-
-    return rows;
-}
-
 async function findRecentActivityByUserId(userId, limit = 5) {
     const [rows] = await pool.query(
         `
@@ -149,5 +126,4 @@ module.exports = {
     findMainConcernByAnalysisId,
     findProfileByUserId,
     findRecentActivityByUserId,
-    findRecentAnalysesByUserId,
 };
