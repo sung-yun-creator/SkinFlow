@@ -1,168 +1,818 @@
 import {
   ArrowRight,
-  Camera,
+  CheckCircle2,
+  ClipboardList,
+  FlaskConical,
   History,
-  ShieldCheck,
+  LineChart,
+  ScanFace,
   Sparkles,
-  Utensils,
+  Upload,
 } from "lucide-react";
-import PageLayout from "../components/layout/PageLayout";
+import { Link } from "react-router-dom";
 import Button from "../components/common/Button";
-import Card from "../components/common/Card";
-import Badge from "../components/common/Badge";
-import SectionTitle from "../components/common/SectionTitle";
+
+const valueCards = [
+  {
+    icon: ScanFace,
+    title: "AI 피부 분석",
+    description: "얼굴 이미지에서 색소침착과 주름 중심의 피부 상태를 분석합니다.",
+  },
+  {
+    icon: FlaskConical,
+    title: "맞춤 추천 연결",
+    description: "분석 결과를 기능성 성분, 화장품 제품, 식습관 가이드와 연결합니다.",
+  },
+  {
+    icon: History,
+    title: "분석 이력 관리",
+    description: "이전 분석 결과를 다시 확인하고 피부 변화 흐름을 기록합니다.",
+  },
+];
+
+const processSteps = [
+  { icon: Upload, title: "사진 업로드" },
+  { icon: ScanFace, title: "ROI 확인" },
+  { icon: Sparkles, title: "AI 분석" },
+  { icon: ClipboardList, title: "리포트" },
+  { icon: LineChart, title: "추천·이력" },
+];
 
 function LandingPage() {
   const isLoggedIn = Boolean(localStorage.getItem("skinflow_token"));
+  const primaryCtaTo = isLoggedIn ? "/analysis/capture" : "/signup";
+  const secondaryCtaTo = isLoggedIn ? "/dashboard" : "/login";
+  const primaryCtaText = isLoggedIn ? "피부 분석 시작하기" : "무료 피부 분석 시작";
+  const secondaryCtaText = isLoggedIn ? "내 대시보드 보기" : "로그인하기";
 
   return (
-    <PageLayout showBottomNav={false}>
-      <section className="landing-hero">
-        <div className="landing-hero-content">
-          <Badge>AI Beauty-Tech</Badge>
+    <div className="sf-landing-compact">
+      <style>
+        {`
+          .sf-landing-compact {
+            min-height: 100vh;
+            color: #0f172a;
+            background:
+              radial-gradient(circle at 5% 18%, rgba(22, 125, 127, 0.11), transparent 28%),
+              radial-gradient(circle at 94% 86%, rgba(244, 63, 94, 0.10), transparent 25%),
+              linear-gradient(180deg, #f8fafc 0%, #ffffff 48%, #f8fafc 100%);
+          }
 
-          <h1>
-            내 피부 흐름을 이해하고,
-            <br />
-            맞춤 관리로 이어가세요
-          </h1>
+          .sf-landing-nav {
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            border-bottom: 1px solid rgba(226, 232, 240, 0.85);
+            background: rgba(248, 250, 252, 0.88);
+            backdrop-filter: blur(18px);
+          }
 
-          <p>
-            SkinFlow는 얼굴 이미지를 기반으로 색소침착과 주름 상태를 분석하고,
-            분석 결과를 피부 관리 참고 정보, 기능성 성분 추천, 화장품 제품 추천,
-            식습관 가이드와 연결하는 통합 라이프케어 솔루션입니다.
-          </p>
+          .sf-landing-nav-inner {
+            max-width: 1120px;
+            height: 68px;
+            margin: 0 auto;
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+          }
 
-          <div className="landing-actions">
-            {isLoggedIn ? (
-              <>
-                <Button to="/analysis/capture" size="lg">
-                  피부 분석 시작하기 <ArrowRight size={18} />
-                </Button>
-                <Button to="/dashboard" variant="secondary" size="lg">
-                  내 대시보드 보기
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button to="/signup" size="lg">
-                  회원가입하고 시작하기 <ArrowRight size={18} />
-                </Button>
-                <Button to="/login" variant="secondary" size="lg">
-                  로그인하기
-                </Button>
-              </>
-            )}
-          </div>
+          .sf-landing-brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            color: #0f172a;
+            font-weight: 950;
+            letter-spacing: -0.045em;
+          }
+
+          .sf-landing-logo {
+            width: 34px;
+            height: 34px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            background: linear-gradient(135deg, #167d7f, #22c5c8);
+            box-shadow: 0 12px 26px rgba(22, 125, 127, 0.24);
+          }
+
+          .sf-landing-links {
+            display: flex;
+            align-items: center;
+            gap: 26px;
+            color: #64748b;
+            font-size: 14px;
+            font-weight: 850;
+          }
+
+          .sf-landing-links a:hover {
+            color: #167d7f;
+          }
+
+          .sf-landing-page {
+            max-width: 1120px;
+            margin: 0 auto;
+            padding: 0 24px 44px;
+          }
+
+          .sf-landing-hero {
+            min-height: calc(100vh - 68px);
+            display: grid;
+            grid-template-columns: minmax(420px, 0.95fr) minmax(380px, 520px);
+            gap: 54px;
+            align-items: center;
+            padding: 54px 0 44px;
+          }
+
+          .sf-landing-kicker {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            width: fit-content;
+            padding: 8px 13px;
+            border-radius: 999px;
+            color: #167d7f;
+            background: rgba(22, 125, 127, 0.10);
+            font-size: 13px;
+            font-weight: 950;
+          }
+
+          .sf-landing-copy h1 {
+            max-width: 560px;
+            margin: 22px 0 20px;
+            color: #0f172a;
+            font-size: clamp(44px, 4.7vw, 68px);
+            line-height: 1.05;
+            letter-spacing: -0.075em;
+            word-break: keep-all;
+          }
+
+          .sf-gradient-text {
+            display: inline-block;
+            background: linear-gradient(90deg, #167d7f 0%, #22c5c8 48%, #f43f5e 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+          }
+
+          .sf-landing-copy p {
+            max-width: 540px;
+            margin: 0;
+            color: #64748b;
+            font-size: 17px;
+            line-height: 1.85;
+            word-break: keep-all;
+          }
+
+          .sf-landing-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 32px;
+          }
+
+          .sf-landing-stats {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 22px;
+            max-width: 540px;
+            margin-top: 36px;
+            padding-top: 26px;
+            border-top: 1px solid rgba(226, 232, 240, 0.95);
+          }
+
+          .sf-landing-stats strong {
+            display: block;
+            color: #0f172a;
+            font-size: 28px;
+            letter-spacing: -0.055em;
+          }
+
+          .sf-landing-stats span {
+            display: block;
+            margin-top: 5px;
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 850;
+          }
+
+          .sf-report-card {
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+            padding: 24px;
+            border: 1px solid rgba(226, 232, 240, 0.95);
+            border-radius: 30px;
+            background: rgba(255, 255, 255, 0.96);
+            box-shadow: 0 30px 80px rgba(15, 23, 42, 0.12);
+          }
+
+          .sf-report-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 14px;
+            margin-bottom: 18px;
+          }
+
+          .sf-report-top small {
+            display: block;
+            color: #64748b;
+            font-weight: 850;
+          }
+
+          .sf-report-top h2 {
+            margin: 6px 0 0;
+            color: #0f172a;
+            font-size: 20px;
+            letter-spacing: -0.045em;
+          }
+
+          .sf-report-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            color: #167d7f;
+            background: rgba(22, 125, 127, 0.10);
+            font-size: 12px;
+            font-weight: 950;
+            white-space: nowrap;
+          }
+
+          .sf-skin-canvas {
+            position: relative;
+            height: 286px;
+            overflow: hidden;
+            border-radius: 24px;
+            background:
+              radial-gradient(circle at 72% 18%, rgba(66, 211, 188, 0.76) 0 32%, transparent 33%),
+              radial-gradient(circle at 24% 48%, rgba(255, 224, 206, 0.94), transparent 46%),
+              linear-gradient(135deg, #fff2e8 0%, #fdf5ef 52%, #f9e8df 100%);
+          }
+
+          .sf-skin-canvas::before,
+          .sf-skin-canvas::after {
+            content: "";
+            position: absolute;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.58);
+            box-shadow: inset -4px -6px 12px rgba(15, 23, 42, 0.06);
+          }
+
+          .sf-skin-canvas::before {
+            width: 36px;
+            height: 24px;
+            left: 34%;
+            top: 35%;
+            transform: rotate(-18deg);
+          }
+
+          .sf-skin-canvas::after {
+            width: 28px;
+            height: 20px;
+            right: 30%;
+            bottom: 24%;
+            transform: rotate(20deg);
+          }
+
+          .sf-roi-box {
+            position: absolute;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 16px;
+            border: 2px solid #167d7f;
+            background: rgba(255, 255, 255, 0.18);
+          }
+
+          .sf-roi-label {
+            position: absolute;
+            top: -26px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #167d7f;
+            font-size: 11px;
+            font-weight: 950;
+            white-space: nowrap;
+            box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+          }
+
+          .sf-roi-forehead {
+            width: 68px;
+            height: 54px;
+            left: 26%;
+            top: 23%;
+          }
+
+          .sf-roi-cheek {
+            width: 58px;
+            height: 42px;
+            left: 43%;
+            bottom: 17%;
+          }
+
+          .sf-roi-wrinkle {
+            width: 58px;
+            height: 42px;
+            right: 12%;
+            top: 43%;
+            border-color: #f59e0b;
+          }
+
+          .sf-roi-wrinkle .sf-roi-label {
+            color: #f59e0b;
+          }
+
+          .sf-report-metrics {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 14px;
+          }
+
+          .sf-report-metric {
+            padding: 15px;
+            border-radius: 18px;
+            border: 1px solid rgba(226, 232, 240, 0.92);
+            background: #f8fafc;
+          }
+
+          .sf-report-metric span {
+            display: block;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 900;
+          }
+
+          .sf-report-metric strong {
+            display: block;
+            margin-top: 6px;
+            color: #0f172a;
+            font-size: 23px;
+            letter-spacing: -0.05em;
+          }
+
+          .sf-report-comment {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-top: 14px;
+            padding: 15px;
+            border-radius: 18px;
+            background: rgba(22, 125, 127, 0.10);
+            color: #0f172a;
+            font-size: 14px;
+            font-weight: 750;
+            line-height: 1.62;
+            word-break: keep-all;
+          }
+
+          .sf-report-comment-icon {
+            width: 32px;
+            height: 32px;
+            flex: 0 0 auto;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            background: #167d7f;
+          }
+
+          .sf-section {
+            padding: 54px 0;
+          }
+
+          .sf-section-head {
+            max-width: 760px;
+            margin: 0 auto 30px;
+            text-align: center;
+          }
+
+          .sf-section-head small {
+            color: #167d7f;
+            font-size: 13px;
+            font-weight: 950;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+          }
+
+          .sf-section-head h2 {
+            margin: 10px 0 12px;
+            color: #0f172a;
+            font-size: clamp(30px, 3.6vw, 44px);
+            line-height: 1.13;
+            letter-spacing: -0.062em;
+            word-break: keep-all;
+          }
+
+          .sf-section-head p {
+            margin: 0;
+            color: #64748b;
+            font-size: 16px;
+            line-height: 1.72;
+            word-break: keep-all;
+          }
+
+          .sf-value-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 18px;
+          }
+
+          .sf-value-card {
+            min-height: 168px;
+            padding: 24px;
+            border: 1px solid rgba(226, 232, 240, 0.95);
+            border-radius: 24px;
+            background: rgba(255, 255, 255, 0.94);
+            box-shadow: 0 18px 45px rgba(15, 23, 42, 0.07);
+          }
+
+          .sf-value-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 17px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            background: linear-gradient(135deg, #167d7f, #22c5c8 62%, #f43f5e);
+          }
+
+          .sf-value-card h3 {
+            margin: 20px 0 9px;
+            color: #0f172a;
+            font-size: 21px;
+            letter-spacing: -0.045em;
+          }
+
+          .sf-value-card p {
+            margin: 0;
+            color: #64748b;
+            line-height: 1.68;
+            word-break: keep-all;
+          }
+
+          .sf-process-line {
+            position: relative;
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 18px;
+          }
+
+          .sf-process-line::before {
+            content: "";
+            position: absolute;
+            top: 32px;
+            left: 8%;
+            right: 8%;
+            height: 1px;
+            background: rgba(22, 125, 127, 0.25);
+          }
+
+          .sf-process-step {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+          }
+
+          .sf-process-icon {
+            position: relative;
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 14px;
+            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #167d7f;
+            background: rgba(255, 255, 255, 0.96);
+            border: 1px solid rgba(226, 232, 240, 0.95);
+            box-shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
+          }
+
+          .sf-process-index {
+            position: absolute;
+            right: -7px;
+            top: -8px;
+            width: 24px;
+            height: 24px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            background: #0f172a;
+            font-size: 12px;
+            font-weight: 950;
+          }
+
+          .sf-process-step h3 {
+            margin: 0;
+            color: #0f172a;
+            font-size: 16px;
+            letter-spacing: -0.04em;
+          }
+
+          .sf-final-cta {
+            margin-top: 24px;
+            padding: 42px 28px;
+            border-radius: 32px;
+            text-align: center;
+            color: #ffffff;
+            background:
+              radial-gradient(circle at 18% 34%, rgba(255, 255, 255, 0.16), transparent 30%),
+              linear-gradient(135deg, #167d7f 0%, #0f766e 52%, #f43f5e 135%);
+            box-shadow: 0 28px 72px rgba(15, 23, 42, 0.16);
+          }
+
+          .sf-final-cta h2 {
+            margin: 0 0 14px;
+            font-size: clamp(28px, 3.7vw, 46px);
+            line-height: 1.12;
+            letter-spacing: -0.062em;
+            word-break: keep-all;
+          }
+
+          .sf-final-cta p {
+            margin: 0 auto 24px;
+            max-width: 620px;
+            color: rgba(255, 255, 255, 0.83);
+            line-height: 1.72;
+            font-weight: 700;
+            word-break: keep-all;
+          }
+
+          .sf-final-cta .sf-button {
+            color: #0f172a;
+            background: #ffffff;
+            box-shadow: 0 18px 38px rgba(15, 23, 42, 0.16);
+          }
+
+          @media (max-width: 980px) {
+            .sf-landing-links {
+              display: none;
+            }
+
+            .sf-landing-hero {
+              min-height: auto;
+              grid-template-columns: 1fr;
+              gap: 36px;
+              padding: 44px 0 34px;
+            }
+
+            .sf-report-card {
+              max-width: 560px;
+              margin: 0 auto;
+            }
+
+            .sf-value-grid {
+              grid-template-columns: 1fr;
+            }
+
+            .sf-process-line {
+              grid-template-columns: repeat(5, minmax(120px, 1fr));
+              overflow-x: auto;
+              padding: 4px 0 14px;
+            }
+          }
+
+          @media (max-width: 640px) {
+            .sf-landing-nav-inner {
+              height: 62px;
+              padding: 0 16px;
+            }
+
+            .sf-landing-page {
+              padding: 0 16px 34px;
+            }
+
+            .sf-landing-copy h1 {
+              font-size: 40px;
+            }
+
+            .sf-landing-copy p {
+              font-size: 16px;
+            }
+
+            .sf-landing-actions .sf-button {
+              width: 100%;
+            }
+
+            .sf-landing-stats {
+              grid-template-columns: 1fr;
+              gap: 14px;
+            }
+
+            .sf-report-card {
+              padding: 18px;
+              border-radius: 24px;
+            }
+
+            .sf-skin-canvas {
+              height: 242px;
+            }
+
+            .sf-report-metrics {
+              grid-template-columns: 1fr;
+            }
+
+            .sf-section {
+              padding: 42px 0;
+            }
+          }
+        `}
+      </style>
+
+      <header className="sf-landing-nav">
+        <div className="sf-landing-nav-inner">
+          <Link className="sf-landing-brand" to={isLoggedIn ? "/dashboard" : "/"}>
+            <span className="sf-landing-logo">
+              <Sparkles size={18} />
+            </span>
+            <span>SkinFlow</span>
+          </Link>
+
+          <nav className="sf-landing-links" aria-label="랜딩 주요 메뉴">
+            <a href="#service">서비스 소개</a>
+            <a href="#process">AI 분석</a>
+            <a href="#start">시작하기</a>
+          </nav>
+
+          <Button to={primaryCtaTo} size="sm">
+            피부 분석 시작하기
+          </Button>
         </div>
+      </header>
 
-        <Card className="landing-preview-card">
-          <div className="preview-header">
-            <div>
-              <p>분석 결과 미리보기</p>
-              <h3>피부 관리 참고 정보</h3>
+      <main className="sf-landing-page">
+        <section className="sf-landing-hero" id="service">
+          <div className="sf-landing-copy">
+            <span className="sf-landing-kicker">
+              <Sparkles size={15} />
+              AI 기반 피부 분석 솔루션
+            </span>
+
+            <h1>
+              AI가 분석하는
+              <br />
+              <span className="sf-gradient-text">나만의 피부 리포트</span>
+            </h1>
+
+            <p>
+              얼굴 사진 한 장으로 색소침착과 주름 중심의 피부 상태를 분석하고,
+              기능성 성분·화장품 제품·식습관 가이드까지 한 흐름으로 확인합니다.
+            </p>
+
+            <div className="sf-landing-actions">
+              <Button to={primaryCtaTo} size="lg">
+                {primaryCtaText} <ArrowRight size={18} />
+              </Button>
+              <Button to={secondaryCtaTo} variant="secondary" size="lg">
+                {secondaryCtaText}
+              </Button>
             </div>
-            <Badge variant="accent">예시</Badge>
+
+            <div className="sf-landing-stats">
+              <div>
+                <strong>2개</strong>
+                <span>MVP 핵심 분석 지표</span>
+              </div>
+              <div>
+                <strong>3단계</strong>
+                <span>분석 → 추천 → 관리</span>
+              </div>
+              <div>
+                <strong>1곳</strong>
+                <span>통합 피부 관리 흐름</span>
+              </div>
+            </div>
           </div>
 
-          <div className="preview-score-circle">
-            <span>82</span>
-            <small>/100</small>
+          <aside className="sf-report-card" aria-label="AI 피부 분석 리포트 예시">
+            <div className="sf-report-top">
+              <div>
+                <small>SkinFlow · 분석 리포트</small>
+                <h2>AI 피부 분석 리포트</h2>
+              </div>
+              <span className="sf-report-status">
+                <CheckCircle2 size={14} />
+                분석 예시
+              </span>
+            </div>
+
+            <div className="sf-skin-canvas">
+              <span className="sf-roi-box sf-roi-forehead">
+                <span className="sf-roi-label">T-zone</span>
+              </span>
+              <span className="sf-roi-box sf-roi-cheek">
+                <span className="sf-roi-label">색소</span>
+              </span>
+              <span className="sf-roi-box sf-roi-wrinkle">
+                <span className="sf-roi-label">주름</span>
+              </span>
+            </div>
+
+            <div className="sf-report-metrics">
+              <div className="sf-report-metric">
+                <span>종합 점수</span>
+                <strong>78점</strong>
+              </div>
+              <div className="sf-report-metric">
+                <span>색소침착</span>
+                <strong>85점</strong>
+              </div>
+              <div className="sf-report-metric">
+                <span>주름</span>
+                <strong>42점</strong>
+              </div>
+            </div>
+
+            <div className="sf-report-comment">
+              <span className="sf-report-comment-icon">
+                <Sparkles size={17} />
+              </span>
+              <span>
+                결과 화면은 피부 관리 참고 정보로 제공되며, 실제 분석 결과와 추천은
+                분석 완료 후 사용자의 이력과 함께 연결됩니다.
+              </span>
+            </div>
+          </aside>
+        </section>
+
+        <section className="sf-section">
+          <div className="sf-section-head">
+            <small>Why SkinFlow</small>
+            <h2>필요한 기능만 짧고 명확하게 제공합니다</h2>
+            <p>
+              긴 설명보다 사용자가 바로 이해할 수 있는 분석, 추천, 이력 흐름을
+              중심으로 구성했습니다.
+            </p>
           </div>
 
-          <div className="preview-metrics">
-            <div>
-              <span>색소침착</span>
-              <strong>주의</strong>
-            </div>
-            <div>
-              <span>주름</span>
-              <strong>양호</strong>
-            </div>
-            <div>
-              <span>추천 흐름</span>
-              <strong>성분·제품·식습관</strong>
-            </div>
+          <div className="sf-value-grid">
+            {valueCards.map((item) => {
+              const Icon = item.icon;
+
+              return (
+                <article className="sf-value-card" key={item.title}>
+                  <span className="sf-value-icon">
+                    <Icon size={24} />
+                  </span>
+                  <h3>{item.title}</h3>
+                  <p>{item.description}</p>
+                </article>
+              );
+            })}
           </div>
-        </Card>
-      </section>
+        </section>
 
-      <section className="landing-section">
-        <SectionTitle
-          align="center"
-          eyebrow="Service Flow"
-          title="분석 결과를 이해하고 다음 행동까지 연결합니다"
-          description="SkinFlow는 분석 결과를 단순히 보여주는 데서 끝나지 않고, 사용자가 바로 확인할 수 있는 성분·제품 추천과 식습관 가이드, 분석 이력 관리 흐름까지 제공합니다."
-        />
+        <section className="sf-section" id="process">
+          <div className="sf-section-head">
+            <small>Process</small>
+            <h2>피부 분석은 5단계로 진행됩니다</h2>
+          </div>
 
-        <div className="feature-grid">
-          <Card className="feature-card">
-            <Camera className="feature-icon" size={28} />
-            <h3>피부 이미지 분석</h3>
+          <div className="sf-process-line">
+            {processSteps.map((item, index) => {
+              const Icon = item.icon;
+
+              return (
+                <article className="sf-process-step" key={item.title}>
+                  <div className="sf-process-icon">
+                    <Icon size={23} />
+                    <span className="sf-process-index">{index + 1}</span>
+                  </div>
+                  <h3>{item.title}</h3>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="sf-section" id="start">
+          <div className="sf-final-cta">
+            <h2>지금 바로 피부 상태를 확인해보세요</h2>
             <p>
-              웹캠 또는 업로드 이미지를 기반으로 색소침착과 주름 지표를 분석하고,
-              사용자가 이해하기 쉬운 결과 화면으로 제공합니다.
+              첫 분석을 진행하면 색소침착과 주름 중심의 결과, 맞춤 추천,
+              식습관 가이드, 분석 이력 흐름을 이어서 확인할 수 있습니다.
             </p>
-          </Card>
-
-          <Card className="feature-card">
-            <Sparkles className="feature-icon" size={28} />
-            <h3>맞춤 추천 연결</h3>
-            <p>
-              분석 결과를 바탕으로 기능성 성분, 화장품 제품 추천, 식습관 가이드를
-              하나의 흐름으로 확인할 수 있습니다.
-            </p>
-          </Card>
-
-          <Card className="feature-card">
-            <History className="feature-icon" size={28} />
-            <h3>분석 이력 관리</h3>
-            <p>
-              날짜별 피부 분석 결과와 추천 정보를 저장해 피부 변화 흐름을
-              꾸준히 확인할 수 있도록 돕습니다.
-            </p>
-          </Card>
-        </div>
-      </section>
-
-      <section className="landing-section">
-        <SectionTitle
-          align="center"
-          eyebrow="Why SkinFlow"
-          title="처음 사용하는 사람도 흐름을 쉽게 따라갈 수 있습니다"
-          description="회원가입 후 피부 분석을 시작하고, 분석 결과를 확인한 뒤 추천 정보와 식습관 가이드, 분석 이력까지 자연스럽게 이어지는 사용자 흐름을 기준으로 설계했습니다."
-        />
-
-        <div className="feature-grid">
-          <Card className="feature-card">
-            <ShieldCheck className="feature-icon" size={28} />
-            <h3>참고 정보 중심 안내</h3>
-            <p>
-              분석 결과는 피부 관리에 참고할 수 있는 정보로 제공되며,
-              사용자가 자신의 피부 상태를 이해하는 데 초점을 둡니다.
-            </p>
-          </Card>
-
-          <Card className="feature-card">
-            <Utensils className="feature-icon" size={28} />
-            <h3>생활 관리 가이드</h3>
-            <p>
-              성분과 제품 추천뿐 아니라 식습관 가이드를 함께 제공해
-              일상 관리 방향까지 확인할 수 있습니다.
-            </p>
-          </Card>
-
-          <Card className="feature-card">
-            <ArrowRight className="feature-icon" size={28} />
-            <h3>명확한 다음 단계</h3>
-            <p>
-              랜딩페이지에서 회원가입, 로그인, 분석 시작, 대시보드 이동까지
-              사용자의 상태에 맞는 다음 행동을 제공합니다.
-            </p>
-          </Card>
-        </div>
-      </section>
-    </PageLayout>
+            <Button to={primaryCtaTo} size="lg">
+              {primaryCtaText} <ArrowRight size={18} />
+            </Button>
+          </div>
+        </section>
+      </main>
+    </div>
   );
 }
 
