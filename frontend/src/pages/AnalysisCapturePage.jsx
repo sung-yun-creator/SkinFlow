@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   AlertCircle,
   ArrowRight,
@@ -6,6 +7,7 @@ import {
   CheckCircle2,
   ImagePlus,
   Lightbulb,
+  Loader2,
   ScanFace,
   ShieldCheck,
   Upload,
@@ -15,6 +17,7 @@ import Button from "../components/common/Button";
 import Card from "../components/common/Card";
 import Badge from "../components/common/Badge";
 import SectionTitle from "../components/common/SectionTitle";
+import { extractRoi } from "../api/analysisApi";
 
 const captureTips = [
   "밝은 곳에서 정면 얼굴이 잘 보이도록 준비해주세요.",
@@ -42,23 +45,106 @@ const checkItems = [
   },
 ];
 
+const allowedImageTypes = ["image/jpeg", "image/png"];
+
 function AnalysisCapturePage() {
+  const navigate = useNavigate();
+
   const [selectedMethod, setSelectedMethod] = useState("webcam");
+  const [selectedFile, setSelectedFile] = useState(null);
   const [selectedFileName, setSelectedFileName] = useState("");
+  const [uploadError, setUploadError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const isLoggedIn = Boolean(localStorage.getItem("skinflow_token"));
 
   const selectedMethodLabel = selectedMethod === "webcam" ? "웹캠 촬영" : "이미지 업로드";
 
+  const handleSelectWebcam = () => {
+    setSelectedMethod("webcam");
+    setUploadError("");
+  };
+
   const handleFileChange = (event) => {
     const file = event.target.files?.[0];
 
+    setSelectedMethod("upload");
+
     if (!file) {
+      setSelectedFile(null);
       setSelectedFileName("");
+      setUploadError("분석에 사용할 이미지 파일을 선택해주세요.");
       return;
     }
 
-    setSelectedMethod("upload");
+    if (!allowedImageTypes.includes(file.type)) {
+      setSelectedFile(null);
+      setSelectedFileName("");
+      setUploadError("JPG 또는 PNG 형식의 이미지만 업로드할 수 있습니다.");
+      event.target.value = "";
+      return;
+    }
+
+    setSelectedFile(file);
     setSelectedFileName(file.name);
+    setUploadError("");
+  };
+
+  const handleStartAnalysis = async () => {
+    if (isSubmitting) return;
+
+    if (!isLoggedIn) {
+      navigate("/login");
+      return;
+    }
+
+    if (selectedMethod === "upload" && !selectedFile) {
+      setUploadError("이미지 업로드 방식을 선택한 경우 파일을 먼저 선택해주세요.");
+      return;
+    }
+
+    if (selectedMethod === "webcam") {
+      navigate("/analysis/loading", {
+        state: {
+          analysisInput: {
+            method: "webcam",
+          },
+        },
+      });
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setUploadError("");
+
+      const roiResponse = await extractRoi(selectedFile);
+
+      navigate("/analysis/loading", {
+        state: {
+          analysisInput: {
+            method: "upload",
+            fileName: selectedFile.name,
+            roiResult: roiResponse?.result || null,
+          },
+        },
+      });
+    } catch (error) {
+      const rawMessage = error.message || "";
+      
+      const fallbackMessage =
+        "이미지 분석 요청을 처리하지 못했습니다. 백엔드 서버와 AI 서버 실행 상태를 확인한 뒤 다시 시도해주세요.";
+      
+      const message =
+        rawMessage === "Failed to fetch" ||
+        rawMessage.includes("NetworkError") ||
+        rawMessage.includes("ERR_CONNECTION")
+          ? fallbackMessage
+          : rawMessage || fallbackMessage;
+      setUploadError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -116,24 +202,34 @@ function AnalysisCapturePage() {
             <div className="corner corner-right-bottom" />
           </div>
 
+          {uploadError && (
+            <div className="auth-message error">
+              <AlertCircle size={18} />
+              <span>{uploadError}</span>
+            </div>
+          )}
+
           <div className="camera-action-row">
             <Button
               variant={selectedMethod === "webcam" ? "primary" : "secondary"}
               full
-              onClick={() => setSelectedMethod("webcam")}
+              onClick={handleSelectWebcam}
+              disabled={isSubmitting}
             >
               웹캠 촬영 선택 <Camera size={18} />
             </Button>
 
-            {isLoggedIn ? (
-              <Button to="/analysis/loading" full>
-                분석 진행하기 <ArrowRight size={18} />
-              </Button>
-            ) : (
-              <Button to="/login" full>
-                로그인 후 분석하기 <ArrowRight size={18} />
-              </Button>
-            )}
+            <Button full onClick={handleStartAnalysis} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  ROI 분석 요청 중 <Loader2 size={18} />
+                </>
+              ) : (
+                <>
+                  {isLoggedIn ? "분석 진행하기" : "로그인 후 분석하기"} <ArrowRight size={18} />
+                </>
+              )}
+            </Button>
           </div>
         </Card>
       </section>
@@ -158,7 +254,8 @@ function AnalysisCapturePage() {
             <Button
               variant={selectedMethod === "webcam" ? "primary" : "secondary"}
               size="sm"
-              onClick={() => setSelectedMethod("webcam")}
+              onClick={handleSelectWebcam}
+              disabled={isSubmitting}
             >
               웹캠 촬영 선택
             </Button>
@@ -178,7 +275,12 @@ function AnalysisCapturePage() {
               <Upload size={22} />
               <span>{selectedFileName || "이미지 파일 선택"}</span>
               <small>JPG, PNG 파일 권장</small>
-              <input type="file" accept="image/png, image/jpeg" onChange={handleFileChange} />
+              <input
+                type="file"
+                accept="image/png, image/jpeg"
+                onChange={handleFileChange}
+                disabled={isSubmitting}
+              />
             </label>
           </Card>
         </div>
@@ -246,15 +348,18 @@ function AnalysisCapturePage() {
             </div>
           </div>
 
-          {isLoggedIn ? (
-            <Button to="/analysis/loading" full>
-              분석 진행 화면으로 이동 <ArrowRight size={18} />
-            </Button>
-          ) : (
-            <Button to="/login" full>
-              로그인하고 분석 시작하기 <ArrowRight size={18} />
-            </Button>
-          )}
+          <Button full onClick={handleStartAnalysis} disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                ROI 분석 요청 중 <Loader2 size={18} />
+              </>
+            ) : (
+              <>
+                {isLoggedIn ? "분석 진행 화면으로 이동" : "로그인하고 분석 시작하기"}{" "}
+                <ArrowRight size={18} />
+              </>
+            )}
+          </Button>
         </Card>
       </section>
     </PageLayout>
