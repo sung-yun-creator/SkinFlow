@@ -1,14 +1,8 @@
 const historyRepository = require('../repositories/historyRepository');
-
-function toNumber(value) {
-    if (value === null || value === undefined) {
-        return null;
-    }
-
-    return Number(value);
-}
+const { toNumber } = require('../utils/number');
 
 function groupMetricsByAnalysisId(metrics) {
+    // 여러 분석의 지표 목록을 analysisId 기준으로 묶어 응답 만들 때 바로 찾을 수 있게 합니다.
     return metrics.reduce((grouped, metric) => {
         const key = metric.skin_analysis_id;
 
@@ -47,6 +41,7 @@ function toHistoryRecord(record, metricsByAnalysisId) {
 function toSummary(summary) {
     const latestTotalScore = toNumber(summary.latest_total_score);
     const earliestTotalScore = toNumber(summary.earliest_total_score);
+    // 처음 분석 점수와 최근 분석 점수를 비교해 변화량을 계산합니다.
     const scoreDiff = latestTotalScore === null || earliestTotalScore === null
         ? null
         : latestTotalScore - earliestTotalScore;
@@ -74,6 +69,7 @@ async function getHistory(userId, options = {}) {
     const limit = Number(options.limit || 20);
     const safeLimit = Number.isInteger(limit) && limit > 0 && limit <= 100 ? limit : 20;
 
+    // 요약과 목록은 서로 의존하지 않으므로 동시에 조회합니다.
     const [summary, records] = await Promise.all([
         historyRepository.findHistorySummaryByUserId(userId),
         historyRepository.findHistoryRecordsByUserId(userId, safeLimit),

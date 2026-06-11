@@ -25,7 +25,7 @@ function assertMailConfig() {
     const missingValues = requiredValues.filter((key) => !process.env[key]);
 
     if (missingValues.length > 0) {
-        throw new Error(`Missing mail config: ${missingValues.join(', ')}`);
+        throw new Error(`메일 설정이 누락되었습니다: ${missingValues.join(', ')}`);
     }
 }
 

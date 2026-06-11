@@ -1,12 +1,5 @@
 const mypageRepository = require('../repositories/mypageRepository');
-
-function toNumber(value) {
-    if (value === null || value === undefined) {
-        return null;
-    }
-
-    return Number(value);
-}
+const { toNumber } = require('../utils/number');
 
 function toActivityDescription(activity) {
     if (activity.activity_content) {
@@ -21,6 +14,7 @@ function toActivityDescription(activity) {
 }
 
 function toRecentActivity(activities) {
+    // DB에서 union으로 가져온 여러 활동을 프론트가 쓰기 쉬운 공통 형태로 바꿉니다.
     return activities.map((activity) => ({
         type: activity.activity_type,
         title: activity.activity_title,
@@ -59,6 +53,7 @@ function toMypageResponse(user, analysisSummary, mainConcern, recentActivity) {
 }
 
 async function getMypage(userId) {
+    // 프로필, 분석 요약, 최근 활동은 서로 독립적이라 동시에 조회합니다.
     const [
         user,
         analysisSummary,
@@ -73,6 +68,7 @@ async function getMypage(userId) {
         return null;
     }
 
+    // 가장 최근 분석에서 점수가 낮은 지표를 대표 관심 항목으로 사용합니다.
     const mainConcern = await mypageRepository.findMainConcernByAnalysisId(
         analysisSummary?.latest_analysis_id,
     );
