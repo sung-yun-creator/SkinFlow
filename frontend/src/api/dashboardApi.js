@@ -31,6 +31,7 @@ const nextActionLabelMap = {
   "Start skin analysis": "피부 분석 시작하기",
   "View recommendations": "맞춤 추천 보기",
   "Check recommendations": "맞춤 추천 보기",
+  "Review your latest recommendations": "맞춤 추천 보기",
 };
 
 const nextActionDescriptionMap = {
@@ -40,6 +41,8 @@ const nextActionDescriptionMap = {
     "첫 피부 분석을 완료하면 맞춤 추천 정보를 확인할 수 있습니다.",
   "Review your latest recommendations based on your skin analysis.":
     "최근 피부 분석 결과를 바탕으로 맞춤 추천 정보를 확인해보세요.",
+  "Use your latest analysis result to check recommended ingredients, products, and care guides.":
+    "최근 피부 분석 결과를 바탕으로 성분 추천, 제품 추천, 관리 가이드를 확인해보세요.",
 };
 
 function translateNextActionLabel(label) {
@@ -69,15 +72,18 @@ function normalizeNextAction(nextAction) {
     nextAction.summary ||
     defaultDashboard.nextAction.description;
 
+  const actionPath =
+    nextAction.path ||
+    nextAction.to ||
+    nextAction.url ||
+    nextAction.href ||
+    defaultDashboard.nextAction.path;
+
   return {
     ...defaultDashboard.nextAction,
     ...nextAction,
     label: translateNextActionLabel(rawLabel),
-    path:
-      nextAction.path ||
-      nextAction.url ||
-      nextAction.href ||
-      defaultDashboard.nextAction.path,
+    path: actionPath,
     description: translateNextActionDescription(rawDescription),
   };
 }
