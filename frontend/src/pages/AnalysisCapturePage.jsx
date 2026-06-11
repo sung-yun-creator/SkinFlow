@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ImagePlus,
   Lightbulb,
+  Loader2,
   ScanFace,
   ShieldCheck,
   Upload,
@@ -16,6 +17,7 @@ import Button from "../components/common/Button";
 import Card from "../components/common/Card";
 import Badge from "../components/common/Badge";
 import SectionTitle from "../components/common/SectionTitle";
+import { extractRoi } from "../api/analysisApi";
 
 const captureTips = [
   "밝은 곳에서 정면 얼굴이 잘 보이도록 준비해주세요.",
@@ -52,6 +54,7 @@ function AnalysisCapturePage() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [selectedFileName, setSelectedFileName] = useState("");
   const [uploadError, setUploadError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isLoggedIn = Boolean(localStorage.getItem("skinflow_token"));
 
@@ -87,7 +90,9 @@ function AnalysisCapturePage() {
     setUploadError("");
   };
 
-  const handleStartAnalysis = () => {
+  const handleStartAnalysis = async () => {
+    if (isSubmitting) return;
+
     if (!isLoggedIn) {
       navigate("/login");
       return;
@@ -98,7 +103,48 @@ function AnalysisCapturePage() {
       return;
     }
 
-    navigate("/analysis/loading");
+    if (selectedMethod === "webcam") {
+      navigate("/analysis/loading", {
+        state: {
+          analysisInput: {
+            method: "webcam",
+          },
+        },
+      });
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setUploadError("");
+
+      const roiResponse = await extractRoi(selectedFile);
+
+      navigate("/analysis/loading", {
+        state: {
+          analysisInput: {
+            method: "upload",
+            fileName: selectedFile.name,
+            roiResult: roiResponse?.result || null,
+          },
+        },
+      });
+    } catch (error) {
+      const rawMessage = error.message || "";
+      
+      const fallbackMessage =
+        "이미지 분석 요청을 처리하지 못했습니다. 백엔드 서버와 AI 서버 실행 상태를 확인한 뒤 다시 시도해주세요.";
+      
+      const message =
+        rawMessage === "Failed to fetch" ||
+        rawMessage.includes("NetworkError") ||
+        rawMessage.includes("ERR_CONNECTION")
+          ? fallbackMessage
+          : rawMessage || fallbackMessage;
+      setUploadError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -168,12 +214,21 @@ function AnalysisCapturePage() {
               variant={selectedMethod === "webcam" ? "primary" : "secondary"}
               full
               onClick={handleSelectWebcam}
+              disabled={isSubmitting}
             >
               웹캠 촬영 선택 <Camera size={18} />
             </Button>
 
-            <Button full onClick={handleStartAnalysis}>
-              {isLoggedIn ? "분석 진행하기" : "로그인 후 분석하기"} <ArrowRight size={18} />
+            <Button full onClick={handleStartAnalysis} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  ROI 분석 요청 중 <Loader2 size={18} />
+                </>
+              ) : (
+                <>
+                  {isLoggedIn ? "분석 진행하기" : "로그인 후 분석하기"} <ArrowRight size={18} />
+                </>
+              )}
             </Button>
           </div>
         </Card>
@@ -200,6 +255,7 @@ function AnalysisCapturePage() {
               variant={selectedMethod === "webcam" ? "primary" : "secondary"}
               size="sm"
               onClick={handleSelectWebcam}
+              disabled={isSubmitting}
             >
               웹캠 촬영 선택
             </Button>
@@ -219,7 +275,12 @@ function AnalysisCapturePage() {
               <Upload size={22} />
               <span>{selectedFileName || "이미지 파일 선택"}</span>
               <small>JPG, PNG 파일 권장</small>
-              <input type="file" accept="image/png, image/jpeg" onChange={handleFileChange} />
+              <input
+                type="file"
+                accept="image/png, image/jpeg"
+                onChange={handleFileChange}
+                disabled={isSubmitting}
+              />
             </label>
           </Card>
         </div>
@@ -287,9 +348,17 @@ function AnalysisCapturePage() {
             </div>
           </div>
 
-          <Button full onClick={handleStartAnalysis}>
-            {isLoggedIn ? "분석 진행 화면으로 이동" : "로그인하고 분석 시작하기"}{" "}
-            <ArrowRight size={18} />
+          <Button full onClick={handleStartAnalysis} disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                ROI 분석 요청 중 <Loader2 size={18} />
+              </>
+            ) : (
+              <>
+                {isLoggedIn ? "분석 진행 화면으로 이동" : "로그인하고 분석 시작하기"}{" "}
+                <ArrowRight size={18} />
+              </>
+            )}
           </Button>
         </Card>
       </section>
