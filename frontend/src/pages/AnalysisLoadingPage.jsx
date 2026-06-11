@@ -43,7 +43,8 @@ function getRoiStatus(roiResult) {
     };
   }
 
-  const status = roiResult.status || roiResult.roi?.status || roiResult.result?.status;
+  const status =
+    roiResult.status || roiResult.roi?.status || roiResult.result?.status;
 
   if (!status || status === "ok") {
     return {
@@ -88,12 +89,16 @@ function AnalysisLoadingPage() {
   const regionCount = useMemo(() => getRegionCount(roiResult), [roiResult]);
 
   const methodLabel =
-    method === "upload" ? "이미지 업로드" : method === "webcam" ? "웹캠 촬영" : "직접 접근";
+    method === "upload"
+      ? "이미지 업로드"
+      : method === "webcam"
+        ? "웹캠 촬영"
+        : "직접 접근";
 
-  const progressValue = roiStatus.isReady ? "45%" : "20%";
+  const progressValue = roiStatus.isReady ? 45 : 20;
   const progressText = roiStatus.isReady
-    ? "얼굴 관심 영역 확인이 완료되었습니다. 다음 단계에서 피부 지표 분석 결과와 연결됩니다."
-    : "분석에 필요한 입력 정보를 확인하는 중입니다.";
+    ? "ROI 확인이 완료되었습니다. 현재 단계에서는 실제 색소침착·주름 분석 결과가 아니라 결과 UI 미리보기로 연결됩니다."
+    : "입력 이미지와 얼굴 관심 영역 정보를 확인하는 중입니다.";
 
   const summaryItems = [
     {
@@ -137,15 +142,16 @@ function AnalysisLoadingPage() {
     {
       status: roiStatus.isReady ? "active" : "waiting",
       icon: BrainCircuit,
-      title: "피부 지표 분석 준비",
+      title: "피부 지표 분석 연동 대기",
       description:
-        "색소침착과 주름 지표 분석 결과를 연결하기 위한 다음 단계입니다.",
+        "색소침착과 주름 분석 결과 API가 연결되면 이 단계에서 실제 지표 결과로 이어집니다.",
     },
     {
       status: "waiting",
       icon: Sparkles,
-      title: "맞춤 추천 생성",
-      description: "분석 결과 연동 후 성분, 제품, 식습관 가이드와 연결됩니다.",
+      title: "맞춤 추천 연동 대기",
+      description:
+        "실제 분석 결과 연동 후 성분 추천, 제품 추천, 식습관 가이드와 연결됩니다.",
     },
   ];
 
@@ -153,7 +159,7 @@ function AnalysisLoadingPage() {
     <PageLayout>
       <section className="loading-page">
         <div className="loading-main">
-          <Badge>{roiStatus.isReady ? "ROI Ready" : "Analyzing"}</Badge>
+          <Badge>{roiStatus.isReady ? "ROI 확인 완료" : "분석 준비 중"}</Badge>
 
           <h1>
             피부 분석 흐름을
@@ -182,11 +188,14 @@ function AnalysisLoadingPage() {
             <div className="loading-progress-content">
               <div className="loading-progress-top">
                 <span>현재 진행 상태</span>
-                <strong>{progressValue}</strong>
+                <strong>{progressValue}%</strong>
               </div>
 
-              <div className="loading-progress-bar">
-                <span />
+              <div
+                className="loading-progress-bar"
+                aria-label={`현재 진행률 ${progressValue}%`}
+              >
+                <span style={{ width: `${progressValue}%` }} />
               </div>
 
               <p>{progressText}</p>
@@ -195,7 +204,7 @@ function AnalysisLoadingPage() {
 
           <div className="loading-action-row">
             <Button to="/analysis/result" size="lg">
-              분석 결과 화면으로 이동 <ArrowRight size={18} />
+              분석 결과 UI 미리보기로 이동 <ArrowRight size={18} />
             </Button>
             <Button to="/analysis/capture" variant="secondary" size="lg">
               이미지 다시 선택
@@ -265,8 +274,9 @@ function AnalysisLoadingPage() {
               <Clock3 size={22} />
             </div>
             <p>
-              현재 화면은 ROI 추출 결과를 확인하는 단계입니다. 실제 피부 분석
-              결과와 맞춤 추천은 이후 분석 결과 API와 연결해 확장할 수 있습니다.
+              현재 화면은 ROI 추출 결과를 확인하는 단계입니다. 실제 색소침착·주름
+              분석 결과와 맞춤 추천은 이후 분석 결과 API와 연결해 확장할 수
+              있습니다.
             </p>
           </Card>
         </aside>
