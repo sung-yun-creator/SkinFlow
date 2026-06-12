@@ -9,6 +9,7 @@ import {
   LineChart,
   LoaderCircle,
   ScanFace,
+  X,
   Sparkles,
   Upload,
 } from "lucide-react";
@@ -32,7 +33,7 @@ function getStoredAnalysisProgress() {
     const storedValue = localStorage.getItem(ANALYSIS_PROGRESS_KEY);
 
     if (!storedValue) {
-      return defaultProgress;
+      return null;
     }
 
     const parsedValue = JSON.parse(storedValue);
@@ -46,7 +47,8 @@ function getStoredAnalysisProgress() {
         : Math.max(0, Math.min(100, Math.round(progressNumber))),
     };
   } catch (error) {
-    return defaultProgress;
+    localStorage.removeItem(ANALYSIS_PROGRESS_KEY);
+    return null;
   }
 }
 
@@ -74,6 +76,11 @@ function getProgressTone(status) {
 
   return "active";
 }
+function clearStoredAnalysisProgress() {
+  localStorage.removeItem(ANALYSIS_PROGRESS_KEY);
+  window.dispatchEvent(new Event(ANALYSIS_PROGRESS_EVENT));
+}
+
 
 const valueCards = [
   {
@@ -128,8 +135,12 @@ function LandingPage() {
     [analysisProgress, isLoggedIn]
   );
 
-  const progressTone = getProgressTone(analysisProgress.status);
-  const progressPath = analysisProgress.path || "/analysis/loading";
+  const progressTone = getProgressTone(analysisProgress?.status);
+  const progressPath = analysisProgress?.path || "/analysis/loading";
+
+  const handleDismissProgress = () => {
+    clearStoredAnalysisProgress();
+  };
 
   const primaryCtaTo = isLoggedIn ? "/analysis/capture" : "/signup";
   const secondaryCtaTo = isLoggedIn ? "/dashboard" : "/login";
@@ -628,7 +639,7 @@ function LandingPage() {
             margin: 0 auto;
             padding: 10px 24px 12px;
             display: grid;
-            grid-template-columns: 42px minmax(0, 1fr) auto;
+            grid-template-columns: 42px minmax(0, 1fr) auto 34px;
             align-items: center;
             gap: 12px;
           }
@@ -789,6 +800,37 @@ function LandingPage() {
             box-shadow: 0 18px 38px rgba(15, 23, 42, 0.16);
           }
 
+
+
+          .landing-analysis-dismiss {
+            width: 34px;
+            height: 34px;
+            border-radius: 999px;
+            display: grid;
+            place-items: center;
+            line-height: 0;
+            color: #64748b;
+            background: rgba(255, 255, 255, 0.76);
+            border: 1px solid rgba(226, 232, 240, 0.95);
+            box-shadow: 0 8px 18px rgba(15, 23, 42, 0.045);
+            cursor: pointer;
+            transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+          }
+
+          .landing-analysis-dismiss:hover {
+            color: #f43f5e;
+            background: #ffffff;
+            border-color: rgba(244, 63, 94, 0.24);
+          }
+
+          .landing-analysis-dismiss svg {
+            display: block;
+            width: 15px;
+            height: 15px;
+            margin: 0;
+            stroke-width: 2.4;
+          }
+
           @media (max-width: 980px) {
             .sf-landing-links {
               display: none;
@@ -819,7 +861,7 @@ function LandingPage() {
 
           @media (max-width: 760px) {
             .landing-analysis-status-inner {
-              grid-template-columns: 38px minmax(0, 1fr);
+              grid-template-columns: 38px minmax(0, 1fr) 34px;
               padding: 9px 16px 11px;
             }
 
@@ -834,6 +876,12 @@ function LandingPage() {
               width: fit-content;
               min-height: 32px;
               padding: 0 12px;
+            }
+
+            .landing-analysis-dismiss {
+              grid-column: 3;
+              grid-row: 1 / 3;
+              align-self: center;
             }
           }
 
@@ -921,25 +969,34 @@ function LandingPage() {
             <div className="landing-analysis-content">
               <div className="landing-analysis-topline">
                 <strong className="landing-analysis-title">
-                  {analysisProgress.label}
+                  {analysisProgress?.label || defaultProgress.label}
                 </strong>
                 <strong className="landing-analysis-percent">
-                  {analysisProgress.progress}%
+                  {analysisProgress?.progress ?? 0}%
                 </strong>
               </div>
 
               <div className="landing-analysis-track" aria-hidden="true">
-                <span style={{ width: `${analysisProgress.progress}%` }} />
+                <span style={{ width: `${analysisProgress?.progress ?? 0}%` }} />
               </div>
 
               <div className="landing-analysis-description">
-                {analysisProgress.description}
+                {analysisProgress?.description || defaultProgress.description}
               </div>
             </div>
 
             <Link className="landing-analysis-action" to={progressPath}>
               진행상황 보기 <ArrowRight size={14} />
             </Link>
+
+            <button
+              className="landing-analysis-dismiss"
+              type="button"
+              aria-label="분석 진행 상태 숨기기"
+              onClick={handleDismissProgress}
+            >
+              <X size={15} />
+            </button>
           </div>
         </div>
       )}

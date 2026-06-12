@@ -972,7 +972,7 @@ function AnalysisCapturePage() {
                   </>
                 ) : (
                   <>
-                    {isLoggedIn ? "ROI 확인 시작" : "로그인 후 분석하기"} <ArrowRight size={18} />
+                    {isLoggedIn ? "분석 시작" : "로그인 후 분석하기"} <ArrowRight size={18} />
                   </>
                 )}
               </Button>
