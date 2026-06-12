@@ -1,6 +1,7 @@
 const DEFAULT_AI_SERVER_URL = 'http://localhost:8000';
 const DEFAULT_AI_SERVER_TIMEOUT_MS = 30000;
 const analysisRepository = require('../repositories/analysisRepository');
+const { findGradeByScore } = require('../constants/analysisReference');
 
 function getAiServerUrl() {
     return (process.env.AI_SERVER_URL || DEFAULT_AI_SERVER_URL).replace(/\/$/, '');
@@ -14,6 +15,7 @@ function getAiServerTimeoutMs() {
 
 function createAiServerTimeoutError(timeoutMs) {
     const error = new Error('AI 서버 응답 시간이 초과되었습니다. 다시 시도해 주세요.');
+    error.code = 'AI_SERVER_TIMEOUT';
     error.status = 504;
     error.result = {
         status: 'ai_server_timeout',
@@ -24,7 +26,7 @@ function createAiServerTimeoutError(timeoutMs) {
     return error;
 }
 
-// 백엔드는 이미지를 저장하지 않고, 메모리에 있는 파일 버퍼만 AI 서버로 전달합니다.
+// 원본 이미지는 디스크에 저장하지 않고 메모리에 있는 파일 버퍼만 AI 서버로 전달합니다.
 async function requestAiServer(path, file) {
     const formData = new FormData();
     const blob = new Blob([file.buffer], { type: file.mimetype });
@@ -57,6 +59,7 @@ async function requestAiServer(path, file) {
     if (!response.ok) {
         const message = result?.message || result?.detail || 'AI 서버 요청에 실패했습니다.';
         const error = new Error(message);
+        error.code = 'AI_SERVER_REQUEST_FAILED';
         error.status = response.status;
         error.result = result;
         throw error;
@@ -69,7 +72,6 @@ async function extractRoi(file) {
     return requestAiServer('/extract-roi', file);
 }
 
-// AI 서버 응답 중 DB에 저장할 수 있는 pixel 좌표만 골라냅니다.
 function toStoredRois(roiResult) {
     if (roiResult?.roi?.status !== 'ok') {
         return [];
@@ -89,7 +91,6 @@ function toStoredRois(roiResult) {
 }
 
 async function extractAndSaveRoi(userId, analysisId, file) {
-    // 다른 사용자의 분석 결과에 ROI가 저장되지 않도록 먼저 소유자를 확인합니다.
     const analysis = await analysisRepository.findAnalysisByIdAndUserId(userId, analysisId);
 
     if (!analysis) {
@@ -121,12 +122,165 @@ async function extractAndSaveRoi(userId, analysisId, file) {
     };
 }
 
+function toScore(value) {
+    const score = Number(value);
+
+    if (!Number.isFinite(score)) {
+        return null;
+    }
+
+    return Math.max(0, Math.min(100, Number(score.toFixed(2))));
+}
+
+function firstDefined(...values) {
+    return values.find((value) => value !== undefined && value !== null && value !== '');
+}
+
+function normalizeMetric(code, label, source) {
+    if (source === null || source === undefined || source === '') {
+        return null;
+    }
+
+    const metricSource = typeof source === 'object' ? source : { score: source, value: source };
+    const score = toScore(firstDefined(
+        metricSource.score,
+        metricSource.metric_score,
+        metricSource.metricScore,
+        metricSource.value,
+        metricSource.metric_value,
+        metricSource.metricValue,
+        metricSource.probability,
+    ));
+
+    if (score === null) {
+        return null;
+    }
+
+    const value = Number(firstDefined(
+        metricSource.value,
+        metricSource.metric_value,
+        metricSource.metricValue,
+        score,
+    ));
+    const metricGrade = findGradeByScore(score);
+
+    return {
+        code,
+        name: label,
+        value: Number.isFinite(value) ? Number(value.toFixed(4)) : score,
+        score,
+        grade: {
+            code: metricGrade.code,
+            name: metricGrade.name,
+            description: metricGrade.description,
+        },
+    };
+}
+
+function findMetricSource(result, code) {
+    if (!result || typeof result !== 'object') {
+        return null;
+    }
+
+    if (Array.isArray(result.metrics)) {
+        return result.metrics.find((metric) => {
+            const metricCode = metric.code || metric.metric_code || metric.type || metric.name;
+            return String(metricCode || '').toLowerCase() === code;
+        });
+    }
+
+    return firstDefined(result[code], result[`${code}_score`], result[`${code}Score`], null);
+}
+
+function normalizeAnalysisResult(aiResult) {
+    const prediction = aiResult?.prediction || {};
+    const predictionResult = prediction.result || aiResult?.result || null;
+    const predictionStatus = prediction.status || aiResult?.status || 'ok';
+
+    if (!predictionResult || predictionStatus === 'pending') {
+        return {
+            code: predictionStatus === 'pending' ? 'AI_MODEL_PENDING' : 'ANALYSIS_RESULT_NOT_READY',
+            persistable: false,
+            status: predictionStatus,
+            message: prediction.message || 'AI 모델 분석 결과가 아직 준비되지 않았습니다.',
+            roi: aiResult?.roi || null,
+            raw: aiResult,
+        };
+    }
+
+    const metrics = [
+        normalizeMetric('pigmentation', '색소침착', findMetricSource(predictionResult, 'pigmentation')),
+        normalizeMetric('wrinkle', '주름', findMetricSource(predictionResult, 'wrinkle')),
+    ].filter(Boolean);
+
+    if (metrics.length === 0) {
+        return {
+            code: 'ANALYSIS_RESULT_INVALID',
+            persistable: false,
+            status: 'invalid_result',
+            message: 'AI 분석 결과에서 저장 가능한 피부 지표를 찾지 못했습니다.',
+            roi: aiResult?.roi || null,
+            raw: aiResult,
+        };
+    }
+
+    const totalScore = toScore(firstDefined(
+        predictionResult.totalScore,
+        predictionResult.total_score,
+        predictionResult.score,
+        metrics.reduce((sum, metric) => sum + metric.score, 0) / metrics.length,
+    ));
+    const grade = findGradeByScore(totalScore);
+
+    return {
+        persistable: true,
+        status: 'completed',
+        totalScore,
+        grade: {
+            code: grade.code,
+            name: grade.name,
+            description: grade.description,
+        },
+        summary: firstDefined(
+            predictionResult.summary,
+            predictionResult.summary_text,
+            prediction.message,
+            `${grade.name} 상태입니다. 색소침착과 주름 지표를 기준으로 산출한 결과입니다.`,
+        ),
+        metrics,
+        roi: aiResult?.roi || null,
+        raw: aiResult,
+    };
+}
+
 async function analyzeSkin(file) {
     return requestAiServer('/analyze-skin', file);
 }
 
+async function analyzeAndSaveSkin(userId, file) {
+    const aiResult = await analyzeSkin(file);
+    const normalized = normalizeAnalysisResult(aiResult);
+
+    if (!normalized.persistable) {
+        return {
+            saved: false,
+            ...normalized,
+        };
+    }
+
+    const savedAnalysis = await analysisRepository.createAnalysisWithMetrics(userId, normalized);
+
+    return {
+        saved: true,
+        ...savedAnalysis,
+        roi: normalized.roi,
+    };
+}
+
 module.exports = {
+    analyzeAndSaveSkin,
     analyzeSkin,
     extractAndSaveRoi,
     extractRoi,
+    normalizeAnalysisResult,
 };
