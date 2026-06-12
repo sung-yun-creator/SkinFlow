@@ -18,10 +18,11 @@ import PageLayout from "../components/layout/PageLayout";
 import Button from "../components/common/Button";
 import Card from "../components/common/Card";
 import Badge from "../components/common/Badge";
-import { extractRoi } from "../api/analysisApi";
+import { analyzeSkin, extractRoi } from "../api/analysisApi";
 
 
 const ANALYSIS_PROGRESS_KEY = "skinflow_analysis_progress";
+const ANALYSIS_RESULT_KEY = "skinflow_latest_analysis_result";
 const ANALYSIS_PROGRESS_EVENT = "skinflow-analysis-progress";
 
 function saveAnalysisProgress(progress) {
@@ -33,6 +34,43 @@ function saveAnalysisProgress(progress) {
 
   localStorage.setItem(ANALYSIS_PROGRESS_KEY, JSON.stringify(progressPayload));
   window.dispatchEvent(new Event(ANALYSIS_PROGRESS_EVENT));
+}
+
+
+function saveLatestAnalysisResult(payload) {
+  const resultPayload = {
+    updatedAt: new Date().toISOString(),
+    ...payload,
+  };
+
+  localStorage.setItem(ANALYSIS_RESULT_KEY, JSON.stringify(resultPayload));
+}
+
+function getProgressFromAnalysisResult(analysisResult) {
+  if (analysisResult?.saved) {
+    return {
+      status: "analysis_completed",
+      label: "분석 결과 저장 완료",
+      description: "색소침착·주름 분석 결과가 저장되었습니다. 결과 화면에서 확인할 수 있습니다.",
+      progress: 100,
+    };
+  }
+
+  if (analysisResult?.code === "AI_MODEL_PENDING" || analysisResult?.status === "pending") {
+    return {
+      status: "ai_model_pending",
+      label: "AI 모델 연결 대기",
+      description: analysisResult?.message || "AI 모델 분석 결과가 아직 준비되지 않았습니다.",
+      progress: 75,
+    };
+  }
+
+  return {
+    status: "analysis_pending",
+    label: "분석 결과 확인 필요",
+    description: "분석 결과 응답을 확인해야 합니다. 서버 응답 구조를 점검해주세요.",
+    progress: 70,
+  };
 }
 
 function getProgressFromRoiResult(roiResult) {
@@ -225,6 +263,24 @@ function AnalysisCapturePage() {
       const roiResult = roiResponse?.result || null;
 
       saveAnalysisProgress(getProgressFromRoiResult(roiResult));
+      saveAnalysisProgress({
+        status: "skin_analysis_processing",
+        label: "피부 지표 분석 요청 중",
+        description: "색소침착·주름 분석 결과 저장 API에 이미지를 전달하고 있습니다.",
+        progress: 65,
+      });
+
+      const analysisResponse = await analyzeSkin(selectedFile);
+      const analysisResult = analysisResponse?.result || null;
+      const analysisPayload = {
+        userId: analysisResponse?.userId || null,
+        fileName: selectedFile.name,
+        roiResult,
+        result: analysisResult,
+      };
+
+      saveLatestAnalysisResult(analysisPayload);
+      saveAnalysisProgress(getProgressFromAnalysisResult(analysisResult));
 
       navigate("/analysis/loading", {
         state: {
@@ -232,6 +288,7 @@ function AnalysisCapturePage() {
             method: "upload",
             fileName: selectedFile.name,
             roiResult,
+            analysisResult,
           },
         },
       });

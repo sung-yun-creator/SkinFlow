@@ -1,20 +1,72 @@
+import { useMemo } from "react";
 import {
   ArrowRight,
-  BarChart3,
   CheckCircle2,
   ClipboardCheck,
-  Droplets,
   History,
   Info,
   Leaf,
-  LineChart,
   RotateCcw,
-  ShieldCheck,
   Sparkles,
 } from "lucide-react";
 import PageLayout from "../components/layout/PageLayout";
 import Button from "../components/common/Button";
 import Badge from "../components/common/Badge";
+
+
+const ANALYSIS_RESULT_KEY = "skinflow_latest_analysis_result";
+
+function readLatestAnalysisResult() {
+  try {
+    return JSON.parse(localStorage.getItem(ANALYSIS_RESULT_KEY) || "null");
+  } catch {
+    return null;
+  }
+}
+
+function getMetricColor(code, index) {
+  if (code === "pigmentation") return "#167D7F";
+  if (code === "wrinkle") return "#22C5C8";
+  return index % 2 === 0 ? "#167D7F" : "#14B8A6";
+}
+
+function toScore(value) {
+  const score = Number(value);
+
+  if (!Number.isFinite(score)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+function buildMetricCards(analysisResult) {
+  if (!analysisResult?.saved) {
+    return previewMetrics;
+  }
+
+  const metricCards = [
+    {
+      label: "종합 점수",
+      value: toScore(analysisResult.totalScore),
+      status: analysisResult.grade?.name || "분석 완료",
+      color: "#167D7F",
+    },
+  ];
+
+  if (Array.isArray(analysisResult.metrics)) {
+    metricCards.push(
+      ...analysisResult.metrics.map((metric, index) => ({
+        label: metric.name || metric.code || `지표 ${index + 1}`,
+        value: toScore(metric.score),
+        status: metric.grade?.name || "분석 완료",
+        color: getMetricColor(metric.code, index),
+      })),
+    );
+  }
+
+  return metricCards;
+}
 
 const previewMetrics = [
   {
@@ -68,6 +120,50 @@ const integrationItems = [
 ];
 
 function AnalysisResultPage() {
+  const latestAnalysis = useMemo(() => readLatestAnalysisResult(), []);
+  const analysisResult = latestAnalysis?.result || null;
+  const hasSavedResult = Boolean(analysisResult?.saved);
+  const isPending =
+    analysisResult?.code === "AI_MODEL_PENDING" || analysisResult?.status === "pending";
+  const metricCards = useMemo(
+    () => buildMetricCards(analysisResult),
+    [analysisResult],
+  );
+
+  const heroBadge = hasSavedResult
+    ? "Analysis Result"
+    : isPending
+      ? "AI 모델 연결 대기"
+      : "Result Preview";
+  const summaryBadge = hasSavedResult
+    ? "API 연동 완료"
+    : isPending
+      ? "저장 보류"
+      : "API 연동 전";
+  const summaryTitle = hasSavedResult
+    ? "색소침착·주름 분석 결과"
+    : isPending
+      ? "AI 모델 응답 대기 상태"
+      : "색소침착·주름 중심 결과 화면";
+  const summaryText = hasSavedResult
+    ? analysisResult.summary || "색소침착과 주름 지표를 기준으로 산출한 분석 결과입니다."
+    : isPending
+      ? analysisResult.message || "AI 모델 분석 결과가 아직 준비되지 않았습니다."
+      : "전반적인 피부 톤은 양호한 편이며, 눈가 주름 관리에 집중하면 다음 분석에서 변화를 확인하기 쉽습니다. 이 문구는 실제 분석값이 아닌 화면 확인용 예시입니다.";
+  const noticeItems = hasSavedResult
+    ? [
+        "분석 결과 저장 API에서 받은 실제 점수와 등급을 표시합니다.",
+        "색소침착·주름 지표의 표시명은 name, 화면 분기는 code를 기준으로 처리합니다.",
+        "추천·식습관 가이드는 별도 추천 API 연결 후 실제 데이터로 확장합니다.",
+      ]
+    : isPending
+      ? [
+          "AI 모델이 아직 실제 점수를 반환하지 않아 분석 이력 저장은 보류되었습니다.",
+          "현재 상태에서는 가짜 점수나 가짜 이력을 생성하지 않습니다.",
+          "AI 모델 연결 완료 후 같은 API 흐름으로 실제 결과를 표시할 수 있습니다.",
+        ]
+      : integrationItems;
+
   return (
     <PageLayout>
       <style>
@@ -468,15 +564,18 @@ function AnalysisResultPage() {
       <div className="sf-result-page">
         <section className="sf-result-hero">
           <div className="sf-result-face-card">
-            <Badge>Result Preview</Badge>
+            <Badge>{heroBadge}</Badge>
             <h1>
               피부 상태를
               <br />
               <span className="sf-result-gradient-text">한눈에 확인하세요</span>
             </h1>
             <p>
-              현재 화면은 ROI 확인 이후 연결될 분석 결과 UI 미리보기입니다.
-              실제 색소침착·주름 점수와 설명은 분석 결과 API 연동 후 표시됩니다.
+              {hasSavedResult
+                ? "분석 결과 저장 API에서 받은 색소침착·주름 지표를 표시합니다."
+                : isPending
+                  ? "AI 모델이 아직 실제 점수를 반환하지 않아 저장 보류 상태를 안내합니다."
+                  : "현재 화면은 ROI 확인 이후 연결될 분석 결과 UI 미리보기입니다. 실제 점수와 설명은 분석 결과 API 연동 후 표시됩니다."}
             </p>
 
             <div className="sf-result-face-map" aria-label="피부 ROI 미리보기">
@@ -496,14 +595,14 @@ function AnalysisResultPage() {
           <div className="sf-result-summary-card">
             <div className="sf-result-summary-top">
               <div>
-                <span className="sf-result-section-label">분석 결과 UI 미리보기</span>
-                <h2>색소침착·주름 중심 결과 화면</h2>
+                <span className="sf-result-section-label">분석 결과</span>
+                <h2>{summaryTitle}</h2>
               </div>
-              <Badge variant="secondary">API 연동 전</Badge>
+              <Badge variant="secondary">{summaryBadge}</Badge>
             </div>
 
             <div className="sf-result-score-grid">
-              {previewMetrics.map((metric) => (
+              {metricCards.map((metric) => (
                 <div className="sf-result-score-card" key={metric.label}>
                   <div
                     className="sf-result-score-ring"
@@ -525,12 +624,8 @@ function AnalysisResultPage() {
                 <Sparkles size={20} />
               </span>
               <div>
-                <strong>AI 분석 코멘트 예시</strong>
-                <p>
-                  전반적인 피부 톤은 양호한 편이며, 눈가 주름 관리에 집중하면
-                  다음 분석에서 변화를 확인하기 쉽습니다. 이 문구는 실제 분석값이
-                  아닌 화면 확인용 예시입니다.
-                </p>
+                <strong>{hasSavedResult ? "AI 분석 요약" : isPending ? "AI 모델 연결 대기" : "AI 분석 코멘트 예시"}</strong>
+                <p>{summaryText}</p>
               </div>
             </div>
 
@@ -582,18 +677,21 @@ function AnalysisResultPage() {
             <div className="sf-result-card-head">
               <div>
                 <span className="sf-result-section-label">연동 상태</span>
-                <h2>현재는 미리보기 단계입니다</h2>
+                <h2>{hasSavedResult ? "실제 결과 반영 완료" : isPending ? "AI 모델 연결 대기" : "현재는 미리보기 단계입니다"}</h2>
               </div>
               <ClipboardCheck size={26} />
             </div>
 
             <p>
-              ROI 확인 화면 다음 단계에서 보여줄 결과 화면 구조입니다. 실제 AI 결과와
-              DB 저장은 분석 결과 API가 연결된 뒤 반영해야 합니다.
+              {hasSavedResult
+                ? "분석 결과 저장 API 응답을 기준으로 결과 화면을 구성했습니다."
+                : isPending
+                  ? "현재는 AI 모델이 실제 점수를 반환하지 않아 저장되지 않은 상태입니다."
+                  : "ROI 확인 화면 다음 단계에서 보여줄 결과 화면 구조입니다. 실제 AI 결과와 DB 저장은 분석 결과 API가 연결된 뒤 반영해야 합니다."}
             </p>
 
             <div className="sf-result-notice-list">
-              {integrationItems.map((item) => (
+              {noticeItems.map((item) => (
                 <div className="sf-result-notice-item" key={item}>
                   <CheckCircle2 size={18} />
                   <span>{item}</span>

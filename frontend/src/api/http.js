@@ -1,7 +1,33 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
+class ApiError extends Error {
+  constructor(message, options = {}) {
+    super(message);
+    this.name = "ApiError";
+    this.code = options.code || "API_REQUEST_FAILED";
+    this.status = options.status || 0;
+    this.result = options.result || null;
+    this.data = options.data || null;
+  }
+}
+
 function isFormData(body) {
   return typeof FormData !== "undefined" && body instanceof FormData;
+}
+
+function createApiError(response, data) {
+  const message =
+    data?.message ||
+    data?.error ||
+    data?.detail ||
+    `API 요청에 실패했습니다. 상태 코드: ${response.status}`;
+
+  return new ApiError(message, {
+    code: data?.code || "API_REQUEST_FAILED",
+    status: response.status,
+    result: data?.result || null,
+    data,
+  });
 }
 
 async function request(path, options = {}) {
@@ -18,10 +44,23 @@ async function request(path, options = {}) {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers,
-  });
+  let response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      headers,
+    });
+  } catch (error) {
+    throw new ApiError(
+      "서버에 연결하지 못했습니다. 백엔드 서버 실행 상태와 API 주소를 확인해 주세요.",
+      {
+        code: "NETWORK_ERROR",
+        status: 0,
+        data: { originalMessage: error.message },
+      },
+    );
+  }
 
   const contentType = response.headers.get("content-type");
   const data = contentType?.includes("application/json")
@@ -29,13 +68,7 @@ async function request(path, options = {}) {
     : null;
 
   if (!response.ok) {
-    const message =
-      data?.message ||
-      data?.error ||
-      data?.detail ||
-      `API 요청에 실패했습니다. 상태 코드: ${response.status}`;
-
-    throw new Error(message);
+    throw createApiError(response, data);
   }
 
   return data;
@@ -67,3 +100,4 @@ const http = {
 };
 
 export default http;
+export { ApiError };
