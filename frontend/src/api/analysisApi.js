@@ -17,6 +17,12 @@ export function extractRoi(file) {
   return http.postForm("/api/analysis/roi", formData);
 }
 
+export function analyzeSkin(file) {
+  const formData = createImageFormData(file);
+
+  return http.postForm("/api/analysis/skin", formData);
+}
+
 export function saveRoiToAnalysis(analysisId, file) {
   if (!analysisId) {
     throw new Error("ROI를 저장할 분석 ID가 없습니다.");

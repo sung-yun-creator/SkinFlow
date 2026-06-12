@@ -9,13 +9,22 @@ import {
   LoaderCircle,
   RefreshCw,
   ScanFace,
-  Sparkles,
   WandSparkles,
 } from "lucide-react";
 import PageLayout from "../components/layout/PageLayout";
 import Button from "../components/common/Button";
 import Card from "../components/common/Card";
 import Badge from "../components/common/Badge";
+
+const ANALYSIS_RESULT_KEY = "skinflow_latest_analysis_result";
+
+function readLatestAnalysisResult() {
+  try {
+    return JSON.parse(localStorage.getItem(ANALYSIS_RESULT_KEY) || "null");
+  } catch {
+    return null;
+  }
+}
 
 function getRegionCount(roiResult) {
   if (!roiResult) return 0;
@@ -78,16 +87,66 @@ function getRoiStatus(roiResult) {
   };
 }
 
+function getAnalysisStatus(analysisResult) {
+  if (!analysisResult) {
+    return {
+      isCompleted: false,
+      isPending: false,
+      label: "피부 지표 분석 대기",
+      description: "색소침착·주름 분석 결과 응답이 아직 전달되지 않았습니다.",
+      progress: 45,
+      stepStatus: "waiting",
+    };
+  }
+
+  if (analysisResult.saved) {
+    return {
+      isCompleted: true,
+      isPending: false,
+      label: "분석 결과 저장 완료",
+      description: "색소침착·주름 분석 결과가 저장되었습니다. 실제 결과 화면 또는 분석 이력에서 확인할 수 있습니다.",
+      progress: 100,
+      stepStatus: "done",
+    };
+  }
+
+  if (analysisResult.code === "AI_MODEL_PENDING" || analysisResult.status === "pending") {
+    return {
+      isCompleted: false,
+      isPending: true,
+      label: "AI 모델 연결 대기",
+      description: analysisResult.message || "AI 모델 분석 결과가 아직 준비되지 않았습니다.",
+      progress: 75,
+      stepStatus: "active",
+    };
+  }
+
+  return {
+    isCompleted: false,
+    isPending: false,
+    label: "분석 결과 확인 필요",
+    description: analysisResult.message || "분석 결과 응답 구조를 확인해야 합니다.",
+    progress: 70,
+    stepStatus: "active",
+  };
+}
+
 function AnalysisLoadingPage() {
   const location = useLocation();
   const analysisInput = location.state?.analysisInput || {};
+  const storedAnalysis = useMemo(() => readLatestAnalysisResult(), []);
 
   const method = analysisInput.method || "unknown";
-  const fileName = analysisInput.fileName || "";
-  const roiResult = analysisInput.roiResult || null;
+  const fileName = analysisInput.fileName || storedAnalysis?.fileName || "";
+  const roiResult = analysisInput.roiResult || storedAnalysis?.roiResult || null;
+  const analysisResult = analysisInput.analysisResult || storedAnalysis?.result || null;
 
   const roiStatus = useMemo(() => getRoiStatus(roiResult), [roiResult]);
   const regionCount = useMemo(() => getRegionCount(roiResult), [roiResult]);
+  const analysisStatus = useMemo(
+    () => getAnalysisStatus(analysisResult),
+    [analysisResult],
+  );
 
   const methodLabel =
     method === "upload"
@@ -96,10 +155,16 @@ function AnalysisLoadingPage() {
         ? "웹캠 촬영"
         : "직접 접근";
 
-  const progressValue = roiStatus.isReady ? 45 : 20;
-  const progressText = roiStatus.isReady
-    ? "ROI 확인이 완료되었습니다. 현재 단계에서는 실제 색소침착·주름 분석 결과가 아니라 결과 UI 미리보기로 연결됩니다."
-    : "입력 이미지와 얼굴 관심 영역 정보를 확인하는 중입니다.";
+  const progressValue = Math.max(
+    roiStatus.isReady ? 45 : 20,
+    analysisStatus.progress,
+  );
+  const progressText = analysisStatus.description;
+  const progressCenterLabel = analysisStatus.isCompleted
+    ? "완료"
+    : analysisStatus.isPending
+      ? "대기"
+      : "확인 중";
 
   const summaryItems = [
     {
@@ -122,6 +187,10 @@ function AnalysisLoadingPage() {
       label: "관심 영역 수",
       value: regionCount > 0 ? `${regionCount}개 영역` : "확인 대기",
     },
+    {
+      label: "AI 결과 상태",
+      value: analysisStatus.label,
+    },
   ];
 
   const analysisSteps = [
@@ -141,14 +210,12 @@ function AnalysisLoadingPage() {
       description: roiStatus.description,
     },
     {
-      status: roiStatus.isReady ? "active" : "waiting",
+      status: analysisStatus.stepStatus,
       icon: BrainCircuit,
-      title: "피부 지표 분석 연동 대기",
-      description:
-        "색소침착과 주름 분석 결과 API가 연결되면 실제 지표 결과로 이어집니다.",
+      title: analysisStatus.label,
+      description: analysisStatus.description,
     },
   ];
-
   return (
     <PageLayout>
       <style>
@@ -527,17 +594,17 @@ function AnalysisLoadingPage() {
 
       <section className="sf-loading-page">
         <Card className="sf-loading-card sf-loading-hero">
-          <Badge>{roiStatus.isReady ? "ROI 확인 완료" : "분석 준비 중"}</Badge>
+          <Badge>{analysisStatus.label}</Badge>
 
           <h1>
-            피부 분석 흐름을
+            피부 분석 요청을
             <br />
-            <span className="sf-loading-gradient-text">준비하고 있어요</span>
+            <span className="sf-loading-gradient-text">확인하고 있어요</span>
           </h1>
 
           <p>
-            입력된 얼굴 이미지에서 피부 관심 영역을 확인하고, 이후 색소침착과
-            주름 중심의 피부 분석 결과로 연결할 준비를 진행합니다.
+            입력된 얼굴 이미지의 ROI와 색소침착·주름 분석 결과 저장 API 응답을
+            단계별로 확인합니다.
           </p>
 
           <div className="sf-progress-card">
@@ -552,12 +619,12 @@ function AnalysisLoadingPage() {
                 }}
               />
               <div className="sf-progress-center">
-                {roiStatus.isReady ? (
+                {analysisStatus.isCompleted ? (
                   <CheckCircle2 size={28} />
                 ) : (
                   <LoaderCircle className="sf-loading-spin" size={28} />
                 )}
-                <span>{roiStatus.isReady ? "ROI 완료" : "확인 중"}</span>
+                <span>{progressCenterLabel}</span>
               </div>
             </div>
 
@@ -576,11 +643,17 @@ function AnalysisLoadingPage() {
           </div>
 
           <div className="sf-loading-actions">
-            <Button to="/analysis/result" size="lg">
-              분석 결과 미리보기로 이동 <ArrowRight size={18} />
-            </Button>
-            <Button to="/analysis/capture" variant="secondary" size="lg">
-              이미지 다시 선택
+            {analysisStatus.isCompleted ? (
+              <Button to="/analysis/result" size="lg">
+                분석 결과 보기 <ArrowRight size={18} />
+              </Button>
+            ) : (
+              <Button to="/analysis/capture" size="lg">
+                다른 이미지로 다시 분석 <RefreshCw size={18} />
+              </Button>
+            )}
+            <Button to="/history" variant="secondary" size="lg">
+              분석 이력 확인
             </Button>
           </div>
         </Card>
@@ -658,9 +731,8 @@ function AnalysisLoadingPage() {
             </span>
 
             <p>
-              현재 화면은 ROI 추출 결과를 확인하는 단계입니다. 실제 색소침착·주름
-              분석 결과와 맞춤 추천은 이후 분석 결과 API와 연결해 확장할 수
-              있습니다.
+              현재 화면은 분석 요청의 실제 응답 상태를 보여줍니다. AI 모델이 아직
+              점수를 반환하지 않으면 가짜 이력을 만들지 않고 연결 대기 상태로 안내합니다.
             </p>
           </div>
         </aside>
