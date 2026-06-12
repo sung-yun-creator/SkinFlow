@@ -20,6 +20,59 @@ import Card from "../components/common/Card";
 import Badge from "../components/common/Badge";
 import { extractRoi } from "../api/analysisApi";
 
+
+const ANALYSIS_PROGRESS_KEY = "skinflow_analysis_progress";
+const ANALYSIS_PROGRESS_EVENT = "skinflow-analysis-progress";
+
+function saveAnalysisProgress(progress) {
+  const progressPayload = {
+    updatedAt: new Date().toISOString(),
+    path: "/analysis/loading",
+    ...progress,
+  };
+
+  localStorage.setItem(ANALYSIS_PROGRESS_KEY, JSON.stringify(progressPayload));
+  window.dispatchEvent(new Event(ANALYSIS_PROGRESS_EVENT));
+}
+
+function getProgressFromRoiResult(roiResult) {
+  const status = roiResult?.status || roiResult?.roi?.status || roiResult?.result?.status;
+
+  if (!status || status === "ok") {
+    return {
+      status: "roi_complete",
+      label: "ROI 확인 완료",
+      description: "얼굴 관심 영역을 확인했습니다. 결과 UI 미리보기로 이어집니다.",
+      progress: 45,
+    };
+  }
+
+  if (status === "model_missing") {
+    return {
+      status: "model_missing",
+      label: "ROI 모델 확인 필요",
+      description: "AI 서버 모델 파일 확인이 필요합니다. 요청 흐름은 전달되었습니다.",
+      progress: 20,
+    };
+  }
+
+  if (status === "no_face") {
+    return {
+      status: "failed",
+      label: "얼굴 미검출",
+      description: "이미지에서 얼굴을 찾지 못했습니다. 다른 사진으로 다시 시도해주세요.",
+      progress: 10,
+    };
+  }
+
+  return {
+    status: "analysis_waiting",
+    label: "ROI 확인 필요",
+    description: "얼굴 관심 영역 확인 결과를 검토해야 합니다.",
+    progress: 20,
+  };
+}
+
 const allowedImageTypes = ["image/jpeg", "image/png"];
 
 const uploadGuideItems = [
@@ -140,6 +193,13 @@ function AnalysisCapturePage() {
     }
 
     if (selectedMethod === "webcam") {
+      saveAnalysisProgress({
+        status: "roi_pending",
+        label: "웹캠 입력 확인 대기",
+        description: "웹캠 촬영 방식은 보조 기능입니다. 현재는 입력 방식 확인 단계입니다.",
+        progress: 20,
+      });
+
       navigate("/analysis/loading", {
         state: {
           analysisInput: {
@@ -154,14 +214,24 @@ function AnalysisCapturePage() {
       setIsSubmitting(true);
       setUploadError("");
 
+      saveAnalysisProgress({
+        status: "roi_processing",
+        label: "얼굴 영역 확인 중",
+        description: `${selectedFile.name} 파일의 얼굴 관심 영역을 확인하고 있습니다.`,
+        progress: 20,
+      });
+
       const roiResponse = await extractRoi(selectedFile);
+      const roiResult = roiResponse?.result || null;
+
+      saveAnalysisProgress(getProgressFromRoiResult(roiResult));
 
       navigate("/analysis/loading", {
         state: {
           analysisInput: {
             method: "upload",
             fileName: selectedFile.name,
-            roiResult: roiResponse?.result || null,
+            roiResult,
           },
         },
       });
@@ -176,6 +246,13 @@ function AnalysisCapturePage() {
         rawMessage.includes("ERR_CONNECTION")
           ? fallbackMessage
           : rawMessage || fallbackMessage;
+
+      saveAnalysisProgress({
+        status: "failed",
+        label: "분석 요청 확인 필요",
+        description: "분석 요청 처리 중 문제가 발생했습니다. 서버 실행 상태를 확인해주세요.",
+        progress: 0,
+      });
 
       setUploadError(message);
     } finally {

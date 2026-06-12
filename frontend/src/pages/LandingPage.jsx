@@ -1,16 +1,79 @@
+import { useEffect, useMemo, useState } from "react";
 import {
+  Activity,
   ArrowRight,
   CheckCircle2,
   ClipboardList,
   FlaskConical,
   History,
   LineChart,
+  LoaderCircle,
   ScanFace,
   Sparkles,
   Upload,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import Button from "../components/common/Button";
+
+
+const ANALYSIS_PROGRESS_KEY = "skinflow_analysis_progress";
+const ANALYSIS_PROGRESS_EVENT = "skinflow-analysis-progress";
+
+const defaultProgress = {
+  status: "idle",
+  label: "분석 대기",
+  description: "피부 분석을 시작하면 진행 상태가 표시됩니다.",
+  progress: 0,
+  path: "/analysis/loading",
+};
+
+function getStoredAnalysisProgress() {
+  try {
+    const storedValue = localStorage.getItem(ANALYSIS_PROGRESS_KEY);
+
+    if (!storedValue) {
+      return defaultProgress;
+    }
+
+    const parsedValue = JSON.parse(storedValue);
+    const progressNumber = Number(parsedValue?.progress);
+
+    return {
+      ...defaultProgress,
+      ...parsedValue,
+      progress: Number.isNaN(progressNumber)
+        ? defaultProgress.progress
+        : Math.max(0, Math.min(100, Math.round(progressNumber))),
+    };
+  } catch (error) {
+    return defaultProgress;
+  }
+}
+
+function shouldShowProgress(progress) {
+  if (!progress || progress.status === "idle") return false;
+
+  return [
+    "roi_pending",
+    "roi_processing",
+    "roi_complete",
+    "model_missing",
+    "analysis_waiting",
+    "failed",
+  ].includes(progress.status);
+}
+
+function getProgressTone(status) {
+  if (status === "failed" || status === "model_missing") {
+    return "warning";
+  }
+
+  if (status === "roi_complete") {
+    return "ready";
+  }
+
+  return "active";
+}
 
 const valueCards = [
   {
@@ -40,6 +103,34 @@ const processSteps = [
 
 function LandingPage() {
   const isLoggedIn = Boolean(localStorage.getItem("skinflow_token"));
+  const [analysisProgress, setAnalysisProgress] = useState(() =>
+    getStoredAnalysisProgress()
+  );
+
+  useEffect(() => {
+    const syncProgress = () => {
+      setAnalysisProgress(getStoredAnalysisProgress());
+    };
+
+    syncProgress();
+
+    window.addEventListener("storage", syncProgress);
+    window.addEventListener(ANALYSIS_PROGRESS_EVENT, syncProgress);
+
+    return () => {
+      window.removeEventListener("storage", syncProgress);
+      window.removeEventListener(ANALYSIS_PROGRESS_EVENT, syncProgress);
+    };
+  }, []);
+
+  const shouldRenderAnalysisStatus = useMemo(
+    () => isLoggedIn && shouldShowProgress(analysisProgress),
+    [analysisProgress, isLoggedIn]
+  );
+
+  const progressTone = getProgressTone(analysisProgress.status);
+  const progressPath = analysisProgress.path || "/analysis/loading";
+
   const primaryCtaTo = isLoggedIn ? "/analysis/capture" : "/signup";
   const secondaryCtaTo = isLoggedIn ? "/dashboard" : "/login";
   const primaryCtaText = isLoggedIn ? "피부 분석 시작하기" : "무료 피부 분석 시작";
@@ -523,6 +614,146 @@ function LandingPage() {
             letter-spacing: -0.04em;
           }
 
+
+          .landing-analysis-status {
+            border-top: 1px solid rgba(226, 232, 240, 0.72);
+            background:
+              radial-gradient(circle at 12% 0%, rgba(22, 125, 127, 0.08), transparent 28%),
+              rgba(248, 250, 252, 0.96);
+            backdrop-filter: blur(16px);
+          }
+
+          .landing-analysis-status-inner {
+            max-width: 1120px;
+            margin: 0 auto;
+            padding: 10px 24px 12px;
+            display: grid;
+            grid-template-columns: 42px minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 12px;
+          }
+
+          .landing-analysis-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 16px;
+            display: grid;
+            place-items: center;
+            line-height: 0;
+            color: #167d7f;
+            background: linear-gradient(135deg, #f0fdfa 0%, #ffffff 52%, #fff1f4 100%);
+            border: 1px solid rgba(226, 232, 240, 0.92);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.055);
+          }
+
+          .landing-analysis-icon svg {
+            display: block;
+            width: 20px;
+            height: 20px;
+            margin: 0;
+            stroke-width: 2.2;
+          }
+
+          .landing-analysis-status[data-tone="active"] .landing-analysis-icon svg {
+            animation: landingAnalysisPulse 1.4s ease-in-out infinite;
+          }
+
+          .landing-analysis-status[data-tone="warning"] .landing-analysis-icon {
+            color: #f43f5e;
+          }
+
+          .landing-analysis-content {
+            min-width: 0;
+          }
+
+          .landing-analysis-topline {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 6px;
+          }
+
+          .landing-analysis-title {
+            min-width: 0;
+            color: #0f172a;
+            font-size: 13px;
+            font-weight: 950;
+            letter-spacing: -0.025em;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          .landing-analysis-percent {
+            flex: 0 0 auto;
+            color: #167d7f;
+            font-size: 13px;
+            font-weight: 950;
+          }
+
+          .landing-analysis-status[data-tone="warning"] .landing-analysis-percent {
+            color: #f43f5e;
+          }
+
+          .landing-analysis-track {
+            height: 6px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: #e2e8f0;
+          }
+
+          .landing-analysis-track span {
+            display: block;
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #167d7f, #22c5c8, #f43f5e);
+            transition: width 0.25s ease;
+          }
+
+          .landing-analysis-description {
+            margin-top: 5px;
+            overflow: hidden;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 700;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          .landing-analysis-action {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            min-height: 36px;
+            padding: 0 14px;
+            border-radius: 999px;
+            color: #0f172a;
+            background: #ffffff;
+            border: 1px solid rgba(226, 232, 240, 0.95);
+            font-size: 12px;
+            font-weight: 950;
+            white-space: nowrap;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+          }
+
+          .landing-analysis-action:hover {
+            color: #167d7f;
+            border-color: rgba(22, 125, 127, 0.2);
+          }
+
+          @keyframes landingAnalysisPulse {
+            0%, 100% {
+              transform: scale(1);
+              opacity: 0.72;
+            }
+            50% {
+              transform: scale(1.08);
+              opacity: 1;
+            }
+          }
+
           .sf-final-cta {
             margin-top: 24px;
             padding: 42px 28px;
@@ -583,6 +814,26 @@ function LandingPage() {
               grid-template-columns: repeat(5, minmax(120px, 1fr));
               overflow-x: auto;
               padding: 4px 0 14px;
+            }
+          }
+
+          @media (max-width: 760px) {
+            .landing-analysis-status-inner {
+              grid-template-columns: 38px minmax(0, 1fr);
+              padding: 9px 16px 11px;
+            }
+
+            .landing-analysis-icon {
+              width: 38px;
+              height: 38px;
+              border-radius: 14px;
+            }
+
+            .landing-analysis-action {
+              grid-column: 2;
+              width: fit-content;
+              min-height: 32px;
+              padding: 0 12px;
             }
           }
 
@@ -653,6 +904,45 @@ function LandingPage() {
           </Button>
         </div>
       </header>
+
+      {shouldRenderAnalysisStatus && (
+        <div className="landing-analysis-status" data-tone={progressTone}>
+          <div className="landing-analysis-status-inner">
+            <span className="landing-analysis-icon" aria-hidden="true">
+              {progressTone === "ready" ? (
+                <CheckCircle2 size={20} />
+              ) : progressTone === "warning" ? (
+                <Activity size={20} />
+              ) : (
+                <LoaderCircle size={20} />
+              )}
+            </span>
+
+            <div className="landing-analysis-content">
+              <div className="landing-analysis-topline">
+                <strong className="landing-analysis-title">
+                  {analysisProgress.label}
+                </strong>
+                <strong className="landing-analysis-percent">
+                  {analysisProgress.progress}%
+                </strong>
+              </div>
+
+              <div className="landing-analysis-track" aria-hidden="true">
+                <span style={{ width: `${analysisProgress.progress}%` }} />
+              </div>
+
+              <div className="landing-analysis-description">
+                {analysisProgress.description}
+              </div>
+            </div>
+
+            <Link className="landing-analysis-action" to={progressPath}>
+              진행상황 보기 <ArrowRight size={14} />
+            </Link>
+          </div>
+        </div>
+      )}
 
       <main className="sf-landing-page">
         <section className="sf-landing-hero" id="service">
