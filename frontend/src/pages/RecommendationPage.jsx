@@ -1,301 +1,712 @@
 import {
   ArrowRight,
-  BadgeCheck,
-  Beaker,
   CheckCircle2,
-  ExternalLink,
-  HeartPulse,
+  Droplets,
+  FlaskConical,
+  Heart,
   Leaf,
   PackageCheck,
   ShieldCheck,
-  ShoppingBag,
   Sparkles,
-  Star,
 } from "lucide-react";
 import PageLayout from "../components/layout/PageLayout";
 import Button from "../components/common/Button";
 import Card from "../components/common/Card";
 import Badge from "../components/common/Badge";
-import SectionTitle from "../components/common/SectionTitle";
 
 const ingredientRecommendations = [
   {
     name: "나이아신아마이드",
-    type: "미백 기능성 성분",
-    match: 92,
-    reason: "색소침착 지표 관리에 참고할 수 있는 대표적인 기능성 성분입니다.",
-    tag: "색소침착",
+    description: "색소침착 관리와 피부톤 케어에 참고할 수 있는 대표 기능성 성분입니다.",
+    match: 96,
+    tags: ["색소침착", "피부톤"],
   },
   {
     name: "비타민 C 유도체",
-    type: "브라이트닝 성분",
-    match: 88,
-    reason: "칙칙한 피부 톤과 색소침착 관리 루틴에 함께 고려할 수 있습니다.",
-    tag: "톤 관리",
+    description: "칙칙한 피부톤과 항산화 케어 루틴에 함께 고려할 수 있습니다.",
+    match: 92,
+    tags: ["브라이트닝", "항산화"],
   },
   {
-    name: "판테놀",
-    type: "피부 장벽 보조 성분",
-    match: 84,
-    reason: "피부 자극을 줄이고 수분 장벽 관리에 참고할 수 있는 성분입니다.",
-    tag: "진정",
+    name: "아데노신",
+    description: "주름 관리와 탄력 케어에 참고할 수 있는 기능성 성분입니다.",
+    match: 88,
+    tags: ["주름", "탄력"],
   },
 ];
 
 const productRecommendations = [
   {
-    brand: "SkinFlow Pick",
-    name: "브라이트닝 밸런스 세럼",
-    type: "세럼",
-    price: "29,000원",
-    match: 94,
-    reason: "색소침착 관리에 참고할 수 있는 기능성 성분 중심의 세럼 타입 제품입니다.",
+    brand: "SkinFlow Lab",
+    name: "글로우 세럼 30ml",
+    description: "나이아신아마이드 5% 함유, 색소침착 케어 참고",
+    match: 95,
+    icon: Droplets,
   },
   {
-    brand: "Derma Care",
-    name: "수분 장벽 리페어 크림",
-    type: "크림",
-    price: "24,000원",
-    match: 89,
-    reason: "수분 관리와 피부 장벽 관리 루틴에 함께 사용하기 좋은 보습 제품입니다.",
+    brand: "Aurora Beauty",
+    name: "리프팅 아이크림",
+    description: "눈가 주름 집중 관리에 참고 가능한 제품",
+    match: 90,
+    icon: Leaf,
   },
   {
-    brand: "Daily UV",
-    name: "데일리 톤케어 선크림",
-    type: "선크림",
-    price: "18,000원",
+    brand: "Pure Lab",
+    name: "비타민 부스터 앰플",
+    description: "피부톤 관리와 항산화 케어에 참고",
     match: 87,
-    reason: "색소침착 관리에서 중요한 자외선 차단 루틴에 활용할 수 있습니다.",
+    icon: Heart,
   },
 ];
 
 const careTips = [
-  "색소침착 지표가 주의 단계이므로 자외선 차단 루틴을 우선 관리하세요.",
-  "기능성 성분은 피부 상태에 따라 자극이 있을 수 있으므로 낮은 빈도부터 시작하세요.",
-  "제품 추천은 분석 결과 기반 참고 정보이며, 개인 피부 반응에 따라 달라질 수 있습니다.",
+  "추천 결과는 현재 미리보기 데이터이며 실제 추천 API 연동 전 상태입니다.",
+  "색소침착 관리는 자외선 차단과 브라이트닝 성분 루틴을 함께 보는 것이 좋습니다.",
+  "주름 관리는 보습, 항산화 케어, 충분한 수면을 함께 관리하는 방향을 권장합니다.",
 ];
 
 function RecommendationPage() {
   return (
     <PageLayout>
-      <section className="recommend-hero">
-        <div className="recommend-copy">
-          <Badge>Personal Recommendation</Badge>
+      <style>{`
+        .sf-recommend-page {
+          display: grid;
+          gap: 16px;
+        }
 
-          <h1>
-            분석 결과에 맞는
-            <br />
-            성분과 제품을 추천합니다
-          </h1>
+        .sf-recommend-hero {
+          display: grid;
+          grid-template-columns: minmax(0, 0.95fr) minmax(380px, 1.05fr);
+          gap: 16px;
+          align-items: stretch;
+        }
 
-          <p>
-            색소침착과 주름 분석 결과를 바탕으로 관리에 참고할 수 있는 기능성 성분,
-            화장품 제품, 관리 방향을 정리했습니다.
-          </p>
+        .sf-recommend-hero-card,
+        .sf-recommend-summary-card,
+        .sf-recommend-panel,
+        .sf-recommend-guide-card {
+          overflow: hidden;
+          border: 1px solid rgba(226, 232, 240, 0.92);
+          border-radius: 26px;
+          background: rgba(255, 255, 255, 0.96);
+          box-shadow: 0 18px 44px rgba(15, 23, 42, 0.065);
+        }
 
-          <div className="recommend-action-row">
-            <Button to="/diet-guide" size="lg">
-              식습관 가이드 보기 <Leaf size={18} />
-            </Button>
-            <Button to="/analysis/result" variant="secondary" size="lg">
-              분석 결과 다시 보기
-            </Button>
-          </div>
-        </div>
+        .sf-recommend-hero-card {
+          padding: 26px;
+          background:
+            radial-gradient(circle at 0% 0%, rgba(22, 125, 127, 0.10), transparent 34%),
+            radial-gradient(circle at 100% 100%, rgba(244, 63, 94, 0.08), transparent 32%),
+            #ffffff;
+        }
 
-        <Card className="recommend-summary-card">
-          <div className="recommend-summary-header">
-            <div className="summary-icon">
-              <Sparkles size={28} />
+        .sf-recommend-hero-card h1 {
+          margin: 15px 0 12px;
+          color: #0f172a;
+          font-size: clamp(32px, 4vw, 48px);
+          line-height: 1.08;
+          letter-spacing: -0.07em;
+        }
+
+        .sf-recommend-gradient {
+          background: linear-gradient(90deg, #167d7f 0%, #22c5c8 48%, #f43f5e 100%);
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+        }
+
+        .sf-recommend-hero-card p {
+          max-width: 560px;
+          margin: 0;
+          color: #64748b;
+          font-size: 14px;
+          line-height: 1.72;
+          word-break: keep-all;
+        }
+
+        .sf-recommend-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          margin-top: 20px;
+        }
+
+        .sf-recommend-summary-card {
+          padding: 22px;
+        }
+
+        .sf-recommend-summary-top {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 16px;
+          margin-bottom: 16px;
+        }
+
+        .sf-recommend-label {
+          display: block;
+          color: #64748b;
+          font-size: 12px;
+          font-weight: 900;
+          letter-spacing: -0.01em;
+        }
+
+        .sf-recommend-summary-top h2,
+        .sf-recommend-panel-head h2,
+        .sf-recommend-guide-card h2 {
+          margin: 5px 0 0;
+          color: #0f172a;
+          font-size: 21px;
+          line-height: 1.18;
+          letter-spacing: -0.05em;
+        }
+
+        .sf-status-pill {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          padding: 8px 12px;
+          border-radius: 999px;
+          color: #167d7f;
+          background: rgba(22, 125, 127, 0.1);
+          font-size: 12px;
+          font-weight: 950;
+          white-space: nowrap;
+        }
+
+        .sf-recommend-summary-grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 10px;
+        }
+
+        .sf-summary-metric {
+          padding: 14px;
+          border: 1px solid rgba(226, 232, 240, 0.9);
+          border-radius: 17px;
+          background: #f8fafc;
+        }
+
+        .sf-summary-metric span {
+          display: block;
+          color: #64748b;
+          font-size: 12px;
+          font-weight: 900;
+        }
+
+        .sf-summary-metric strong {
+          display: block;
+          margin-top: 6px;
+          color: #0f172a;
+          font-size: 22px;
+          letter-spacing: -0.055em;
+        }
+
+        .sf-summary-note {
+          display: flex;
+          gap: 10px;
+          align-items: flex-start;
+          margin-top: 12px;
+          padding: 13px;
+          border-radius: 17px;
+          color: #0f172a;
+          background: rgba(22, 125, 127, 0.08);
+          font-size: 13px;
+          font-weight: 700;
+          line-height: 1.52;
+        }
+
+        .sf-summary-note svg {
+          flex: 0 0 auto;
+          margin-top: 1px;
+          color: #167d7f;
+        }
+
+        .sf-recommend-content-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+          gap: 16px;
+          align-items: start;
+        }
+
+        .sf-recommend-panel {
+          padding: 22px;
+          align-self: start;
+        }
+
+        .sf-recommend-panel-head {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 14px;
+          margin-bottom: 14px;
+        }
+
+        .sf-panel-heading {
+          display: flex;
+          gap: 10px;
+          align-items: flex-start;
+        }
+
+        .sf-panel-accent {
+          width: 4px;
+          height: 22px;
+          margin-top: 4px;
+          border-radius: 999px;
+          background: #167d7f;
+        }
+
+        .sf-panel-accent.is-pink {
+          background: #f43f5e;
+        }
+
+        .sf-recommend-list {
+          display: grid;
+          gap: 10px;
+        }
+
+        .sf-ingredient-card,
+        .sf-product-card {
+          display: grid;
+          grid-template-columns: 50px minmax(0, 1fr) auto;
+          align-items: center;
+          gap: 13px;
+          min-height: 106px;
+          padding: 15px 16px;
+          border: 1px solid rgba(226, 232, 240, 0.9);
+          border-radius: 20px;
+          background:
+            radial-gradient(circle at 100% 0%, rgba(22, 125, 127, 0.045), transparent 34%),
+            #ffffff;
+          transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+        }
+
+        .sf-ingredient-card:hover,
+        .sf-product-card:hover {
+          transform: translateY(-2px);
+          border-color: rgba(22, 125, 127, 0.22);
+          box-shadow: 0 16px 34px rgba(15, 23, 42, 0.075);
+        }
+
+        .sf-icon-tile {
+          width: 50px;
+          height: 50px;
+          min-width: 50px;
+          min-height: 50px;
+          border-radius: 17px;
+          display: grid;
+          place-items: center;
+          line-height: 0;
+          color: #167d7f;
+          background: linear-gradient(135deg, #f2fbfb 0%, #ffffff 52%, #fff1f4 100%);
+          border: 1px solid rgba(226, 232, 240, 0.9);
+          box-shadow: 0 8px 20px rgba(15, 23, 42, 0.045);
+        }
+
+        .sf-icon-tile svg {
+          display: block;
+          width: 22px !important;
+          height: 22px !important;
+          min-width: 22px;
+          min-height: 22px;
+          margin: 0;
+          flex: 0 0 auto;
+          transform: none;
+          stroke-width: 2.05;
+        }
+
+        .sf-ingredient-main,
+        .sf-product-main {
+          min-width: 0;
+        }
+
+        .sf-ingredient-main h3,
+        .sf-product-main h3 {
+          margin: 0 0 5px;
+          color: #0f172a;
+          font-size: 16px;
+          line-height: 1.3;
+          letter-spacing: -0.04em;
+        }
+
+        .sf-ingredient-main p,
+        .sf-product-main p {
+          margin: 0;
+          color: #64748b;
+          font-size: 12.5px;
+          line-height: 1.48;
+          word-break: keep-all;
+        }
+
+        .sf-product-brand {
+          display: block;
+          margin-bottom: 4px;
+          color: #94a3b8;
+          font-size: 11px;
+          font-weight: 900;
+        }
+
+        .sf-match-score {
+          display: inline-flex;
+          flex-direction: column;
+          align-items: flex-end;
+          justify-content: center;
+          min-width: 54px;
+          padding: 8px 0;
+          color: #167d7f;
+          text-align: right;
+          font-size: 19px;
+          font-weight: 950;
+          line-height: 1.05;
+          letter-spacing: -0.04em;
+        }
+
+        .sf-match-score span {
+          display: block;
+          margin-bottom: 4px;
+          color: #94a3b8;
+          font-size: 11px;
+          font-weight: 900;
+          letter-spacing: 0;
+        }
+
+        .sf-tag-row {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+          margin-top: 9px;
+        }
+
+        .sf-tag {
+          padding: 4px 8px;
+          border-radius: 999px;
+          color: #167d7f;
+          background: rgba(22, 125, 127, 0.1);
+          font-size: 11px;
+          font-weight: 900;
+        }
+
+        .sf-recommend-bottom {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+          gap: 16px;
+          align-items: start;
+        }
+
+        .sf-recommend-guide-card {
+          padding: 22px;
+          align-self: start;
+        }
+
+        .sf-guide-list {
+          display: grid;
+          gap: 9px;
+          margin-top: 14px;
+        }
+
+        .sf-guide-item {
+          display: grid;
+          grid-template-columns: 42px minmax(0, 1fr);
+          align-items: center;
+          gap: 11px;
+          padding: 12px;
+          border: 1px solid rgba(226, 232, 240, 0.88);
+          border-radius: 17px;
+          background: #f8fafc;
+        }
+
+        .sf-guide-item .sf-icon-tile {
+          width: 42px;
+          height: 42px;
+          min-width: 42px;
+          min-height: 42px;
+          margin: 0;
+          border-radius: 15px;
+          display: grid;
+          place-items: center;
+          line-height: 0;
+        }
+
+        .sf-guide-item .sf-icon-tile svg {
+          width: 18px !important;
+          height: 18px !important;
+          min-width: 18px;
+          min-height: 18px;
+        }
+
+        .sf-guide-item strong {
+          display: block;
+          color: #0f172a;
+          font-size: 13.5px;
+          letter-spacing: -0.03em;
+        }
+
+        .sf-guide-item > div > span {
+          display: block;
+          margin-top: 3px;
+          color: #64748b;
+          font-size: 12px;
+          line-height: 1.42;
+          word-break: keep-all;
+        }
+
+        .sf-next-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          margin-top: 16px;
+        }
+
+        @media (max-width: 1020px) {
+          .sf-recommend-hero,
+          .sf-recommend-content-grid,
+          .sf-recommend-bottom {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .sf-recommend-page {
+            gap: 14px;
+          }
+
+          .sf-recommend-hero-card,
+          .sf-recommend-summary-card,
+          .sf-recommend-panel,
+          .sf-recommend-guide-card {
+            padding: 20px;
+            border-radius: 24px;
+          }
+
+          .sf-recommend-hero-card h1 {
+            font-size: 36px;
+          }
+
+          .sf-recommend-summary-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .sf-ingredient-card,
+          .sf-product-card {
+            grid-template-columns: 48px minmax(0, 1fr);
+            min-height: auto;
+          }
+
+          .sf-match-score {
+            grid-column: 2;
+            align-items: flex-start;
+            text-align: left;
+            padding-top: 2px;
+          }
+
+          .sf-icon-tile {
+            width: 48px;
+            height: 48px;
+            min-width: 48px;
+            min-height: 48px;
+          }
+
+          .sf-next-actions .sf-button {
+            width: 100%;
+          }
+        }
+      `}</style>
+
+      <div className="sf-recommend-page">
+        <section className="sf-recommend-hero">
+          <Card className="sf-recommend-hero-card">
+            <Badge>AI Recommendation</Badge>
+            <h1>
+              분석 결과에 맞춘
+              <br />
+              <span className="sf-recommend-gradient">성분·제품 추천</span>
+            </h1>
+            <p>
+              색소침착과 주름 중심의 분석 결과를 바탕으로 기능성 성분,
+              화장품 제품, 식습관 가이드까지 다음 관리 행동을 짧게 정리합니다.
+            </p>
+
+            <div className="sf-recommend-actions">
+              <Button to="/diet-guide" size="lg">
+                식습관 가이드 보기 <Leaf size={18} />
+              </Button>
+              <Button to="/analysis/result" variant="secondary" size="lg">
+                분석 결과 다시 보기
+              </Button>
             </div>
-            <div>
-              <span className="recommend-card-label">Recommendation Summary</span>
-              <h2>오늘의 추천 요약</h2>
-            </div>
-          </div>
+          </Card>
 
-          <div className="recommend-summary-list">
-            <div>
-              <span>중점 관리 지표</span>
-              <strong>색소침착</strong>
-            </div>
-            <div>
-              <span>추천 성분</span>
-              <strong>3개</strong>
-            </div>
-            <div>
-              <span>추천 제품</span>
-              <strong>3개</strong>
-            </div>
-          </div>
-
-          <div className="recommend-summary-notice">
-            <ShieldCheck size={18} />
-            <span>추천 결과는 피부 분석 기반 참고 정보입니다.</span>
-          </div>
-        </Card>
-      </section>
-
-      <section className="recommend-section">
-        <SectionTitle
-          eyebrow="Functional Ingredients"
-          title="기능성 성분 추천"
-          description="분석 결과를 기준으로 색소침착과 피부 관리에 참고할 수 있는 성분을 추천합니다."
-        />
-
-        <div className="ingredient-grid">
-          {ingredientRecommendations.map((item) => (
-            <Card className="ingredient-card" key={item.name}>
-              <div className="ingredient-card-top">
-                <div className="ingredient-icon">
-                  <Beaker size={24} />
-                </div>
-                <Badge variant={item.tag === "색소침착" ? "accent" : "primary"}>
-                  {item.tag}
-                </Badge>
+          <Card className="sf-recommend-summary-card">
+            <div className="sf-recommend-summary-top">
+              <div>
+                <span className="sf-recommend-label">추천 요약</span>
+                <h2>오늘의 관리 방향</h2>
               </div>
+              <span className="sf-status-pill">
+                <ShieldCheck size={14} /> 미리보기
+              </span>
+            </div>
 
-              <h3>{item.name}</h3>
-              <span className="ingredient-type">{item.type}</span>
+            <div className="sf-recommend-summary-grid">
+              <div className="sf-summary-metric">
+                <span>중점 지표</span>
+                <strong>색소침착</strong>
+              </div>
+              <div className="sf-summary-metric">
+                <span>추천 성분</span>
+                <strong>3개</strong>
+              </div>
+              <div className="sf-summary-metric">
+                <span>추천 제품</span>
+                <strong>3개</strong>
+              </div>
+            </div>
 
-              <div className="match-row">
+            <div className="sf-summary-note">
+              <Sparkles size={18} />
+              <span>
+                추천 결과는 피부 관리 참고 정보이며, 실제 추천 API 연동 전 화면입니다.
+              </span>
+            </div>
+          </Card>
+        </section>
+
+        <section className="sf-recommend-content-grid">
+          <Card className="sf-recommend-panel">
+            <div className="sf-recommend-panel-head">
+              <div className="sf-panel-heading">
+                <span className="sf-panel-accent" />
                 <div>
-                  <span>매칭 점수</span>
-                  <strong>{item.match}%</strong>
-                </div>
-                <div className="match-bar">
-                  <span style={{ width: `${item.match}%` }} />
+                  <span className="sf-recommend-label">Functional Ingredients</span>
+                  <h2>기능성 성분 추천</h2>
                 </div>
               </div>
+            </div>
 
-              <p>{item.reason}</p>
+            <div className="sf-recommend-list">
+              {ingredientRecommendations.map((item) => (
+                <article className="sf-ingredient-card" key={item.name}>
+                  <span className="sf-icon-tile" aria-hidden="true">
+                    <FlaskConical size={22} />
+                  </span>
 
-              <div className="ingredient-footer">
-                <CheckCircle2 size={18} />
-                <span>분석 결과 기반 추천</span>
-              </div>
-            </Card>
-          ))}
-        </div>
-      </section>
-
-      <section className="recommend-section">
-        <SectionTitle
-          eyebrow="Cosmetic Products"
-          title="화장품 제품 추천"
-          description="추천 성분과 피부 분석 결과를 바탕으로 참고할 수 있는 제품 정보를 제공합니다."
-        />
-
-        <div className="product-grid">
-          {productRecommendations.map((item) => (
-            <Card className="product-card" key={item.name}>
-              <div className="product-image-box">
-                <ShoppingBag size={44} />
-                <Badge variant="dark">{item.type}</Badge>
-              </div>
-
-              <div className="product-content">
-                <span className="product-brand">{item.brand}</span>
-                <h3>{item.name}</h3>
-
-                <p>{item.reason}</p>
-
-                <div className="product-meta">
-                  <div>
-                    <span>가격</span>
-                    <strong>{item.price}</strong>
+                  <div className="sf-ingredient-main">
+                    <h3>{item.name}</h3>
+                    <p>{item.description}</p>
+                    <div className="sf-tag-row">
+                      {item.tags.map((tag) => (
+                        <span className="sf-tag" key={tag}>
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                  <div>
+
+                  <div className="sf-match-score">
                     <span>매칭</span>
-                    <strong>{item.match}%</strong>
+                    {item.match}점
+                  </div>
+                </article>
+              ))}
+            </div>
+          </Card>
+
+          <Card className="sf-recommend-panel">
+            <div className="sf-recommend-panel-head">
+              <div className="sf-panel-heading">
+                <span className="sf-panel-accent is-pink" />
+                <div>
+                  <span className="sf-recommend-label">Cosmetic Products</span>
+                  <h2>화장품 제품 추천</h2>
+                </div>
+              </div>
+            </div>
+
+            <div className="sf-recommend-list">
+              {productRecommendations.map((item) => {
+                const ProductIcon = item.icon;
+
+                return (
+                  <article className="sf-product-card" key={item.name}>
+                    <span className="sf-icon-tile" aria-hidden="true">
+                      <ProductIcon size={22} />
+                    </span>
+
+                    <div className="sf-product-main">
+                      <span className="sf-product-brand">{item.brand}</span>
+                      <h3>{item.name}</h3>
+                      <p>{item.description}</p>
+                    </div>
+
+                    <div className="sf-match-score">
+                      <span>매칭</span>
+                      {item.match}점
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </Card>
+        </section>
+
+        <section className="sf-recommend-bottom">
+          <Card className="sf-recommend-guide-card">
+            <span className="sf-recommend-label">Care Guide</span>
+            <h2>추천 활용 가이드</h2>
+
+            <div className="sf-guide-list">
+              {careTips.map((tip, index) => (
+                <div className="sf-guide-item" key={tip}>
+                  <span className="sf-icon-tile" aria-hidden="true">
+                    {index === 0 ? <ShieldCheck size={18} /> : <CheckCircle2 size={18} />}
+                  </span>
+                  <div>
+                    <strong>{index === 0 ? "상태 안내" : `관리 포인트 ${index}`}</strong>
+                    <span>{tip}</span>
                   </div>
                 </div>
+              ))}
+            </div>
+          </Card>
 
-                <div className="product-actions">
-                  <Button variant="secondary" size="sm">
-                    상세 보기 <ExternalLink size={15} />
-                  </Button>
-                  <Button size="sm">
-                    추천 이유 <ArrowRight size={15} />
-                  </Button>
+          <Card className="sf-recommend-guide-card">
+            <span className="sf-recommend-label">Next Action</span>
+            <h2>다음 단계로 이어가기</h2>
+
+            <div className="sf-guide-list">
+              <div className="sf-guide-item">
+                <span className="sf-icon-tile" aria-hidden="true">
+                  <Leaf size={18} />
+                </span>
+                <div>
+                  <strong>식습관 가이드 확인</strong>
+                  <span>피부 관리에 참고할 수 있는 오늘의 식습관 루틴을 확인합니다.</span>
                 </div>
               </div>
-            </Card>
-          ))}
-        </div>
-      </section>
 
-      <section className="recommend-bottom-grid">
-        <Card className="recommend-reason-card">
-          <div className="recommend-card-title-row">
-            <div>
-              <span className="recommend-card-label">Why Recommended</span>
-              <h2>추천 근거</h2>
-            </div>
-            <BadgeCheck size={28} />
-          </div>
-
-          <div className="reason-list">
-            <div className="reason-item">
-              <div className="reason-icon">
-                <HeartPulse size={20} />
-              </div>
-              <div>
-                <strong>피부 분석 결과 반영</strong>
-                <span>색소침착 지표가 주의 단계로 분석되어 관련 관리 성분을 우선 추천했습니다.</span>
+              <div className="sf-guide-item">
+                <span className="sf-icon-tile" aria-hidden="true">
+                  <PackageCheck size={18} />
+                </span>
+                <div>
+                  <strong>분석 이력 저장 흐름</strong>
+                  <span>분석 결과가 저장되면 이전 기록과 함께 변화 흐름을 확인합니다.</span>
+                </div>
               </div>
             </div>
 
-            <div className="reason-item">
-              <div className="reason-icon">
-                <PackageCheck size={20} />
-              </div>
-              <div>
-                <strong>성분과 제품 연결</strong>
-                <span>추천 성분과 제품 유형을 연결하여 사용자가 다음 행동을 쉽게 선택할 수 있도록 구성했습니다.</span>
-              </div>
+            <div className="sf-next-actions">
+              <Button to="/diet-guide">
+                식습관 보기 <ArrowRight size={16} />
+              </Button>
+              <Button to="/history" variant="secondary">
+                이력 보기
+              </Button>
             </div>
-
-            <div className="reason-item">
-              <div className="reason-icon">
-                <Star size={20} />
-              </div>
-              <div>
-                <strong>관리 루틴 우선순위 제공</strong>
-                <span>자외선 차단, 브라이트닝, 수분 장벽 관리를 우선 관리 방향으로 제안합니다.</span>
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="recommend-care-card">
-          <div className="recommend-card-title-row">
-            <div>
-              <span className="recommend-card-label">Care Tips</span>
-              <h2>추천 활용 가이드</h2>
-            </div>
-            <Leaf size={28} />
-          </div>
-
-          <div className="care-tip-list">
-            {careTips.map((tip) => (
-              <div className="care-tip-item" key={tip}>
-                <CheckCircle2 size={20} />
-                <span>{tip}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="recommend-next-actions">
-            <Button to="/diet-guide" full>
-              식습관 가이드 보기 <Leaf size={18} />
-            </Button>
-            <Button to="/history" variant="secondary" full>
-              분석 이력 확인
-            </Button>
-          </div>
-        </Card>
-      </section>
+          </Card>
+        </section>
+      </div>
     </PageLayout>
   );
 }
