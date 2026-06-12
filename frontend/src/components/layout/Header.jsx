@@ -5,7 +5,7 @@ import Button from "../common/Button";
 const navItems = [
   {
     to: "/dashboard",
-    label: "홈",
+    label: "대시보드",
   },
   {
     to: "/analysis/capture",
@@ -41,7 +41,7 @@ function Header() {
   return (
     <header className="site-header">
       <div className="site-header-inner">
-        <Link className="brand" to={isLoggedIn ? "/dashboard" : "/"}>
+        <Link className="brand" to="/">
           <span className="brand-icon">
             <Sparkles size={18} />
           </span>
