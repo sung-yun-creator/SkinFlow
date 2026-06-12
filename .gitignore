@@ -6,3 +6,4 @@ __pycache__/
 .venv/
 ai-server/models/*.task
 !ai-server/models/README.md
+ai-server/models/*.pth
