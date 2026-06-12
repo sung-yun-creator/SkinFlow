@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  AlertCircle,
   ArrowRight,
   CalendarDays,
   Camera,
   CheckCircle2,
-  ChevronRight,
   ClipboardList,
   History,
   Leaf,
   LineChart,
-  ShieldCheck,
+  RefreshCw,
   Sparkles,
   User,
 } from "lucide-react";
@@ -17,107 +17,70 @@ import PageLayout from "../components/layout/PageLayout";
 import Button from "../components/common/Button";
 import Card from "../components/common/Card";
 import Badge from "../components/common/Badge";
-import SectionTitle from "../components/common/SectionTitle";
 import { getDashboard } from "../api/dashboardApi";
 
-const flowSteps = [
-  {
-    step: "01",
-    title: "피부 분석 시작",
-    description: "웹캠 촬영 또는 이미지 업로드로 색소침착과 주름 중심 분석을 시작합니다.",
-    to: "/analysis/capture",
-    icon: Camera,
-  },
-  {
-    step: "02",
-    title: "분석 결과 확인",
-    description: "종합 점수와 지표별 상태를 시각적으로 확인하고 관리 방향을 파악합니다.",
-    to: "/analysis/result",
-    icon: LineChart,
-  },
-  {
-    step: "03",
-    title: "맞춤 추천 확인",
-    description: "분석 결과를 바탕으로 기능성 성분, 제품, 식습관 가이드를 확인합니다.",
-    to: "/recommendations",
-    icon: Sparkles,
-  },
-  {
-    step: "04",
-    title: "분석 이력 관리",
-    description: "이전 분석 결과를 모아보고 피부 상태 변화 흐름을 확인합니다.",
-    to: "/history",
-    icon: History,
-  },
-];
-
-const quickActionCards = [
+const quickActions = [
   {
     icon: Camera,
-    title: "피부 분석 시작",
-    description: "처음 이용한다면 여기서 시작하세요. 얼굴 이미지를 기반으로 피부 상태를 분석합니다.",
+    title: "피부 분석",
+    description: "스마트폰 촬영 이미지로 색소침착·주름 분석을 시작합니다.",
     to: "/analysis/capture",
-    buttonText: "분석 시작",
     variant: "primary",
+    step: "01",
   },
   {
     icon: Sparkles,
     title: "맞춤 추천",
-    description: "분석 결과를 기반으로 성분 추천, 제품 추천, 식습관 가이드를 확인합니다.",
+    description: "분석 결과에 맞는 성분과 제품 추천을 확인합니다.",
     to: "/recommendations",
-    buttonText: "추천 보기",
     variant: "secondary",
+    step: "02",
+  },
+  {
+    icon: Leaf,
+    title: "식습관",
+    description: "오늘 실천할 수 있는 피부 관리 루틴을 확인합니다.",
+    to: "/diet-guide",
+    variant: "secondary",
+    step: "03",
   },
   {
     icon: History,
     title: "분석 이력",
-    description: "과거 분석 결과와 추천 내용을 다시 확인하고 변화 흐름을 관리합니다.",
+    description: "지난 결과와 피부 변화 흐름을 다시 확인합니다.",
     to: "/history",
-    buttonText: "이력 보기",
     variant: "secondary",
-  },
-  {
-    icon: User,
-    title: "마이페이지",
-    description: "피부 타입, 최근 활동, 분석 횟수 등 내 정보를 한곳에서 확인합니다.",
-    to: "/mypage",
-    buttonText: "내 정보 보기",
-    variant: "secondary",
+    step: "04",
   },
 ];
 
-const guideItems = [
-  "분석 결과는 의료적 판단이 아닌 피부 관리 참고 정보로 제공됩니다.",
-  "색소침착과 주름 지표를 중심으로 현재 피부 상태를 이해할 수 있게 돕습니다.",
-  "추천 성분과 제품은 피부 관리 방향을 정리하기 위한 참고 정보입니다.",
+const firstUserSteps = [
+  "스마트폰으로 얼굴 사진을 촬영합니다.",
+  "이미지를 업로드하고 ROI 확인을 진행합니다.",
+  "분석 결과와 추천 가이드를 이어서 확인합니다.",
 ];
 
 function formatDate(dateValue) {
-  if (!dateValue) return "첫 분석 후 표시";
+  if (!dateValue) return "분석 전";
 
   const date = new Date(dateValue);
 
   if (Number.isNaN(date.getTime())) {
-    return "첫 분석 후 표시";
+    return "분석 전";
   }
 
   return date.toLocaleDateString("ko-KR", {
-    year: "numeric",
     month: "short",
     day: "numeric",
   });
 }
 
 function formatScore(score) {
-  if (score === null || score === undefined || score === "") {
-    return null;
-  }
+  if (score === null || score === undefined || score === "") return null;
 
   const numberScore = Number(score);
 
-  if (Number.isNaN(numberScore)) {
-    return null;
-  }
+  if (Number.isNaN(numberScore)) return null;
 
   return Math.round(numberScore);
 }
@@ -160,63 +123,42 @@ function getMetricScore(metric) {
 
   const score = Number(rawScore);
 
-  if (Number.isNaN(score)) {
-    return 0;
-  }
+  if (Number.isNaN(score)) return 0;
 
   return Math.max(0, Math.min(100, Math.round(score)));
 }
 
-function getMetricValue(metric) {
-  const score = getMetricScore(metric);
-  const grade = metric?.gradeName || metric?.grade_name || metric?.status || metric?.level;
-
-  if (score > 0 && grade) {
-    return `${score}점 · ${getStatusLabel(grade)}`;
-  }
-
-  if (score > 0) {
-    return `${score}점`;
-  }
-
-  if (grade) {
-    return getStatusLabel(grade);
-  }
-
-  return "첫 분석 후 표시";
+function getMetricGrade(metric) {
+  return metric?.gradeName || metric?.grade_name || metric?.status || metric?.level;
 }
 
-function normalizeMetricList(latestAnalysis) {
-  const metrics = Array.isArray(latestAnalysis?.metrics)
-    ? latestAnalysis.metrics
-    : [];
+function normalizeMetrics(latestAnalysis) {
+  const metrics = Array.isArray(latestAnalysis?.metrics) ? latestAnalysis.metrics : [];
 
   const mvpMetrics = metrics.filter((metric) => {
     const name = getMetricName(metric);
     return name.includes("색소") || name.includes("주름");
   });
 
-  const visibleMetrics = mvpMetrics.length > 0 ? mvpMetrics : metrics;
-
-  if (visibleMetrics.length === 0) {
+  if (mvpMetrics.length === 0) {
     return [
       {
         label: "색소침착",
-        value: "첫 분석 후 표시",
         score: 0,
+        status: "분석 전",
       },
       {
         label: "주름",
-        value: "첫 분석 후 표시",
         score: 0,
+        status: "분석 전",
       },
     ];
   }
 
-  return visibleMetrics.slice(0, 2).map((metric) => ({
+  return mvpMetrics.slice(0, 2).map((metric) => ({
     label: getMetricName(metric),
-    value: getMetricValue(metric),
     score: getMetricScore(metric),
+    status: getStatusLabel(getMetricGrade(metric)),
   }));
 }
 
@@ -268,7 +210,7 @@ function DashboardPage() {
         if (isMounted) {
           setDashboardError(
             error?.message ||
-            "대시보드 정보를 불러오지 못했습니다. 로그인 상태를 확인한 뒤 다시 시도해주세요."
+              "대시보드 정보를 불러오지 못했습니다. 로그인 상태를 확인한 뒤 다시 시도해주세요."
           );
         }
       } finally {
@@ -285,380 +227,870 @@ function DashboardPage() {
     };
   }, []);
 
+  const profile = dashboard?.profile || {};
   const summary = dashboard?.summary || {};
   const latestAnalysis = dashboard?.latestAnalysis || null;
   const mainConcern = dashboard?.mainConcern || null;
-  const nextAction = dashboard?.nextAction || {
-    label: "피부 분석 시작하기",
-    path: "/analysis/capture",
-    description: "첫 분석을 진행하고 맞춤 관리 흐름을 확인해보세요.",
-  };
-
-  const latestScore = formatScore(
-    latestAnalysis?.totalScore ||
-    latestAnalysis?.total_score ||
-    summary.latestTotalScore ||
-    summary.latest_total_score
-  );
-
-  const hasLatestAnalysis = Boolean(latestAnalysis);
-
-  const recentMetrics = useMemo(() => {
-    const metrics = normalizeMetricList(latestAnalysis);
-
-    return [
-      ...metrics,
-      {
-        label: "종합 점수",
-        value: latestScore === null ? "분석 전" : `${latestScore}점`,
-        score: latestScore || 0,
-      },
-    ];
-  }, [latestAnalysis, latestScore]);
-
+  const nextAction = dashboard?.nextAction || {};
   const recentAnalyses = Array.isArray(dashboard?.recentAnalyses)
-    ? dashboard.recentAnalyses.slice(0, 3)
+    ? dashboard.recentAnalyses.slice(0, 2)
     : [];
-
   const recommendations = Array.isArray(dashboard?.recommendations)
     ? dashboard.recommendations.slice(0, 2)
     : [];
-
   const dietGuides = Array.isArray(dashboard?.dietGuides)
-    ? dashboard.dietGuides.slice(0, 2)
+    ? dashboard.dietGuides.slice(0, 1)
     : [];
+
+  const latestScore = formatScore(
+    latestAnalysis?.totalScore ||
+      latestAnalysis?.total_score ||
+      summary.latestTotalScore ||
+      summary.latest_total_score
+  );
+
+  const analysisCount = Number(
+    summary.analysisCount || summary.analysis_count || profile.analysisCount || 0
+  );
+
+  const hasLatestAnalysis = Boolean(latestAnalysis);
+  const metrics = useMemo(() => normalizeMetrics(latestAnalysis), [latestAnalysis]);
+
+  const mainConcernName = mainConcern ? getMetricName(mainConcern) : "분석 전";
+  const latestDate = formatDate(
+    latestAnalysis?.analyzedAt || latestAnalysis?.analyzed_at || summary.latestAnalyzedAt
+  );
+
+  const nextActionPath = nextAction.path || nextAction.to || "/analysis/capture";
+  const nextActionLabel = nextAction.label || "피부 분석 시작하기";
+  const userName = profile.name || profile.userName || profile.nickname || "사용자";
 
   return (
     <PageLayout>
-      <section className="dashboard-hero">
-        <div className="dashboard-hero-copy">
-          <Badge>SkinFlow 홈</Badge>
+      <style>
+        {`
+          .dashboard-app-home {
+            display: grid;
+            gap: 18px;
+          }
 
-          <h1>
-            피부 분석부터 추천까지
-            <br />
-            한번에 관리하세요
-          </h1>
+          .dashboard-app-hero {
+            display: grid;
+            grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
+            gap: 20px;
+            align-items: start;
+          }
 
-          <p>
-            SkinFlow는 얼굴 이미지를 기반으로 피부 상태를 분석하고,
-            분석 결과에 따라 성분 추천, 제품 추천, 식습관 가이드,
-            분석 이력 관리를 연결해주는 라이프케어 서비스입니다.
-          </p>
+          .dashboard-welcome-card,
+          .dashboard-status-card,
+          .dashboard-action-card,
+          .dashboard-mini-card {
+            border: 1px solid rgba(226, 232, 240, 0.92);
+            box-shadow: 0 20px 54px rgba(15, 23, 42, 0.07);
+          }
 
-          <div className="dashboard-actions">
-            <Button to={nextAction.path || "/analysis/capture"} size="lg">
-              {nextAction.label || "피부 분석 시작하기"} <Camera size={18} />
-            </Button>
-            <Button to="/recommendations" variant="secondary" size="lg">
-              맞춤 추천 보기
-            </Button>
-          </div>
+          .dashboard-welcome-card {
+            min-height: 315px;
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            background:
+              radial-gradient(circle at 82% 12%, rgba(22, 125, 127, 0.13), transparent 30%),
+              radial-gradient(circle at 8% 100%, rgba(244, 63, 94, 0.08), transparent 34%),
+              #ffffff;
+          }
 
-          {dashboardError && (
-            <p className="form-message error">{dashboardError}</p>
-          )}
-        </div>
+          .dashboard-welcome-copy h1 {
+            margin: 18px 0 14px;
+            color: #0f172a;
+            font-size: clamp(34px, 4vw, 50px);
+            line-height: 1.08;
+            letter-spacing: -0.065em;
+          }
 
-        <Card className="dashboard-summary-card">
-          <div className="dashboard-summary-top">
-            <div>
-              <span className="dashboard-card-label">
-                {hasLatestAnalysis ? "최근 분석 요약" : "처음 시작하기"}
-              </span>
-              <h2>
-                {hasLatestAnalysis
-                  ? "최근 분석 결과를 확인하세요"
-                  : "첫 분석을 진행해보세요"}
-              </h2>
+          .dashboard-welcome-copy p {
+            max-width: 680px;
+            margin: 0;
+            color: #64748b;
+            font-size: 16px;
+            line-height: 1.75;
+            word-break: keep-all;
+          }
+
+          .dashboard-welcome-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 24px;
+          }
+
+          .dashboard-kpi-row {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 22px;
+          }
+
+          .dashboard-kpi {
+            padding: 14px;
+            border-radius: 18px;
+            background: rgba(248, 250, 252, 0.86);
+            border: 1px solid rgba(226, 232, 240, 0.85);
+          }
+
+          .dashboard-kpi span {
+            display: block;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 900;
+          }
+
+          .dashboard-kpi strong {
+            display: block;
+            margin-top: 8px;
+            color: #0f172a;
+            font-size: 24px;
+            letter-spacing: -0.05em;
+          }
+
+          .dashboard-status-card {
+            padding: 24px;
+            background: #ffffff;
+          }
+
+          .dashboard-status-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 16px;
+          }
+
+          .dashboard-status-top span:first-child,
+          .dashboard-card-label {
+            display: block;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 900;
+          }
+
+          .dashboard-status-top h2 {
+            margin: 8px 0 0;
+            color: #0f172a;
+            font-size: 23px;
+            letter-spacing: -0.045em;
+          }
+
+          .dashboard-status-pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            color: #167d7f;
+            background: rgba(22, 125, 127, 0.1);
+            font-size: 12px;
+            font-weight: 900;
+            white-space: nowrap;
+          }
+
+          .dashboard-score-box {
+            display: grid;
+            grid-template-columns: 96px 1fr;
+            gap: 16px;
+            align-items: center;
+            padding: 16px;
+            border-radius: 22px;
+            background: linear-gradient(135deg, rgba(22, 125, 127, 0.08), rgba(248, 250, 252, 0.9));
+            border: 1px solid rgba(226, 232, 240, 0.85);
+          }
+
+          .dashboard-score-ring-compact {
+            width: 92px;
+            height: 92px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #0f172a;
+            background:
+              radial-gradient(circle, #ffffff 58%, transparent 60%),
+              conic-gradient(#167d7f 0 var(--score-value), #e2e8f0 var(--score-value) 100%);
+          }
+
+          .dashboard-score-ring-compact strong {
+            font-size: 26px;
+            letter-spacing: -0.055em;
+          }
+
+          .dashboard-score-ring-compact small {
+            color: #64748b;
+            font-weight: 800;
+          }
+
+          .dashboard-score-summary strong {
+            display: block;
+            color: #0f172a;
+            font-size: 17px;
+            letter-spacing: -0.035em;
+          }
+
+          .dashboard-score-summary p {
+            margin: 6px 0 0;
+            color: #64748b;
+            line-height: 1.65;
+            word-break: keep-all;
+          }
+
+          .dashboard-metrics-compact {
+            display: grid;
+            gap: 10px;
+            margin-top: 14px;
+          }
+
+          .dashboard-metric-compact {
+            display: grid;
+            grid-template-columns: 74px 1fr 58px;
+            gap: 10px;
+            align-items: center;
+          }
+
+          .dashboard-metric-compact strong {
+            color: #0f172a;
+            font-size: 14px;
+          }
+
+          .dashboard-metric-compact small {
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 900;
+            text-align: right;
+          }
+
+          .dashboard-bar {
+            height: 8px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: #e2e8f0;
+          }
+
+          .dashboard-bar span {
+            display: block;
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #167d7f, #22c5c8);
+          }
+
+          .dashboard-quick-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+          }
+
+          .dashboard-action-card {
+            position: relative;
+            min-height: 198px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 20px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.96);
+            border-radius: 26px;
+            transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+          }
+
+          .dashboard-action-card::after {
+            content: "";
+            position: absolute;
+            inset: auto -40px -54px auto;
+            width: 118px;
+            height: 118px;
+            border-radius: 999px;
+            background: radial-gradient(circle, rgba(22, 125, 127, 0.08), transparent 68%);
+            pointer-events: none;
+          }
+
+          .dashboard-action-card:hover {
+            transform: translateY(-3px);
+            border-color: rgba(22, 125, 127, 0.22);
+            box-shadow: 0 24px 58px rgba(15, 23, 42, 0.1);
+          }
+
+          .dashboard-action-card.is-primary-action {
+            background:
+              radial-gradient(circle at 84% 16%, rgba(22, 125, 127, 0.1), transparent 28%),
+              rgba(255, 255, 255, 0.98);
+          }
+
+          .dashboard-action-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+          }
+
+          .dashboard-action-index {
+            color: #cbd5e1;
+            font-size: 12px;
+            font-weight: 950;
+            line-height: 1;
+            letter-spacing: -0.02em;
+          }
+
+          .dashboard-icon-tile {
+            width: 60px;
+            height: 60px;
+            min-width: 60px;
+            min-height: 60px;
+            border-radius: 18px;
+            display: grid;
+            place-items: center;
+            line-height: 0;
+            color: #167d7f;
+            background: linear-gradient(135deg, #f2fbfb 0%, #ffffff 48%, #fff1f4 100%);
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            box-shadow: 0 14px 30px rgba(15, 23, 42, 0.07);
+          }
+
+          .dashboard-icon-tile svg {
+            display: block;
+            width: 26px !important;
+            height: 26px !important;
+            min-width: 26px;
+            min-height: 26px;
+            margin: 0;
+            flex: 0 0 auto;
+            transform: none;
+            stroke-width: 2.1;
+          }
+
+          .dashboard-action-body {
+            position: relative;
+            z-index: 1;
+          }
+
+          .dashboard-action-card h3 {
+            margin: 14px 0 6px;
+            color: #0f172a;
+            font-size: 17px;
+            letter-spacing: -0.04em;
+          }
+
+          .dashboard-action-card p {
+            margin: 0 0 14px;
+            color: #64748b;
+            font-size: 13px;
+            line-height: 1.55;
+            word-break: keep-all;
+          }
+
+          .dashboard-bottom-compact {
+            display: grid;
+            grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+            gap: 18px;
+            align-items: start;
+          }
+
+          .dashboard-mini-card {
+            padding: 20px;
+            background: #ffffff;
+          }
+
+          .dashboard-mini-title-row {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 14px;
+          }
+
+          .dashboard-mini-title-row h2 {
+            margin: 5px 0 0;
+            color: #0f172a;
+            font-size: 20px;
+            letter-spacing: -0.045em;
+          }
+
+          .dashboard-flow-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+          }
+
+          .dashboard-flow-card,
+          .dashboard-guide-action-card {
+            position: relative;
+            min-height: 126px;
+            padding: 15px;
+            border-radius: 20px;
+            background:
+              radial-gradient(circle at 100% 0%, rgba(22, 125, 127, 0.06), transparent 34%),
+              #f8fafc;
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+          }
+
+          .dashboard-flow-card:hover,
+          .dashboard-guide-action-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(22, 125, 127, 0.2);
+            box-shadow: 0 18px 38px rgba(15, 23, 42, 0.08);
+          }
+
+          .dashboard-flow-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 12px;
+          }
+
+          .dashboard-flow-index {
+            color: #cbd5e1;
+            font-size: 12px;
+            font-weight: 950;
+            line-height: 1;
+          }
+
+          .dashboard-mini-tile {
+            width: 44px;
+            height: 44px;
+            min-width: 44px;
+            min-height: 44px;
+            border-radius: 16px;
+            display: grid;
+            place-items: center;
+            line-height: 0;
+            color: #167d7f;
+            background: linear-gradient(135deg, #f2fbfb 0%, #ffffff 50%, #fff1f4 100%);
+            border: 1px solid rgba(226, 232, 240, 0.88);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.055);
+          }
+
+          .dashboard-mini-tile svg {
+            display: block;
+            width: 20px !important;
+            height: 20px !important;
+            min-width: 20px;
+            min-height: 20px;
+            margin: 0;
+            flex: 0 0 auto;
+            transform: none;
+            stroke-width: 2.1;
+          }
+
+          .dashboard-flow-card strong,
+          .dashboard-guide-action-card strong {
+            display: block;
+            color: #0f172a;
+            font-size: 15px;
+            letter-spacing: -0.035em;
+          }
+
+          .dashboard-flow-card p,
+          .dashboard-guide-action-card p {
+            margin: 6px 0 0;
+            color: #64748b;
+            font-size: 12px;
+            line-height: 1.55;
+            word-break: keep-all;
+          }
+
+          .dashboard-guide-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+          }
+
+          .dashboard-guide-action-card {
+            min-height: 92px;
+            display: grid;
+            grid-template-columns: 44px 1fr auto;
+            align-items: center;
+            gap: 12px;
+          }
+
+          .dashboard-guide-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 46px;
+            padding: 7px 10px;
+            border-radius: 999px;
+            color: #167d7f;
+            background: rgba(22, 125, 127, 0.1);
+            font-size: 12px;
+            font-weight: 950;
+            white-space: nowrap;
+          }
+
+          .dashboard-guide-badge.is-muted {
+            color: #64748b;
+            background: rgba(100, 116, 139, 0.1);
+          }
+
+          .dashboard-error-note {
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+            margin-top: 16px;
+            padding: 12px;
+            border-radius: 16px;
+            color: #b91c1c;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            font-size: 13px;
+            line-height: 1.5;
+          }
+
+          @media (max-width: 980px) {
+            .dashboard-app-hero,
+            .dashboard-bottom-compact {
+              grid-template-columns: 1fr;
+            }
+
+            .dashboard-quick-grid {
+              grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+          }
+
+          @media (max-width: 640px) {
+            .dashboard-welcome-card,
+            .dashboard-status-card,
+            .dashboard-mini-card {
+              padding: 18px;
+            }
+
+            .dashboard-welcome-card,
+            .dashboard-status-card {
+              min-height: auto;
+            }
+
+            .dashboard-welcome-copy h1 {
+              font-size: 32px;
+            }
+
+            .dashboard-welcome-actions .sf-button {
+              width: 100%;
+            }
+
+            .dashboard-kpi-row,
+            .dashboard-score-box,
+            .dashboard-quick-grid {
+              grid-template-columns: 1fr;
+            }
+
+            .dashboard-score-ring-compact {
+              margin: 0 auto;
+            }
+
+            .dashboard-metric-compact {
+              grid-template-columns: 74px 1fr;
+            }
+
+            .dashboard-metric-compact small {
+              grid-column: 1 / -1;
+              text-align: left;
+            }
+
+            .dashboard-flow-grid {
+              grid-template-columns: 1fr;
+            }
+
+            .dashboard-guide-action-card {
+              grid-template-columns: 48px 1fr;
+            }
+
+            .dashboard-guide-badge {
+              grid-column: 2;
+              width: fit-content;
+            }
+          }
+        `}
+      </style>
+
+      <section className="dashboard-app-home">
+        <div className="dashboard-app-hero">
+          <Card className="dashboard-welcome-card">
+            <div className="dashboard-welcome-copy">
+              <Badge>로그인 후 앱 홈</Badge>
+              <h1>
+                {userName}님의 피부 관리,
+                <br />오늘은 여기서 시작하세요
+              </h1>
               <p>
-                {isLoading
-                  ? "대시보드 정보를 불러오는 중입니다."
-                  : hasLatestAnalysis
-                    ? latestAnalysis.summary ||
-                    latestAnalysis.description ||
-                    summary.latestSummary ||
-                    "최근 분석 결과와 추천 정보가 준비되었습니다."
-                    : nextAction.description ||
-                    "분석 완료 후 종합 점수와 추천 정보가 이곳에 표시됩니다."}
+                대시보드는 서비스 소개 화면이 아니라 실제 사용을 위한 홈입니다. 분석 시작,
+                추천 확인, 식습관 가이드, 이력 관리를 한 화면에서 빠르게 이동할 수 있습니다.
               </p>
-            </div>
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                minWidth: "72px",
-                padding: "0.5rem 0.85rem",
-                borderRadius: "999px",
-                background: "#E0F2F1",
-                color: "#167D7F",
-                fontSize: "0.8rem",
-                fontWeight: 800,
-                lineHeight: 1,
-                whiteSpace: "nowrap",
-              }}
-            >
-              {getStatusLabel(
-                latestAnalysis?.status ||
-                latestAnalysis?.analysisStatus ||
-                summary.latestStatus
-              )}
-            </span>
-          </div>
 
-          <div className="dashboard-score-visual">
-            <div className="dashboard-score-ring">
-              <span>{latestScore === null ? 0 : latestScore}</span>
-              <small>/100</small>
-            </div>
-            <div className="dashboard-score-note">
-              <ShieldCheck size={18} />
-              <span>
-                {hasLatestAnalysis
-                  ? `최근 분석일: ${formatDate(
-                    latestAnalysis.analyzedAt ||
-                    latestAnalysis.analyzed_at ||
-                    summary.latestAnalyzedAt
-                  )}`
-                  : "사진 분석 후 결과와 추천이 연결됩니다"}
-              </span>
-            </div>
-          </div>
-
-          <div className="dashboard-metric-list">
-            {recentMetrics.map((metric) => (
-              <div className="dashboard-metric-row" key={metric.label}>
-                <div>
-                  <span>{metric.label}</span>
-                  <strong>{metric.value}</strong>
-                </div>
-                <div className="metric-progress">
-                  <span style={{ width: `${metric.score}%` }} />
-                </div>
+              <div className="dashboard-welcome-actions">
+                <Button to={nextActionPath} size="lg">
+                  {nextActionLabel} <ArrowRight size={18} />
+                </Button>
+                <Button to="/recommendations" variant="secondary" size="lg">
+                  추천 보기
+                </Button>
               </div>
-            ))}
-          </div>
-        </Card>
-      </section>
 
-      <section className="dashboard-section">
-        <SectionTitle
-          eyebrow="서비스 흐름"
-          title="처음 사용하는 사람도 흐름을 바로 이해할 수 있게"
-          description="상단 메뉴에 모든 세부 페이지를 나열하지 않고, 핵심 사용 흐름에 따라 분석·추천·이력·내 정보로 자연스럽게 이동할 수 있도록 구성했습니다."
-        />
-
-        <div className="dashboard-recommend-grid">
-          {flowSteps.map((item) => {
-            const Icon = item.icon;
-
-            return (
-              <Card className="dashboard-recommend-card" key={item.title}>
-                <div className="recommend-icon">
-                  <Icon size={24} />
+              {dashboardError && (
+                <div className="dashboard-error-note">
+                  <AlertCircle size={18} />
+                  <span>{dashboardError}</span>
                 </div>
-                <span className="dashboard-card-label">{item.step}</span>
-                <h3>{item.title}</h3>
-                <p>{item.description}</p>
-                <Button to={item.to} variant="secondary" size="sm">
-                  이동하기 <ChevronRight size={16} />
-                </Button>
-              </Card>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="dashboard-section">
-        <SectionTitle
-          eyebrow="빠른 이동"
-          title="필요한 기능으로 바로 이동하세요"
-          description="분석 시작, 맞춤 추천, 분석 이력, 마이페이지를 카드 형태로 묶어 사용자가 다음 행동을 쉽게 선택할 수 있도록 했습니다."
-        />
-
-        <div className="dashboard-recommend-grid">
-          {quickActionCards.map((item) => {
-            const Icon = item.icon;
-
-            return (
-              <Card className="dashboard-recommend-card" key={item.title}>
-                <div className="recommend-icon">
-                  <Icon size={24} />
-                </div>
-                <h3>{item.title}</h3>
-                <p>{item.description}</p>
-                <Button
-                  to={item.to}
-                  variant={item.variant === "primary" ? "primary" : "secondary"}
-                  size="sm"
-                >
-                  {item.buttonText} <ChevronRight size={16} />
-                </Button>
-              </Card>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="dashboard-bottom-grid">
-        <Card className="dashboard-history-card">
-          <div className="card-title-row">
-            <div>
-              <span className="dashboard-card-label">
-                {hasLatestAnalysis ? "최근 분석 이력" : "다음 단계"}
-              </span>
-              <h2>
-                {hasLatestAnalysis
-                  ? "최근 분석 흐름을 확인하세요"
-                  : "추천 확인 전, 분석이 먼저 필요해요"}
-              </h2>
+              )}
             </div>
-            <Button
-              to={hasLatestAnalysis ? "/history" : "/analysis/capture"}
-              variant="ghost"
-              size="sm"
-            >
-              {hasLatestAnalysis ? "이력 보기" : "분석 시작"}{" "}
-              <ArrowRight size={16} />
-            </Button>
-          </div>
 
-          <div className="history-list">
+            <div className="dashboard-kpi-row">
+              <div className="dashboard-kpi">
+                <span>분석 횟수</span>
+                <strong>{analysisCount}회</strong>
+              </div>
+              <div className="dashboard-kpi">
+                <span>최근 분석</span>
+                <strong>{latestDate}</strong>
+              </div>
+              <div className="dashboard-kpi">
+                <span>관심 지표</span>
+                <strong>{mainConcernName}</strong>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="dashboard-status-card">
+            <div className="dashboard-status-top">
+              <div>
+                <span>최근 피부 상태</span>
+                <h2>{hasLatestAnalysis ? "분석 결과 요약" : "아직 분석 전입니다"}</h2>
+              </div>
+              <span className="dashboard-status-pill">
+                <CheckCircle2 size={14} />
+                {getStatusLabel(
+                  latestAnalysis?.status || latestAnalysis?.analysisStatus || summary.latestStatus
+                )}
+              </span>
+            </div>
+
+            <div className="dashboard-score-box">
+              <div
+                className="dashboard-score-ring-compact"
+                style={{ "--score-value": `${latestScore || 0}%` }}
+              >
+                <strong>{latestScore || 0}</strong>
+                <small>/100</small>
+              </div>
+
+              <div className="dashboard-score-summary">
+                <strong>
+                  {hasLatestAnalysis
+                    ? "최근 분석 결과가 준비되었습니다"
+                    : "첫 분석을 진행하면 결과가 표시됩니다"}
+                </strong>
+                <p>
+                  {isLoading
+                    ? "대시보드 정보를 불러오는 중입니다."
+                    : hasLatestAnalysis
+                      ? latestAnalysis.summary ||
+                        latestAnalysis.description ||
+                        summary.latestSummary ||
+                        "색소침착과 주름 중심의 분석 결과를 확인할 수 있습니다."
+                      : "사진 업로드 후 ROI 확인과 분석 결과, 추천 정보를 이어서 확인할 수 있습니다."}
+                </p>
+              </div>
+            </div>
+
+            <div className="dashboard-metrics-compact">
+              {metrics.map((metric) => (
+                <div className="dashboard-metric-compact" key={metric.label}>
+                  <strong>{metric.label}</strong>
+                  <div className="dashboard-bar">
+                    <span style={{ width: `${metric.score}%` }} />
+                  </div>
+                  <small>{metric.score > 0 ? `${metric.score}점 · ${metric.status}` : metric.status}</small>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+
+        <div className="dashboard-quick-grid">
+          {quickActions.map((item) => {
+            const Icon = item.icon;
+
+            return (
+              <Card
+                className={`dashboard-action-card ${item.variant === "primary" ? "is-primary-action" : ""}`}
+                key={item.title}
+              >
+                <div className="dashboard-action-body">
+                  <div className="dashboard-action-head">
+                    <span className="dashboard-icon-tile" aria-hidden="true">
+                      <Icon />
+                    </span>
+                    <span className="dashboard-action-index">{item.step}</span>
+                  </div>
+                  <h3>{item.title}</h3>
+                  <p>{item.description}</p>
+                </div>
+                <Button to={item.to} variant={item.variant} size="sm">
+                  이동하기 <ArrowRight size={15} />
+                </Button>
+              </Card>
+            );
+          })}
+        </div>
+
+        <div className="dashboard-bottom-compact">
+          <Card className="dashboard-mini-card">
+            <div className="dashboard-mini-title-row">
+              <div>
+                <span className="dashboard-card-label">
+                  {hasLatestAnalysis ? "최근 분석 이력" : "처음 이용 흐름"}
+                </span>
+                <h2>{hasLatestAnalysis ? "최근 기록" : "3단계로 시작하세요"}</h2>
+              </div>
+
+              <Button
+                to={hasLatestAnalysis ? "/history" : "/analysis/capture"}
+                variant="ghost"
+                size="sm"
+              >
+                {hasLatestAnalysis ? "전체 보기" : "분석 시작"}
+              </Button>
+            </div>
+
             {recentAnalyses.length > 0 ? (
-              recentAnalyses.map((analysis, index) => (
-                <div
-                  className="history-item"
-                  key={analysis.analysisId || analysis.id || index}
-                >
-                  <div className="history-date-icon">
-                    <CalendarDays size={18} />
-                  </div>
-                  <div className="history-content">
-                    <strong>
-                      {formatDate(analysis.analyzedAt || analysis.analyzed_at)}
-                    </strong>
-                    <span>
-                      {analysis.summary ||
-                        `${getStatusLabel(analysis.status)} 상태로 기록되었습니다.`}
+              <div className="dashboard-guide-grid">
+                {recentAnalyses.map((analysis, index) => (
+                  <div
+                    className="dashboard-guide-action-card"
+                    key={analysis.analysisId || analysis.id || index}
+                  >
+                    <span className="dashboard-mini-tile" aria-hidden="true">
+                      <CalendarDays size={20} />
+                    </span>
+
+                    <div>
+                      <strong>{formatDate(analysis.analyzedAt || analysis.analyzed_at)}</strong>
+                      <p>{analysis.summary || "분석 결과가 기록되었습니다."}</p>
+                    </div>
+
+                    <span className="dashboard-guide-badge">
+                      {formatScore(analysis.totalScore || analysis.total_score) ?? "-"}점
                     </span>
                   </div>
-                  <div className="history-score">
-                    <strong>
-                      {formatScore(
-                        analysis.totalScore || analysis.total_score
-                      ) ?? "-"}
-                    </strong>
-                    <span>점수</span>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <>
-                <div className="history-item">
-                  <div className="history-date-icon">
-                    <CalendarDays size={18} />
-                  </div>
-                  <div className="history-content">
-                    <strong>1단계. 피부 분석</strong>
-                    <span>색소침착과 주름 중심으로 피부 상태를 분석합니다.</span>
-                  </div>
-                  <div className="history-score">
-                    <strong>01</strong>
-                    <span>시작</span>
-                  </div>
-                </div>
-
-                <div className="history-item">
-                  <div className="history-date-icon">
-                    <Sparkles size={18} />
-                  </div>
-                  <div className="history-content">
-                    <strong>2단계. 맞춤 추천</strong>
-                    <span>분석 결과에 맞는 성분, 제품, 식습관 가이드를 확인합니다.</span>
-                  </div>
-                  <div className="history-score">
-                    <strong>02</strong>
-                    <span>추천</span>
-                  </div>
-                </div>
-
-                <div className="history-item">
-                  <div className="history-date-icon">
-                    <History size={18} />
-                  </div>
-                  <div className="history-content">
-                    <strong>3단계. 이력 관리</strong>
-                    <span>분석 이력에서 이전 결과와 추천 내용을 다시 확인합니다.</span>
-                  </div>
-                  <div className="history-score">
-                    <strong>03</strong>
-                    <span>관리</span>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </Card>
-
-        <Card className="dashboard-guide-card">
-          <div className="guide-card-icon">
-            <ClipboardList size={28} />
-          </div>
-
-          <h2>
-            {mainConcern
-              ? `${getMetricName(mainConcern)} 관리 가이드`
-              : "오늘의 관리 가이드"}
-          </h2>
-          <p>
-            {mainConcern
-              ? getItemDescription(
-                mainConcern,
-                "최근 분석 결과에서 우선 관리가 필요한 항목입니다. 아래 추천과 식습관 가이드를 함께 확인해보세요."
-              )
-              : "피부 관리는 한 번의 결과보다 꾸준한 기록과 생활 습관 관리가 중요합니다. 아래 내용은 피부 관리에 참고할 수 있는 일반 가이드입니다."}
-          </p>
-
-          <div className="guide-check-list">
-            {recommendations.length > 0 || dietGuides.length > 0 ? (
-              <>
-                {recommendations.map((item, index) => (
-                  <label key={`recommendation-${index}`}>
-                    <CheckCircle2 size={18} />
-                    <span>
-                      {getItemTitle(item, "추천 정보")} -{" "}
-                      {getItemDescription(item, "분석 결과 기반 추천입니다.")}
-                    </span>
-                  </label>
                 ))}
-                {dietGuides.map((item, index) => (
-                  <label key={`diet-${index}`}>
-                    <CheckCircle2 size={18} />
-                    <span>
-                      {getItemTitle(item, "식습관 가이드")} -{" "}
-                      {getItemDescription(
-                        item,
-                        "피부 관리에 참고할 수 있는 식습관 가이드입니다."
-                      )}
-                    </span>
-                  </label>
-                ))}
-              </>
+              </div>
             ) : (
-              guideItems.map((item) => (
-                <label key={item}>
-                  <CheckCircle2 size={18} />
-                  <span>{item}</span>
-                </label>
-              ))
-            )}
-          </div>
+              <div className="dashboard-flow-grid">
+                {firstUserSteps.map((step, index) => {
+                  const StepIcon = index === 0 ? Camera : index === 1 ? LineChart : Sparkles;
+                  const titles = ["사진 준비", "ROI 확인", "결과 확인"];
 
-          <Button to="/diet-guide" full>
-            식습관 가이드 보기 <Leaf size={18} />
-          </Button>
-        </Card>
+                  return (
+                    <div className="dashboard-flow-card" key={step}>
+                      <div className="dashboard-flow-head">
+                        <span className="dashboard-mini-tile" aria-hidden="true">
+                          <StepIcon size={20} />
+                        </span>
+                        <span className="dashboard-flow-index">0{index + 1}</span>
+                      </div>
+
+                      <strong>{titles[index]}</strong>
+                      <p>{step}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+
+          <Card className="dashboard-mini-card">
+            <div className="dashboard-mini-title-row">
+              <div>
+                <span className="dashboard-card-label">추천·가이드</span>
+                <h2>다음 관리 행동</h2>
+              </div>
+
+              <Button to="/diet-guide" variant="ghost" size="sm">
+                식습관 보기
+              </Button>
+            </div>
+
+            <div className="dashboard-guide-grid">
+              {recommendations.length > 0 || dietGuides.length > 0 ? (
+                <>
+                  {recommendations.map((item, index) => (
+                    <div className="dashboard-guide-action-card" key={`recommendation-${index}`}>
+                      <span className="dashboard-mini-tile" aria-hidden="true">
+                        <Sparkles size={20} />
+                      </span>
+
+                      <div>
+                        <strong>{getItemTitle(item, "맞춤 추천")}</strong>
+                        <p>{getItemDescription(item, "분석 결과 기반 추천입니다.")}</p>
+                      </div>
+
+                      <span className="dashboard-guide-badge">추천</span>
+                    </div>
+                  ))}
+
+                  {dietGuides.map((item, index) => (
+                    <div className="dashboard-guide-action-card" key={`diet-${index}`}>
+                      <span className="dashboard-mini-tile" aria-hidden="true">
+                        <Leaf size={20} />
+                      </span>
+
+                      <div>
+                        <strong>{getItemTitle(item, "식습관 가이드")}</strong>
+                        <p>
+                          {getItemDescription(
+                            item,
+                            "피부 관리에 참고할 수 있는 식습관 가이드입니다."
+                          )}
+                        </p>
+                      </div>
+
+                      <span className="dashboard-guide-badge">가이드</span>
+                    </div>
+                  ))}
+                </>
+              ) : (
+                <>
+                  <div className="dashboard-guide-action-card">
+                    <span className="dashboard-mini-tile" aria-hidden="true">
+                      <RefreshCw size={20} />
+                    </span>
+
+                    <div>
+                      <strong>분석 결과 연결 대기</strong>
+                      <p>첫 분석 후 성분, 제품, 식습관 가이드가 연결됩니다.</p>
+                    </div>
+
+                    <span className="dashboard-guide-badge">준비</span>
+                  </div>
+
+                  <div className="dashboard-guide-action-card">
+                    <span className="dashboard-mini-tile" aria-hidden="true">
+                      <ClipboardList size={20} />
+                    </span>
+
+                    <div>
+                      <strong>피부 관리 참고 정보</strong>
+                      <p>분석 결과는 의료적 판단이 아닌 관리 참고 정보입니다.</p>
+                    </div>
+
+                    <span className="dashboard-guide-badge is-muted">안내</span>
+                  </div>
+                </>
+              )}
+            </div>
+          </Card>
+        </div>
       </section>
     </PageLayout>
   );
