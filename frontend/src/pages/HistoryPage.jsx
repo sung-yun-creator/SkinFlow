@@ -8,14 +8,12 @@ import {
   LineChart,
   Search,
   Sparkles,
-  TrendingUp,
   Trophy,
 } from "lucide-react";
 import PageLayout from "../components/layout/PageLayout";
 import Button from "../components/common/Button";
 import Card from "../components/common/Card";
 import Badge from "../components/common/Badge";
-import SectionTitle from "../components/common/SectionTitle";
 import { getHistory, getHistoryDetail } from "../api/historyApi";
 
 const defaultHistoryData = {
@@ -48,17 +46,37 @@ function formatDate(dateValue, emptyText = "아직 없음") {
     return emptyText;
   }
 
-  return date.toLocaleDateString("ko-KR");
+  return date.toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
 }
 
-function formatScore(score) {
-  if (score === null || score === undefined) return "분석 전";
+function formatScore(score, emptyText = "분석 전") {
+  if (score === null || score === undefined || score === "") return emptyText;
 
-  return `${score}점`;
+  const numericScore = Number(score);
+
+  if (Number.isNaN(numericScore)) return emptyText;
+
+  return `${Math.round(numericScore)}점`;
+}
+
+function getScoreNumber(score) {
+  if (score === null || score === undefined || score === "") return 0;
+
+  const numericScore = Number(score);
+
+  if (Number.isNaN(numericScore)) return 0;
+
+  return Math.max(0, Math.min(100, Math.round(numericScore)));
 }
 
 function formatDiff(scoreDiff) {
-  if (scoreDiff === null || scoreDiff === undefined) return "비교 전";
+  if (scoreDiff === null || scoreDiff === undefined || scoreDiff === "") {
+    return "비교 전";
+  }
 
   const numericDiff = Number(scoreDiff);
 
@@ -69,34 +87,56 @@ function formatDiff(scoreDiff) {
   return "변화 없음";
 }
 
+function getStatusLabel(status) {
+  if (!status) return "분석 전";
+
+  const statusMap = {
+    good: "양호",
+    normal: "보통",
+    caution: "주의",
+    severe: "집중 관리",
+    pending: "분석 대기",
+    completed: "분석 완료",
+    failed: "분석 실패",
+  };
+
+  return statusMap[status] || status;
+}
+
+function getMetricName(metric) {
+  return (
+    metric?.metricName ||
+    metric?.metric_name ||
+    metric?.name ||
+    metric?.label ||
+    metric?.metricType ||
+    metric?.metric_type ||
+    "피부 지표"
+  );
+}
+
 function getMetricScore(metrics, keyword) {
-  if (!Array.isArray(metrics) || metrics.length === 0) return "-";
+  if (!Array.isArray(metrics) || metrics.length === 0) return "분석 전";
 
   const matchedMetric = metrics.find((metric) => {
-    const name =
-      metric.metricName ||
-      metric.name ||
-      metric.label ||
-      metric.metricType ||
-      "";
-
+    const name = getMetricName(metric);
     return String(name).includes(keyword);
   });
 
   const score =
     matchedMetric?.metricScore ??
+    matchedMetric?.metric_score ??
     matchedMetric?.score ??
     matchedMetric?.value ??
-    matchedMetric?.metricValue;
+    matchedMetric?.metricValue ??
+    matchedMetric?.metric_value;
 
-  if (score === null || score === undefined) return "-";
-
-  return `${score}점`;
+  return formatScore(score);
 }
 
 function getRecommendationText(recommendations) {
   if (!Array.isArray(recommendations) || recommendations.length === 0) {
-    return "추천 요약 정보가 없습니다.";
+    return "추천 요약 정보는 실제 추천 API 연동 후 표시됩니다.";
   }
 
   const textList = recommendations
@@ -105,14 +145,31 @@ function getRecommendationText(recommendations) {
         item.title ||
         item.name ||
         item.recommendationTitle ||
+        item.recommendation_title ||
         item.recommendationName ||
+        item.recommendation_name ||
         item.summary ||
         item.content ||
-        item.recommendationContent
+        item.recommendationContent ||
+        item.recommendation_content
     )
     .filter(Boolean);
 
-  return textList.length > 0 ? textList.join(" · ") : "추천 요약 정보가 없습니다.";
+  return textList.length > 0
+    ? textList.join(" · ")
+    : "추천 요약 정보는 실제 추천 API 연동 후 표시됩니다.";
+}
+
+function getRecordId(record) {
+  return record?.analysisId || record?.analysis_id || record?.id || record?.resultId;
+}
+
+function getRecordDate(record) {
+  return record?.analyzedAt || record?.analyzed_at || record?.createdAt || record?.created_at;
+}
+
+function getRecordScore(record) {
+  return record?.totalScore ?? record?.total_score ?? record?.totalSkinScore ?? record?.total_skin_score;
 }
 
 function HistoryPage() {
@@ -121,6 +178,7 @@ function HistoryPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [historyError, setHistoryError] = useState("");
   const [detailError, setDetailError] = useState("");
+  const [searchText, setSearchText] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -160,41 +218,46 @@ function HistoryPage() {
 
   const summary = historyData.summary || defaultHistoryData.summary;
   const records = Array.isArray(historyData.records) ? historyData.records : [];
+  const latestScore = getScoreNumber(summary.latestTotalScore);
+  const hasRecords = records.length > 0;
 
-  const summaryItems = useMemo(
-    () => [
-      {
-        label: "총 분석 횟수",
-        value: `${summary?.analysisCount ?? 0}회`,
-      },
-      {
-        label: "최근 종합 점수",
-        value: formatScore(summary?.latestTotalScore),
-      },
-      {
-        label: "최근 분석일",
-        value: formatDate(summary?.latestAnalyzedAt, "아직 없음"),
-      },
-      {
-        label: "최근 상태",
-        value: summary?.latestStatus || "분석 전",
-      },
-      {
-        label: "점수 변화",
-        value: formatDiff(summary?.scoreDiff),
-      },
-    ],
-    [summary]
-  );
+  const filteredRecords = useMemo(() => {
+    const keyword = searchText.trim().toLowerCase();
 
-  const trendItems = useMemo(
-    () =>
-      records.slice(-3).map((record) => ({
-        label: formatDate(record.analyzedAt, "아직 없음"),
-        score: record.totalScore ?? 0,
-      })),
-    [records]
-  );
+    if (!keyword) return records;
+
+    return records.filter((record) => {
+      const date = formatDate(getRecordDate(record), "").toLowerCase();
+      const summaryText = String(record.summary || "").toLowerCase();
+      const statusText = String(record.status || "").toLowerCase();
+
+      return (
+        date.includes(keyword) ||
+        summaryText.includes(keyword) ||
+        statusText.includes(keyword)
+      );
+    });
+  }, [records, searchText]);
+
+  const trendItems = useMemo(() => {
+    const source = records.slice(-4);
+
+    if (source.length === 0) {
+      return [
+        { label: "1회차", score: 0 },
+        { label: "2회차", score: 0 },
+        { label: "3회차", score: 0 },
+        { label: "4회차", score: 0 },
+      ];
+    }
+
+    return source.map((record, index) => ({
+      label: formatDate(getRecordDate(record), `${index + 1}회차`),
+      score: getScoreNumber(getRecordScore(record)),
+    }));
+  }, [records]);
+
+  const maxTrendScore = Math.max(...trendItems.map((item) => item.score), 100);
 
   async function handleDetailClick(analysisId) {
     if (!analysisId) {
@@ -208,332 +271,866 @@ function HistoryPage() {
       setSelectedDetail(detail);
     } catch (error) {
       console.error("분석 이력 상세 API 호출 실패:", error);
-      setDetailError(
-        "상세 분석 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
-      );
+      setDetailError("상세 분석 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
     }
   }
 
   return (
     <PageLayout>
-      <section className="history-hero">
-        <div className="history-copy">
-          <Badge>Analysis History</Badge>
+      <style>{`
+        .sf-history-page {
+          display: grid;
+          gap: 18px;
+        }
 
-          <h1>
-            피부 분석 이력을
-            <br />
-            한눈에 확인하세요
-          </h1>
+        .sf-history-hero {
+          display: grid;
+          grid-template-columns: minmax(0, 0.95fr) minmax(360px, 0.75fr);
+          gap: 18px;
+          align-items: stretch;
+        }
 
-          <p>
-            날짜별 피부 분석 결과와 추천 정보를 다시 확인하고, 종합 점수와
-            주요 지표의 변화 흐름을 비교할 수 있습니다.
-          </p>
+        .sf-history-main-card,
+        .sf-history-summary-card,
+        .sf-history-card {
+          border-radius: 28px;
+          background: #ffffff;
+          border: 1px solid rgba(203, 213, 225, 0.78);
+          box-shadow: 0 22px 54px rgba(15, 23, 42, 0.07);
+        }
 
-          <div className="history-action-row">
-            <Button to="/analysis/capture" size="lg">
-              새 피부 분석 시작하기 <ArrowRight size={18} />
-            </Button>
-            <Button to="/analysis/result" variant="secondary" size="lg">
-              최근 결과 보기
-            </Button>
-          </div>
-        </div>
+        .sf-history-main-card {
+          padding: 28px;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) 210px;
+          gap: 24px;
+          align-items: center;
+          background:
+            radial-gradient(circle at 0% 0%, rgba(22, 125, 127, 0.08), transparent 32%),
+            radial-gradient(circle at 100% 100%, rgba(244, 63, 94, 0.06), transparent 32%),
+            #ffffff;
+        }
 
-        <Card className="history-summary-card">
-          <div className="history-summary-header">
-            <div className="history-summary-icon">
-              <History size={28} />
-            </div>
+        .sf-history-eyebrow {
+          display: inline-flex;
+          width: fit-content;
+          align-items: center;
+          gap: 7px;
+          padding: 8px 12px;
+          border-radius: 999px;
+          color: #167d7f;
+          background: rgba(22, 125, 127, 0.1);
+          font-size: 12px;
+          font-weight: 950;
+        }
+
+        .sf-history-main-card h1 {
+          margin: 16px 0 12px;
+          color: #0f172a;
+          font-size: clamp(34px, 4.5vw, 52px);
+          line-height: 1.08;
+          letter-spacing: -0.065em;
+        }
+
+        .sf-history-main-card p {
+          max-width: 560px;
+          margin: 0;
+          color: #64748b;
+          font-size: 15px;
+          line-height: 1.75;
+          word-break: keep-all;
+        }
+
+        .sf-history-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          margin-top: 22px;
+        }
+
+        .sf-score-preview {
+          min-height: 184px;
+          padding: 20px;
+          border-radius: 24px;
+          border: 1px solid rgba(226, 232, 240, 0.95);
+          background:
+            radial-gradient(circle at 100% 0%, rgba(22, 125, 127, 0.12), transparent 38%),
+            #f8fafc;
+          display: grid;
+          align-content: center;
+          justify-items: center;
+          text-align: center;
+        }
+
+        .sf-score-ring {
+          width: 104px;
+          height: 104px;
+          border-radius: 50%;
+          display: grid;
+          place-items: center;
+          color: #0f172a;
+          background:
+            radial-gradient(circle, #ffffff 58%, transparent 60%),
+            conic-gradient(#167d7f 0 var(--score), #e2e8f0 var(--score) 100%);
+          box-shadow: inset 0 0 0 1px rgba(226, 232, 240, 0.7);
+        }
+
+        .sf-score-ring strong {
+          font-size: 28px;
+          letter-spacing: -0.06em;
+        }
+
+        .sf-score-preview span {
+          display: block;
+          margin-top: 12px;
+          color: #64748b;
+          font-size: 12px;
+          font-weight: 900;
+        }
+
+        .sf-history-summary-card {
+          padding: 24px;
+          display: grid;
+          gap: 16px;
+        }
+
+        .sf-card-title-row {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 16px;
+        }
+
+        .sf-card-title-row small {
+          display: block;
+          color: #64748b;
+          font-size: 12px;
+          font-weight: 950;
+        }
+
+        .sf-card-title-row h2 {
+          margin: 6px 0 0;
+          color: #0f172a;
+          font-size: 22px;
+          letter-spacing: -0.045em;
+        }
+
+        .sf-icon-tile {
+          width: 48px;
+          height: 48px;
+          min-width: 48px;
+          min-height: 48px;
+          border-radius: 17px;
+          display: grid;
+          place-items: center;
+          line-height: 0;
+          color: #167d7f;
+          background: linear-gradient(135deg, #f2fbfb 0%, #ffffff 50%, #fff1f4 100%);
+          border: 1px solid rgba(226, 232, 240, 0.9);
+          box-shadow: 0 10px 24px rgba(15, 23, 42, 0.055);
+        }
+
+        .sf-icon-tile svg {
+          display: block;
+          width: 21px !important;
+          height: 21px !important;
+          min-width: 21px;
+          min-height: 21px;
+          margin: 0;
+          flex: 0 0 auto;
+          transform: none;
+          stroke-width: 2.1;
+        }
+
+        .sf-summary-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 10px;
+        }
+
+        .sf-summary-item {
+          padding: 14px;
+          border-radius: 18px;
+          background: #f8fafc;
+          border: 1px solid rgba(226, 232, 240, 0.85);
+        }
+
+        .sf-summary-item span {
+          display: block;
+          color: #64748b;
+          font-size: 11px;
+          font-weight: 950;
+        }
+
+        .sf-summary-item strong {
+          display: block;
+          margin-top: 6px;
+          color: #0f172a;
+          font-size: 18px;
+          letter-spacing: -0.04em;
+        }
+
+        .sf-notice-line,
+        .sf-error-line {
+          display: flex;
+          align-items: center;
+          gap: 9px;
+          margin: 0;
+          padding: 12px 14px;
+          border-radius: 16px;
+          font-size: 12px;
+          font-weight: 800;
+          line-height: 1.5;
+          word-break: keep-all;
+        }
+
+        .sf-notice-line {
+          color: #167d7f;
+          background: rgba(22, 125, 127, 0.09);
+        }
+
+        .sf-error-line {
+          color: #f43f5e;
+          background: rgba(244, 63, 94, 0.09);
+        }
+
+        .sf-history-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+          gap: 18px;
+          align-items: start;
+        }
+
+        .sf-history-card {
+          padding: 24px;
+        }
+
+        .sf-trend-chart {
+          margin-top: 18px;
+          display: grid;
+          gap: 12px;
+        }
+
+        .sf-trend-row {
+          display: grid;
+          grid-template-columns: 84px 1fr 48px;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .sf-trend-row > span {
+          color: #64748b;
+          font-size: 12px;
+          font-weight: 900;
+        }
+
+        .sf-trend-bar {
+          height: 8px;
+          overflow: hidden;
+          border-radius: 999px;
+          background: #e2e8f0;
+        }
+
+        .sf-trend-bar > span {
+          display: block;
+          height: 100%;
+          border-radius: inherit;
+          background: linear-gradient(90deg, #167d7f, #22c5c8);
+        }
+
+        .sf-trend-score {
+          color: #0f172a;
+          font-size: 12px;
+          font-weight: 950;
+          text-align: right;
+        }
+
+        .sf-record-toolbar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+          margin-bottom: 18px;
+        }
+
+        .sf-search-box {
+          min-width: 240px;
+          height: 42px;
+          display: flex;
+          align-items: center;
+          gap: 9px;
+          padding: 0 14px;
+          border-radius: 999px;
+          background: #f8fafc;
+          border: 1px solid rgba(226, 232, 240, 0.95);
+          color: #64748b;
+        }
+
+        .sf-search-box input {
+          width: 100%;
+          border: 0;
+          outline: none;
+          background: transparent;
+          color: #0f172a;
+          font-size: 13px;
+          font-weight: 700;
+        }
+
+        .sf-record-list {
+          display: grid;
+          gap: 12px;
+        }
+
+        .sf-record-card {
+          display: grid;
+          grid-template-columns: 48px minmax(0, 1fr) auto;
+          align-items: center;
+          gap: 14px;
+          padding: 16px;
+          border-radius: 20px;
+          background: #f8fafc;
+          border: 1px solid rgba(226, 232, 240, 0.9);
+        }
+
+        .sf-record-content small {
+          display: block;
+          color: #64748b;
+          font-size: 11px;
+          font-weight: 950;
+        }
+
+        .sf-record-content strong {
+          display: block;
+          margin-top: 4px;
+          color: #0f172a;
+          font-size: 15px;
+          letter-spacing: -0.035em;
+        }
+
+        .sf-record-content p {
+          margin: 6px 0 0;
+          color: #64748b;
+          font-size: 12px;
+          line-height: 1.45;
+          word-break: keep-all;
+        }
+
+        .sf-record-side {
+          display: grid;
+          justify-items: end;
+          gap: 8px;
+        }
+
+        .sf-score-badge,
+        .sf-status-badge {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 999px;
+          white-space: nowrap;
+          font-weight: 950;
+        }
+
+        .sf-score-badge {
+          min-width: 58px;
+          padding: 7px 10px;
+          color: #167d7f;
+          background: rgba(22, 125, 127, 0.1);
+          font-size: 13px;
+        }
+
+        .sf-status-badge {
+          padding: 5px 9px;
+          color: #64748b;
+          background: rgba(100, 116, 139, 0.1);
+          font-size: 11px;
+        }
+
+        .sf-record-actions {
+          display: flex;
+          gap: 8px;
+        }
+
+        .sf-text-button {
+          border: 0;
+          cursor: pointer;
+          padding: 0;
+          color: #167d7f;
+          background: transparent;
+          font-size: 12px;
+          font-weight: 950;
+        }
+
+        .sf-empty-card,
+        .sf-detail-card {
+          display: grid;
+          gap: 12px;
+          padding: 18px;
+          border-radius: 20px;
+          background: #f8fafc;
+          border: 1px dashed rgba(148, 163, 184, 0.65);
+          text-align: center;
+          justify-items: center;
+        }
+
+        .sf-empty-card strong,
+        .sf-detail-card strong {
+          color: #0f172a;
+          font-size: 16px;
+        }
+
+        .sf-empty-card p,
+        .sf-detail-card p {
+          margin: 0;
+          color: #64748b;
+          font-size: 13px;
+          line-height: 1.6;
+          word-break: keep-all;
+        }
+
+        .sf-detail-card {
+          margin-top: 14px;
+          text-align: left;
+          justify-items: stretch;
+        }
+
+        .sf-detail-metrics {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 10px;
+        }
+
+        .sf-detail-metrics > div {
+          padding: 13px;
+          border-radius: 16px;
+          background: #ffffff;
+          border: 1px solid rgba(226, 232, 240, 0.9);
+        }
+
+        .sf-detail-metrics span {
+          display: block;
+          color: #64748b;
+          font-size: 11px;
+          font-weight: 950;
+        }
+
+        .sf-detail-metrics strong {
+          display: block;
+          margin-top: 5px;
+          font-size: 16px;
+        }
+
+        .sf-history-bottom {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) minmax(320px, 0.76fr);
+          gap: 18px;
+        }
+
+        .sf-guide-list {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 12px;
+          margin-top: 18px;
+        }
+
+        .sf-guide-card {
+          min-height: 132px;
+          padding: 16px;
+          border-radius: 20px;
+          background: #f8fafc;
+          border: 1px solid rgba(226, 232, 240, 0.9);
+        }
+
+        .sf-guide-card strong {
+          display: block;
+          margin-top: 12px;
+          color: #0f172a;
+          font-size: 14px;
+          letter-spacing: -0.035em;
+        }
+
+        .sf-guide-card p {
+          margin: 6px 0 0;
+          color: #64748b;
+          font-size: 12px;
+          line-height: 1.48;
+          word-break: keep-all;
+        }
+
+        .sf-next-card {
+          display: grid;
+          align-content: center;
+          gap: 14px;
+          background:
+            radial-gradient(circle at 0% 0%, rgba(22, 125, 127, 0.09), transparent 36%),
+            #ffffff;
+        }
+
+        .sf-next-card h2 {
+          margin: 0;
+          color: #0f172a;
+          font-size: 24px;
+          letter-spacing: -0.05em;
+        }
+
+        .sf-next-card p {
+          margin: 0;
+          color: #64748b;
+          font-size: 13px;
+          line-height: 1.65;
+          word-break: keep-all;
+        }
+
+        .sf-next-actions {
+          display: grid;
+          gap: 10px;
+        }
+
+        @media (max-width: 980px) {
+          .sf-history-hero,
+          .sf-history-grid,
+          .sf-history-bottom,
+          .sf-history-main-card {
+            grid-template-columns: 1fr;
+          }
+
+          .sf-score-preview {
+            min-height: auto;
+          }
+
+          .sf-guide-list {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .sf-history-main-card,
+          .sf-history-summary-card,
+          .sf-history-card {
+            padding: 18px;
+            border-radius: 24px;
+          }
+
+          .sf-history-main-card h1 {
+            font-size: 36px;
+          }
+
+          .sf-summary-grid,
+          .sf-detail-metrics {
+            grid-template-columns: 1fr;
+          }
+
+          .sf-record-toolbar {
+            align-items: stretch;
+            flex-direction: column;
+          }
+
+          .sf-search-box {
+            width: 100%;
+            min-width: 0;
+          }
+
+          .sf-record-card {
+            grid-template-columns: 48px 1fr;
+          }
+
+          .sf-record-side {
+            grid-column: 2;
+            justify-items: start;
+          }
+
+          .sf-trend-row {
+            grid-template-columns: 70px 1fr 42px;
+          }
+        }
+      `}</style>
+
+      <div className="sf-history-page">
+        <section className="sf-history-hero">
+          <div className="sf-history-main-card">
             <div>
-              <span className="history-card-label">History Summary</span>
-              <h2>분석 이력 요약</h2>
+              <span className="sf-history-eyebrow">
+                <History size={15} /> Analysis History
+              </span>
+
+              <h1>
+                피부 변화 흐름을
+                <br />
+                기록하세요
+              </h1>
+
+              <p>
+                분석 이력을 통해 종합 점수, 색소침착, 주름 지표를 다시 확인하고
+                같은 흐름으로 추천과 관리 가이드를 이어볼 수 있습니다.
+              </p>
+
+              <div className="sf-history-actions">
+                <Button to="/analysis/capture" size="lg">
+                  새 분석 시작 <ArrowRight size={18} />
+                </Button>
+                <Button to="/recommendations" variant="secondary" size="lg">
+                  추천 보기
+                </Button>
+              </div>
+            </div>
+
+            <div className="sf-score-preview">
+              <div
+                className="sf-score-ring"
+                style={{ "--score": `${latestScore}%` }}
+              >
+                <strong>{latestScore}</strong>
+              </div>
+              <span>
+                {hasRecords
+                  ? `최근 분석일 ${formatDate(summary.latestAnalyzedAt)}`
+                  : "첫 분석 후 점수가 표시됩니다"}
+              </span>
             </div>
           </div>
 
-          {isLoading && (
-            <p className="form-success-text">분석 이력을 불러오는 중입니다.</p>
-          )}
-          {historyError && <p className="form-error-text">{historyError}</p>}
-
-          <div className="history-summary-list">
-            {summaryItems.map((item) => (
-              <div key={item.label}>
-                <span>{item.label}</span>
-                <strong>{item.value}</strong>
+          <Card className="sf-history-summary-card">
+            <div className="sf-card-title-row">
+              <div>
+                <small>History Summary</small>
+                <h2>분석 이력 요약</h2>
               </div>
-            ))}
-          </div>
+              <span className="sf-icon-tile" aria-hidden="true">
+                <Trophy size={21} />
+              </span>
+            </div>
 
-          <div className="history-summary-notice">
-            <TrendingUp size={18} />
-            <span>
-              {summary?.scoreDiff === null || summary?.scoreDiff === undefined
-                ? "아직 비교할 분석 이력이 없습니다."
-                : `최근 분석 기준 점수 변화는 ${formatDiff(
-                    summary.scoreDiff
-                  )}입니다.`}
-            </span>
-          </div>
-        </Card>
-      </section>
+            {isLoading && <p className="sf-notice-line">분석 이력을 불러오는 중입니다.</p>}
+            {historyError && <p className="sf-error-line">{historyError}</p>}
 
-      <section className="history-section">
-        <SectionTitle
-          eyebrow="Trend"
-          title="종합 점수 변화 흐름"
-          description="최근 피부 분석 이력을 기준으로 종합 점수의 변화 흐름을 시각적으로 확인할 수 있습니다."
-        />
+            <div className="sf-summary-grid">
+              <div className="sf-summary-item">
+                <span>총 분석 횟수</span>
+                <strong>{summary.analysisCount ?? 0}회</strong>
+              </div>
+              <div className="sf-summary-item">
+                <span>최근 종합 점수</span>
+                <strong>{formatScore(summary.latestTotalScore)}</strong>
+              </div>
+              <div className="sf-summary-item">
+                <span>최근 상태</span>
+                <strong>{getStatusLabel(summary.latestStatus)}</strong>
+              </div>
+              <div className="sf-summary-item">
+                <span>점수 변화</span>
+                <strong>{formatDiff(summary.scoreDiff)}</strong>
+              </div>
+            </div>
 
-        <Card className="history-trend-card">
-          {trendItems.length > 0 ? (
-            <div className="trend-chart-area">
-              <div className="trend-line" />
+            <p className="sf-notice-line">
+              <LineChart size={16} />
+              <span>
+                {summary.scoreDiff === null || summary.scoreDiff === undefined
+                  ? "아직 비교할 분석 이력이 없습니다."
+                  : `최근 분석 기준 점수 변화는 ${formatDiff(summary.scoreDiff)}입니다.`}
+              </span>
+            </p>
+          </Card>
+        </section>
+
+        <section className="sf-history-grid">
+          <Card className="sf-history-card">
+            <div className="sf-card-title-row">
+              <div>
+                <small>Trend</small>
+                <h2>종합 점수 변화</h2>
+              </div>
+              <Badge>{hasRecords ? "기록 있음" : "분석 전"}</Badge>
+            </div>
+
+            <div className="sf-trend-chart">
               {trendItems.map((item, index) => (
-                <div
-                  className={`trend-point trend-point-${index + 1}`}
-                  key={`${item.label}-${index}`}
-                >
-                  <strong>{item.score}</strong>
+                <div className="sf-trend-row" key={`${item.label}-${index}`}>
                   <span>{item.label}</span>
+                  <div className="sf-trend-bar">
+                    <span
+                      style={{
+                        width: `${hasRecords ? Math.max(6, (item.score / maxTrendScore) * 100) : 0}%`,
+                      }}
+                    />
+                  </div>
+                  <div className="sf-trend-score">
+                    {hasRecords ? `${item.score}점` : "-"}
+                  </div>
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="trend-insight">
-              <div className="trend-insight-icon">
-                <Trophy size={24} />
+
+            <p className="sf-notice-line" style={{ marginTop: 16 }}>
+              <Clock size={16} />
+              <span>
+                같은 시간대와 조명 환경에서 주기적으로 분석하면 변화 흐름을 더 안정적으로 비교할 수 있습니다.
+              </span>
+            </p>
+          </Card>
+
+          <Card className="sf-history-card">
+            <div className="sf-record-toolbar">
+              <div className="sf-card-title-row" style={{ marginBottom: 0 }}>
+                <div>
+                  <small>Records</small>
+                  <h2>날짜별 분석 기록</h2>
+                </div>
               </div>
-              <div>
-                <strong>아직 분석 이력이 없습니다</strong>
-                <span>
-                  첫 피부 분석을 진행하면 종합 점수 변화 흐름을 확인할 수
-                  있습니다.
-                </span>
-              </div>
+
+              <label className="sf-search-box">
+                <Search size={16} />
+                <input
+                  type="text"
+                  value={searchText}
+                  onChange={(event) => setSearchText(event.target.value)}
+                  placeholder="날짜 또는 키워드 검색"
+                />
+              </label>
             </div>
-          )}
 
-          {trendItems.length > 0 && (
-            <div className="trend-insight">
-              <div className="trend-insight-icon">
-                <Trophy size={24} />
-              </div>
-              <div>
-                <strong>분석 이력을 기준으로 변화 흐름을 확인할 수 있습니다</strong>
-                <span>
-                  동일한 조건에서 주기적으로 분석하면 피부 변화 흐름을 더
-                  안정적으로 비교할 수 있습니다.
-                </span>
-              </div>
-            </div>
-          )}
-        </Card>
-      </section>
+            <div className="sf-record-list">
+              {filteredRecords.length > 0 ? (
+                filteredRecords.map((record, index) => {
+                  const recordId = getRecordId(record);
+                  const recordScore = getRecordScore(record);
 
-      <section className="history-section">
-        <div className="history-list-header">
-          <SectionTitle
-            eyebrow="Records"
-            title="날짜별 분석 기록"
-            description="각 분석 기록을 선택하면 당시의 점수, 지표, 추천 정보를 확인할 수 있습니다."
-          />
+                  return (
+                    <div className="sf-record-card" key={recordId || index}>
+                      <span className="sf-icon-tile" aria-hidden="true">
+                        <CalendarDays size={21} />
+                      </span>
 
-          <div className="history-search-box">
-            <Search size={18} />
-            <input type="text" placeholder="분석 날짜 또는 키워드 검색" />
-          </div>
-        </div>
+                      <div className="sf-record-content">
+                        <small>{formatDate(getRecordDate(record))}</small>
+                        <strong>{record.summary || "피부 분석 기록"}</strong>
+                        <p>
+                          색소침착 {getMetricScore(record.metrics, "색소")} · 주름 {getMetricScore(record.metrics, "주름")}
+                        </p>
+                      </div>
 
-        <div className="history-record-list">
-          {records.length > 0 ? (
-            records.map((item) => (
-              <Card className="history-record-card" key={item.analysisId}>
-                <div className="history-record-top">
-                  <div className="record-date-icon">
-                    <CalendarDays size={22} />
-                  </div>
-                  <div>
-                    <span>{formatDate(item.analyzedAt, "아직 없음")}</span>
-                    <h3>{item.summary || "피부 분석 기록"}</h3>
-                  </div>
-                  <Badge variant="accent">{item.status || "분석 전"}</Badge>
-                </div>
-
-                <div className="record-score-layout">
-                  <div className="record-score-box">
-                    <span>종합 점수</span>
-                    <strong>{item.totalScore ?? "분석 전"}</strong>
-                    {item.totalScore !== null && item.totalScore !== undefined && (
-                      <small>/100</small>
-                    )}
-                  </div>
-
-                  <div className="record-metric-list">
-                    <div>
-                      <span>색소침착</span>
-                      <strong>{getMetricScore(item.metrics, "색소")}</strong>
+                      <div className="sf-record-side">
+                        <span className="sf-score-badge">{formatScore(recordScore)}</span>
+                        <span className="sf-status-badge">{getStatusLabel(record.status)}</span>
+                        <div className="sf-record-actions">
+                          <button
+                            type="button"
+                            className="sf-text-button"
+                            onClick={() => handleDetailClick(recordId)}
+                          >
+                            상세 보기
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <span>주름</span>
-                      <strong>{getMetricScore(item.metrics, "주름")}</strong>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="record-recommendation">
-                  <Sparkles size={18} />
-                  <span>{item.summary || "분석 요약 정보가 없습니다."}</span>
-                </div>
-
-                <div className="record-actions">
-                  <button
-                    type="button"
-                    className="logout-button"
-                    onClick={() => handleDetailClick(item.analysisId)}
-                  >
-                    상세 결과 보기
-                  </button>
-                  <Button to="/recommendations" size="sm">
-                    추천 다시 보기 <ArrowRight size={15} />
+                  );
+                })
+              ) : (
+                <div className="sf-empty-card">
+                  <span className="sf-icon-tile" aria-hidden="true">
+                    <Sparkles size={21} />
+                  </span>
+                  <strong>아직 분석 이력이 없습니다</strong>
+                  <p>첫 피부 분석을 진행하면 결과와 추천 내용을 이곳에서 확인할 수 있습니다.</p>
+                  <Button to="/analysis/capture" size="sm">
+                    분석 시작하기 <ArrowRight size={15} />
                   </Button>
                 </div>
-              </Card>
-            ))
-          ) : (
-            <Card className="history-record-card">
-              <div className="history-record-top">
-                <div className="record-date-icon">
-                  <CalendarDays size={22} />
+              )}
+            </div>
+
+            {detailError && <p className="sf-error-line" style={{ marginTop: 12 }}>{detailError}</p>}
+
+            {selectedDetail && (
+              <div className="sf-detail-card">
+                <div className="sf-card-title-row">
+                  <div>
+                    <small>{formatDate(getRecordDate(selectedDetail))}</small>
+                    <h2>상세 분석 정보</h2>
+                  </div>
+                  <span className="sf-status-badge">{getStatusLabel(selectedDetail.status)}</span>
                 </div>
-                <div>
-                  <span>아직 없음</span>
-                  <h3>아직 분석 이력이 없습니다.</h3>
+
+                <div className="sf-detail-metrics">
+                  <div>
+                    <span>종합 점수</span>
+                    <strong>{formatScore(getRecordScore(selectedDetail))}</strong>
+                  </div>
+                  <div>
+                    <span>색소침착</span>
+                    <strong>{getMetricScore(selectedDetail.metrics, "색소")}</strong>
+                  </div>
+                  <div>
+                    <span>주름</span>
+                    <strong>{getMetricScore(selectedDetail.metrics, "주름")}</strong>
+                  </div>
                 </div>
-              </div>
 
-              <div className="record-recommendation">
-                <Sparkles size={18} />
-                <span>
-                  피부 분석을 시작하면 결과와 추천 내용을 이곳에서 확인할 수
-                  있어요.
-                </span>
+                <p>{selectedDetail.statusDescription || selectedDetail.summary || "상세 분석 설명이 없습니다."}</p>
+                <p>{getRecommendationText(selectedDetail.recommendations)}</p>
               </div>
+            )}
+          </Card>
+        </section>
 
-              <div className="record-actions">
-                <Button to="/analysis/capture" size="sm">
-                  새 피부 분석 시작하기 <ArrowRight size={15} />
-                </Button>
-              </div>
-            </Card>
-          )}
-        </div>
-
-        {detailError && <p className="form-error-text">{detailError}</p>}
-
-        {selectedDetail && (
-          <Card className="history-record-card">
-            <div className="history-record-top">
-              <div className="record-date-icon">
-                <CalendarDays size={22} />
-              </div>
+        <section className="sf-history-bottom">
+          <Card className="sf-history-card">
+            <div className="sf-card-title-row">
               <div>
-                <span>{formatDate(selectedDetail.analyzedAt, "아직 없음")}</span>
-                <h3>상세 분석 정보</h3>
+                <small>Guide</small>
+                <h2>이력 관리 안내</h2>
               </div>
-              <Badge variant="accent">{selectedDetail.status || "분석 전"}</Badge>
-            </div>
-
-            <div className="record-score-layout">
-              <div className="record-score-box">
-                <span>종합 점수</span>
-                <strong>{selectedDetail.totalScore ?? "분석 전"}</strong>
-                {selectedDetail.totalScore !== null &&
-                  selectedDetail.totalScore !== undefined && <small>/100</small>}
-              </div>
-
-              <div className="record-metric-list">
-                <div>
-                  <span>색소침착</span>
-                  <strong>{getMetricScore(selectedDetail.metrics, "색소")}</strong>
-                </div>
-                <div>
-                  <span>주름</span>
-                  <strong>{getMetricScore(selectedDetail.metrics, "주름")}</strong>
-                </div>
-              </div>
-            </div>
-
-            <div className="record-recommendation">
-              <Sparkles size={18} />
-              <span>
-                {selectedDetail.statusDescription ||
-                  selectedDetail.summary ||
-                  "상세 분석 설명이 없습니다."}
+              <span className="sf-icon-tile" aria-hidden="true">
+                <CheckCircle2 size={21} />
               </span>
             </div>
 
-            <div className="record-recommendation">
-              <Sparkles size={18} />
-              <span>{getRecommendationText(selectedDetail.recommendations)}</span>
+            <div className="sf-guide-list">
+              <div className="sf-guide-card">
+                <span className="sf-icon-tile" aria-hidden="true">
+                  <Clock size={21} />
+                </span>
+                <strong>동일한 조건</strong>
+                <p>비슷한 시간대와 조명에서 분석하면 비교가 더 안정적입니다.</p>
+              </div>
+
+              <div className="sf-guide-card">
+                <span className="sf-icon-tile" aria-hidden="true">
+                  <LineChart size={21} />
+                </span>
+                <strong>변화 흐름</strong>
+                <p>점수 하나보다 장기적인 흐름을 함께 확인하는 것이 좋습니다.</p>
+              </div>
+
+              <div className="sf-guide-card">
+                <span className="sf-icon-tile" aria-hidden="true">
+                  <Sparkles size={21} />
+                </span>
+                <strong>추천 연결</strong>
+                <p>이력은 성분, 제품, 식습관 가이드를 다시 확인하는 기준입니다.</p>
+              </div>
             </div>
           </Card>
-        )}
-      </section>
 
-      <section className="history-bottom-grid">
-        <Card className="history-guide-card">
-          <div className="history-card-title-row">
-            <div>
-              <span className="history-card-label">Guide</span>
-              <h2>이력 관리 안내</h2>
+          <Card className="sf-history-card sf-next-card">
+            <span className="sf-icon-tile" aria-hidden="true">
+              <LineChart size={21} />
+            </span>
+            <h2>다음 분석을 이어가세요</h2>
+            <p>
+              새로운 분석을 추가하면 이전 결과와 비교해 피부 변화 흐름을 더 쉽게 확인할 수 있습니다.
+            </p>
+            <div className="sf-next-actions">
+              <Button to="/analysis/capture" full>
+                새 분석 시작하기
+              </Button>
+              <Button to="/dashboard" variant="secondary" full>
+                대시보드로 이동
+              </Button>
             </div>
-            <CheckCircle2 size={28} />
-          </div>
-
-          <div className="history-guide-list">
-            <div>
-              <Clock size={20} />
-              <span>가능하면 비슷한 시간대와 조명 환경에서 분석해보세요.</span>
-            </div>
-            <div>
-              <LineChart size={20} />
-              <span>
-                점수 하나보다 장기적인 변화 흐름을 함께 확인하는 것이 좋습니다.
-              </span>
-            </div>
-            <div>
-              <Sparkles size={20} />
-              <span>
-                분석 이력은 추천 성분과 식습관 가이드를 다시 확인하는 기준이
-                됩니다.
-              </span>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="history-next-card">
-          <div className="history-next-icon">
-            <LineChart size={28} />
-          </div>
-
-          <h2>다음 분석을 이어서 진행해보세요</h2>
-          <p>
-            SkinFlow는 분석 이력을 기반으로 피부 변화 흐름을 확인할 수 있도록
-            돕습니다. 새로운 분석을 추가해 이전 결과와 비교해보세요.
-          </p>
-
-          <div className="history-next-actions">
-            <Button to="/analysis/capture" full>
-              새 피부 분석 시작하기
-            </Button>
-            <Button to="/dashboard" variant="secondary" full>
-              대시보드로 이동
-            </Button>
-          </div>
-        </Card>
-      </section>
+          </Card>
+        </section>
+      </div>
     </PageLayout>
   );
 }
