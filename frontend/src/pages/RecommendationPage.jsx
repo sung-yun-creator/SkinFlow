@@ -96,7 +96,7 @@ function RecommendationPage() {
           padding: 26px;
           background:
             radial-gradient(circle at 0% 0%, rgba(22, 125, 127, 0.10), transparent 34%),
-            radial-gradient(circle at 100% 100%, rgba(244, 63, 94, 0.08), transparent 32%),
+            radial-gradient(circle at 100% 100%, rgba(34, 197, 200, 0.08), transparent 32%),
             #ffffff;
         }
 
@@ -109,7 +109,7 @@ function RecommendationPage() {
         }
 
         .sf-recommend-gradient {
-          background: linear-gradient(90deg, #167d7f 0%, #22c5c8 48%, #f43f5e 100%);
+          background: linear-gradient(90deg, #167d7f 0%, #22c5c8 55%, #0ea5a8 100%);
           -webkit-background-clip: text;
           background-clip: text;
           color: transparent;
@@ -258,7 +258,7 @@ function RecommendationPage() {
         }
 
         .sf-panel-accent.is-pink {
-          background: #f43f5e;
+          background: linear-gradient(180deg, #167d7f 0%, #22c5c8 100%);
         }
 
         .sf-recommend-list {
@@ -299,7 +299,7 @@ function RecommendationPage() {
           place-items: center;
           line-height: 0;
           color: #167d7f;
-          background: linear-gradient(135deg, #f2fbfb 0%, #ffffff 52%, #fff1f4 100%);
+          background: linear-gradient(135deg, #eefafa 0%, #ffffff 52%, #e6fffb 100%);
           border: 1px solid rgba(226, 232, 240, 0.9);
           box-shadow: 0 8px 20px rgba(15, 23, 42, 0.045);
         }
@@ -397,6 +397,9 @@ function RecommendationPage() {
         .sf-recommend-guide-card {
           padding: 22px;
           align-self: start;
+          background:
+            radial-gradient(circle at 100% 0%, rgba(22, 125, 127, 0.07), transparent 34%),
+            rgba(255, 255, 255, 0.96);
         }
 
         .sf-guide-list {
@@ -413,7 +416,9 @@ function RecommendationPage() {
           padding: 12px;
           border: 1px solid rgba(226, 232, 240, 0.88);
           border-radius: 17px;
-          background: #f8fafc;
+          background:
+            radial-gradient(circle at 100% 0%, rgba(34, 197, 200, 0.08), transparent 36%),
+            #f8fafc;
         }
 
         .sf-guide-item .sf-icon-tile {
@@ -426,13 +431,23 @@ function RecommendationPage() {
           display: grid;
           place-items: center;
           line-height: 0;
+          color: #167d7f;
+          background: linear-gradient(135deg, #eefafa 0%, #ffffff 52%, #e6fffb 100%);
+          border: 1px solid rgba(188, 230, 230, 0.92);
+          box-shadow: 0 8px 20px rgba(22, 125, 127, 0.055);
         }
 
         .sf-guide-item .sf-icon-tile svg {
+          display: block;
           width: 18px !important;
           height: 18px !important;
           min-width: 18px;
           min-height: 18px;
+          margin: 0;
+          transform: none;
+          vertical-align: middle;
+          flex: 0 0 auto;
+          stroke-width: 2.05;
         }
 
         .sf-guide-item strong {

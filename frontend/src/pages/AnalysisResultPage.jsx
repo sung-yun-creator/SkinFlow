@@ -114,6 +114,14 @@ function AnalysisResultPage() {
             letter-spacing: -0.07em;
           }
 
+          .sf-result-gradient-text {
+            display: inline-block;
+            background: linear-gradient(90deg, #167d7f 0%, #14b8a6 52%, #22c5c8 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+          }
+
           .sf-result-face-card p,
           .sf-result-summary-card p,
           .sf-result-next-item p,
@@ -133,9 +141,9 @@ function AnalysisResultPage() {
             border-radius: 24px;
             border: 1px solid rgba(226, 232, 240, 0.86);
             background:
-              radial-gradient(circle at 82% 84%, rgba(244, 63, 94, 0.13), transparent 28%),
+              radial-gradient(circle at 82% 84%, rgba(20, 184, 166, 0.13), transparent 28%),
               radial-gradient(circle at 18% 12%, rgba(22, 125, 127, 0.11), transparent 30%),
-              linear-gradient(135deg, #f0fdfa 0%, #ffffff 48%, #fff7ed 100%);
+              linear-gradient(135deg, #f0fdfa 0%, #ffffff 48%, #f8fafc 100%);
           }
 
           .sf-result-face-oval {
@@ -301,7 +309,7 @@ function AnalysisResultPage() {
             display: grid;
             place-items: center;
             color: #167d7f;
-            background: linear-gradient(135deg, #f2fbfb 0%, #ffffff 50%, #fff1f4 100%);
+            background: linear-gradient(135deg, #f2fbfb 0%, #ffffff 50%, #ecfeff 100%);
             border: 1px solid rgba(226, 232, 240, 0.88);
             box-shadow: 0 10px 24px rgba(15, 23, 42, 0.055);
           }
@@ -352,7 +360,7 @@ function AnalysisResultPage() {
             border-radius: 22px;
             border: 1px solid rgba(226, 232, 240, 0.88);
             background:
-              radial-gradient(circle at 100% 0%, rgba(244, 63, 94, 0.055), transparent 34%),
+              radial-gradient(circle at 100% 0%, rgba(20, 184, 166, 0.055), transparent 34%),
               #f8fafc;
             transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
           }
@@ -463,7 +471,8 @@ function AnalysisResultPage() {
             <Badge>Result Preview</Badge>
             <h1>
               피부 상태를
-              <br />한눈에 확인하세요
+              <br />
+              <span className="sf-result-gradient-text">한눈에 확인하세요</span>
             </h1>
             <p>
               현재 화면은 ROI 확인 이후 연결될 분석 결과 UI 미리보기입니다.

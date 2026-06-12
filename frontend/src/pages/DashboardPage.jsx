@@ -290,31 +290,39 @@ function DashboardPage() {
           }
 
           .dashboard-welcome-card {
-            min-height: 315px;
-            padding: 28px;
+            min-height: 285px;
+            padding: 26px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             background:
               radial-gradient(circle at 82% 12%, rgba(22, 125, 127, 0.13), transparent 30%),
-              radial-gradient(circle at 8% 100%, rgba(244, 63, 94, 0.08), transparent 34%),
+              radial-gradient(circle at 8% 100%, rgba(20, 184, 166, 0.08), transparent 34%),
               #ffffff;
           }
 
           .dashboard-welcome-copy h1 {
-            margin: 18px 0 14px;
+            max-width: 620px;
+            margin: 16px 0 12px;
             color: #0f172a;
-            font-size: clamp(34px, 4vw, 50px);
-            line-height: 1.08;
-            letter-spacing: -0.065em;
+            font-size: clamp(32px, 3.4vw, 44px);
+            line-height: 1.12;
+            letter-spacing: -0.06em;
+          }
+
+          .dashboard-gradient-text {
+            background: linear-gradient(90deg, #167d7f 0%, #22c5c8 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
           }
 
           .dashboard-welcome-copy p {
-            max-width: 680px;
+            max-width: 650px;
             margin: 0;
             color: #64748b;
-            font-size: 16px;
-            line-height: 1.75;
+            font-size: 15px;
+            line-height: 1.7;
             word-break: keep-all;
           }
 
@@ -552,7 +560,7 @@ function DashboardPage() {
             place-items: center;
             line-height: 0;
             color: #167d7f;
-            background: linear-gradient(135deg, #f2fbfb 0%, #ffffff 48%, #fff1f4 100%);
+            background: linear-gradient(135deg, #f2fbfb 0%, #ffffff 48%, #ecfeff 100%);
             border: 1px solid rgba(226, 232, 240, 0.9);
             box-shadow: 0 14px 30px rgba(15, 23, 42, 0.07);
           }
@@ -667,7 +675,7 @@ function DashboardPage() {
             place-items: center;
             line-height: 0;
             color: #167d7f;
-            background: linear-gradient(135deg, #f2fbfb 0%, #ffffff 50%, #fff1f4 100%);
+            background: linear-gradient(135deg, #f2fbfb 0%, #ffffff 50%, #ecfeff 100%);
             border: 1px solid rgba(226, 232, 240, 0.88);
             box-shadow: 0 10px 24px rgba(15, 23, 42, 0.055);
           }
@@ -772,7 +780,7 @@ function DashboardPage() {
             }
 
             .dashboard-welcome-copy h1 {
-              font-size: 32px;
+              font-size: 31px;
             }
 
             .dashboard-welcome-actions .sf-button {
@@ -818,14 +826,14 @@ function DashboardPage() {
         <div className="dashboard-app-hero">
           <Card className="dashboard-welcome-card">
             <div className="dashboard-welcome-copy">
-              <Badge>로그인 후 앱 홈</Badge>
+              <Badge>SkinFlow App Home</Badge>
               <h1>
                 {userName}님의 피부 관리,
-                <br />오늘은 여기서 시작하세요
+                <br />
+                <span className="dashboard-gradient-text">오늘은 여기서 시작하세요</span>
               </h1>
               <p>
-                대시보드는 서비스 소개 화면이 아니라 실제 사용을 위한 홈입니다. 분석 시작,
-                추천 확인, 식습관 가이드, 이력 관리를 한 화면에서 빠르게 이동할 수 있습니다.
+                분석 시작, 추천 확인, 식습관 가이드, 이력 관리를 한 화면에서 빠르게 이동할 수 있는 로그인 후 앱 홈입니다.
               </p>
 
               <div className="dashboard-welcome-actions">

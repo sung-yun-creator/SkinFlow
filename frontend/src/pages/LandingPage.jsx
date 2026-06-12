@@ -156,7 +156,7 @@ function LandingPage() {
             color: #0f172a;
             background:
               radial-gradient(circle at 5% 18%, rgba(22, 125, 127, 0.11), transparent 28%),
-              radial-gradient(circle at 94% 86%, rgba(244, 63, 94, 0.10), transparent 25%),
+              radial-gradient(circle at 94% 86%, rgba(20, 184, 166, 0.10), transparent 25%),
               linear-gradient(180deg, #f8fafc 0%, #ffffff 48%, #f8fafc 100%);
           }
 
@@ -214,6 +214,17 @@ function LandingPage() {
             color: #167d7f;
           }
 
+          .sf-landing-auth-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+          }
+
+          .sf-landing-auth-actions .sf-button {
+            white-space: nowrap;
+          }
+
           .sf-landing-page {
             max-width: 1120px;
             margin: 0 auto;
@@ -254,7 +265,7 @@ function LandingPage() {
 
           .sf-gradient-text {
             display: inline-block;
-            background: linear-gradient(90deg, #167d7f 0%, #22c5c8 48%, #f43f5e 100%);
+            background: linear-gradient(90deg, #167d7f 0%, #22c5c8 100%);
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
@@ -354,7 +365,7 @@ function LandingPage() {
             background:
               radial-gradient(circle at 72% 18%, rgba(66, 211, 188, 0.76) 0 32%, transparent 33%),
               radial-gradient(circle at 24% 48%, rgba(255, 224, 206, 0.94), transparent 46%),
-              linear-gradient(135deg, #fff2e8 0%, #fdf5ef 52%, #f9e8df 100%);
+              linear-gradient(135deg, #ecfeff 0%, #f8fafc 52%, #ecfeff 100%);
           }
 
           .sf-skin-canvas::before,
@@ -547,7 +558,7 @@ function LandingPage() {
             align-items: center;
             justify-content: center;
             color: #ffffff;
-            background: linear-gradient(135deg, #167d7f, #22c5c8 62%, #f43f5e);
+            background: linear-gradient(135deg, #167d7f, #22c5c8);
           }
 
           .sf-value-card h3 {
@@ -652,7 +663,7 @@ function LandingPage() {
             place-items: center;
             line-height: 0;
             color: #167d7f;
-            background: linear-gradient(135deg, #f0fdfa 0%, #ffffff 52%, #fff1f4 100%);
+            background: linear-gradient(135deg, #f0fdfa 0%, #ffffff 52%, #ecfeff 100%);
             border: 1px solid rgba(226, 232, 240, 0.92);
             box-shadow: 0 10px 24px rgba(15, 23, 42, 0.055);
           }
@@ -670,7 +681,7 @@ function LandingPage() {
           }
 
           .landing-analysis-status[data-tone="warning"] .landing-analysis-icon {
-            color: #f43f5e;
+            color: #14b8a6;
           }
 
           .landing-analysis-content {
@@ -704,7 +715,7 @@ function LandingPage() {
           }
 
           .landing-analysis-status[data-tone="warning"] .landing-analysis-percent {
-            color: #f43f5e;
+            color: #14b8a6;
           }
 
           .landing-analysis-track {
@@ -718,7 +729,7 @@ function LandingPage() {
             display: block;
             height: 100%;
             border-radius: inherit;
-            background: linear-gradient(90deg, #167d7f, #22c5c8, #f43f5e);
+            background: linear-gradient(90deg, #167d7f, #22c5c8, #0f766e);
             transition: width 0.25s ease;
           }
 
@@ -773,7 +784,7 @@ function LandingPage() {
             color: #ffffff;
             background:
               radial-gradient(circle at 18% 34%, rgba(255, 255, 255, 0.16), transparent 30%),
-              linear-gradient(135deg, #167d7f 0%, #0f766e 52%, #f43f5e 135%);
+              linear-gradient(135deg, #167d7f 0%, #0f766e 60%, #22c5c8 135%);
             box-shadow: 0 28px 72px rgba(15, 23, 42, 0.16);
           }
 
@@ -818,9 +829,9 @@ function LandingPage() {
           }
 
           .landing-analysis-dismiss:hover {
-            color: #f43f5e;
+            color: #14b8a6;
             background: #ffffff;
-            border-color: rgba(244, 63, 94, 0.24);
+            border-color: rgba(20, 184, 166, 0.24);
           }
 
           .landing-analysis-dismiss svg {
@@ -907,6 +918,14 @@ function LandingPage() {
               width: 100%;
             }
 
+            .sf-landing-auth-actions {
+              gap: 6px;
+            }
+
+            .sf-landing-auth-actions .sf-button {
+              padding-inline: 12px;
+            }
+
             .sf-landing-stats {
               grid-template-columns: 1fr;
               gap: 14px;
@@ -943,13 +962,32 @@ function LandingPage() {
 
           <nav className="sf-landing-links" aria-label="랜딩 주요 메뉴">
             <a href="#service">서비스 소개</a>
-            <a href="#process">AI 분석</a>
-            <a href="#start">시작하기</a>
+            <a href="#process">분석 흐름</a>
+            <a href="#recommend">추천 예시</a>
+            <a href="#guide">이용 안내</a>
           </nav>
 
-          <Button to={primaryCtaTo} size="sm">
-            피부 분석 시작하기
-          </Button>
+          <div className="sf-landing-auth-actions">
+            {isLoggedIn ? (
+              <>
+                <Button to="/dashboard" variant="ghost" size="sm">
+                  내 대시보드
+                </Button>
+                <Button to="/analysis/capture" size="sm">
+                  분석 시작
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button to="/login" variant="ghost" size="sm">
+                  로그인
+                </Button>
+                <Button to="/signup" size="sm">
+                  회원가입
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
@@ -1096,13 +1134,13 @@ function LandingPage() {
           </aside>
         </section>
 
-        <section className="sf-section">
+        <section className="sf-section" id="recommend">
           <div className="sf-section-head">
-            <small>Why SkinFlow</small>
-            <h2>필요한 기능만 짧고 명확하게 제공합니다</h2>
+            <small>Recommend Preview</small>
+            <h2>분석 후 추천까지 한 흐름으로 확인합니다</h2>
             <p>
-              긴 설명보다 사용자가 바로 이해할 수 있는 분석, 추천, 이력 흐름을
-              중심으로 구성했습니다.
+              색소침착과 주름 분석 결과를 바탕으로 성분, 제품, 이력 관리 흐름을
+              짧고 명확하게 이어줍니다.
             </p>
           </div>
 
@@ -1146,7 +1184,7 @@ function LandingPage() {
           </div>
         </section>
 
-        <section className="sf-section" id="start">
+        <section className="sf-section" id="guide">
           <div className="sf-final-cta">
             <h2>지금 바로 피부 상태를 확인해보세요</h2>
             <p>

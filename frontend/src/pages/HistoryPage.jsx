@@ -307,7 +307,7 @@ function HistoryPage() {
           align-items: center;
           background:
             radial-gradient(circle at 0% 0%, rgba(22, 125, 127, 0.08), transparent 32%),
-            radial-gradient(circle at 100% 100%, rgba(244, 63, 94, 0.06), transparent 32%),
+            radial-gradient(circle at 100% 100%, rgba(20, 184, 166, 0.06), transparent 32%),
             #ffffff;
         }
 
@@ -337,7 +337,7 @@ function HistoryPage() {
           margin: 0;
           color: #64748b;
           font-size: 15px;
-          line-height: 1.75;
+          line-height: 1.68;
           word-break: keep-all;
         }
 
@@ -425,7 +425,7 @@ function HistoryPage() {
           place-items: center;
           line-height: 0;
           color: #167d7f;
-          background: linear-gradient(135deg, #f2fbfb 0%, #ffffff 50%, #fff1f4 100%);
+          background: linear-gradient(135deg, #f2fbfb 0%, #ffffff 50%, #ecfeff 100%);
           border: 1px solid rgba(226, 232, 240, 0.9);
           box-shadow: 0 10px 24px rgba(15, 23, 42, 0.055);
         }
@@ -490,8 +490,8 @@ function HistoryPage() {
         }
 
         .sf-error-line {
-          color: #f43f5e;
-          background: rgba(244, 63, 94, 0.09);
+          color: #14b8a6;
+          background: rgba(20, 184, 166, 0.09);
         }
 
         .sf-history-grid {
@@ -811,6 +811,16 @@ function HistoryPage() {
             border-radius: 24px;
           }
 
+
+
+          .sf-gradient-text {
+            display: inline-block;
+            background: linear-gradient(90deg, #167d7f 0%, #14b8a6 52%, #22c5c8 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            -webkit-text-fill-color: transparent;
+          }
           .sf-history-main-card h1 {
             font-size: 36px;
           }
@@ -856,7 +866,7 @@ function HistoryPage() {
               <h1>
                 피부 변화 흐름을
                 <br />
-                기록하세요
+                <span className="sf-gradient-text">기록하세요</span>
               </h1>
 
               <p>

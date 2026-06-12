@@ -254,16 +254,16 @@ function MyPage() {
           justify-content: space-between;
           background:
             radial-gradient(circle at 90% 15%, rgba(22, 125, 127, 0.08), transparent 34%),
-            radial-gradient(circle at 12% 92%, rgba(244, 63, 94, 0.06), transparent 30%),
+            radial-gradient(circle at 12% 92%, rgba(20, 184, 166, 0.06), transparent 30%),
             #ffffff;
         }
 
         .sf-mypage-main-card h1 {
           margin: 16px 0 12px;
           color: #0f172a;
-          font-size: clamp(32px, 4vw, 48px);
-          line-height: 1.08;
-          letter-spacing: -0.07em;
+          font-size: clamp(34px, 4.6vw, 56px);
+          line-height: 1.05;
+          letter-spacing: -0.075em;
           word-break: keep-all;
         }
 
@@ -301,7 +301,7 @@ function MyPage() {
           display: grid;
           place-items: center;
           color: #ffffff;
-          background: linear-gradient(135deg, #167d7f, #22c5c8 66%, #f43f5e);
+          background: linear-gradient(135deg, #167d7f, #22c5c8);
           box-shadow: 0 16px 30px rgba(22, 125, 127, 0.18);
           line-height: 0;
         }
@@ -396,7 +396,7 @@ function MyPage() {
           place-items: center;
           line-height: 0;
           color: #167d7f;
-          background: linear-gradient(135deg, #f2fbfb 0%, #ffffff 52%, #fff1f4 100%);
+          background: linear-gradient(135deg, #f2fbfb 0%, #ffffff 52%, #ecfeff 100%);
           border: 1px solid rgba(226, 232, 240, 0.9);
           box-shadow: 0 10px 22px rgba(15, 23, 42, 0.055);
         }
@@ -645,10 +645,20 @@ function MyPage() {
           padding: 13px;
           border-radius: 18px;
           color: #be123c;
-          background: #fff1f2;
+          background: #ecfeff;
           border: 1px solid #fecdd3;
           font-size: 13px;
           font-weight: 800;
+        }
+
+
+        .sf-gradient-text {
+          display: inline-block;
+          background: linear-gradient(90deg, #167d7f 0%, #14b8a6 52%, #22c5c8 100%);
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          -webkit-text-fill-color: transparent;
         }
 
         @media (max-width: 980px) {
@@ -708,11 +718,12 @@ function MyPage() {
             <div>
               <Badge>My Page</Badge>
               <h1>
-                내 피부 관리 흐름을
-                <br />한 곳에서 확인하세요
+                내 피부 관리,
+                <br />
+                <span className="sf-gradient-text">한눈에 확인하세요</span>
               </h1>
               <p>
-                회원 정보, 피부 타입, 최근 분석 상태, 추천 흐름을 짧게 확인하고
+                회원 정보, 피부 타입, 최근 분석 상태와 추천 흐름을 한 화면에서 확인하고
                 필요한 화면으로 바로 이동할 수 있습니다.
               </p>
 

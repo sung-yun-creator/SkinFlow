@@ -162,7 +162,7 @@ function AnalysisLoadingPage() {
           }
 
           .sf-loading-card {
-            padding: 26px;
+            padding: 24px;
             border-radius: 28px;
             background:
               radial-gradient(circle at 100% 0%, rgba(22, 125, 127, 0.08), transparent 34%),
@@ -170,11 +170,20 @@ function AnalysisLoadingPage() {
           }
 
           .sf-loading-hero h1 {
+            max-width: 540px;
             margin: 16px 0 12px;
             color: #0f172a;
-            font-size: clamp(36px, 4.2vw, 54px);
-            line-height: 1.08;
-            letter-spacing: -0.07em;
+            font-size: clamp(34px, 3.55vw, 46px);
+            line-height: 1.12;
+            letter-spacing: -0.065em;
+          }
+
+          .sf-loading-gradient-text {
+            background: linear-gradient(90deg, #167d7f 0%, #22c5c8 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            -webkit-text-fill-color: transparent;
           }
 
           .sf-loading-hero p {
@@ -182,7 +191,7 @@ function AnalysisLoadingPage() {
             margin: 0;
             color: #64748b;
             font-size: 15px;
-            line-height: 1.75;
+            line-height: 1.68;
             word-break: keep-all;
           }
 
@@ -279,7 +288,7 @@ function AnalysisLoadingPage() {
             display: block;
             height: 100%;
             border-radius: inherit;
-            background: linear-gradient(90deg, #167d7f, #22c5c8, #f43f5e);
+            background: linear-gradient(90deg, #167d7f, #22c5c8, #0f766e);
           }
 
           .sf-progress-content p {
@@ -341,7 +350,7 @@ function AnalysisLoadingPage() {
             place-items: center;
             line-height: 0;
             color: #167d7f;
-            background: linear-gradient(135deg, #f2fbfb 0%, #ffffff 50%, #fff1f4 100%);
+            background: linear-gradient(135deg, #f2fbfb 0%, #ffffff 50%, #ecfeff 100%);
             border: 1px solid rgba(226, 232, 240, 0.9);
             box-shadow: 0 10px 24px rgba(15, 23, 42, 0.055);
           }
@@ -454,8 +463,8 @@ function AnalysisLoadingPage() {
           }
 
           .sf-step-active .sf-step-state {
-            color: #f43f5e;
-            background: rgba(244, 63, 94, 0.1);
+            color: #14b8a6;
+            background: rgba(20, 184, 166, 0.1);
           }
 
           .sf-notice-card {
@@ -465,7 +474,7 @@ function AnalysisLoadingPage() {
             align-items: start;
             padding: 18px;
             border-radius: 22px;
-            background: linear-gradient(135deg, rgba(22, 125, 127, 0.09), rgba(244, 63, 94, 0.06));
+            background: linear-gradient(135deg, rgba(22, 125, 127, 0.09), rgba(20, 184, 166, 0.06));
             border: 1px solid rgba(226, 232, 240, 0.9);
           }
 
@@ -523,7 +532,7 @@ function AnalysisLoadingPage() {
           <h1>
             피부 분석 흐름을
             <br />
-            준비하고 있어요
+            <span className="sf-loading-gradient-text">준비하고 있어요</span>
           </h1>
 
           <p>
@@ -568,7 +577,7 @@ function AnalysisLoadingPage() {
 
           <div className="sf-loading-actions">
             <Button to="/analysis/result" size="lg">
-              분석 결과 UI 미리보기로 이동 <ArrowRight size={18} />
+              분석 결과 미리보기로 이동 <ArrowRight size={18} />
             </Button>
             <Button to="/analysis/capture" variant="secondary" size="lg">
               이미지 다시 선택

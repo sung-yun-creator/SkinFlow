@@ -311,6 +311,16 @@ function AnalysisCapturePage() {
             height: 100%;
           }
 
+
+
+          .sf-gradient-text {
+            display: inline-block;
+            background: linear-gradient(90deg, #167d7f 0%, #14b8a6 52%, #22c5c8 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            -webkit-text-fill-color: transparent;
+          }
           .sf-capture-intro h1 {
             margin: 16px 0 12px;
             color: #0f172a;
@@ -388,7 +398,7 @@ function AnalysisCapturePage() {
             display: grid !important;
             place-items: center !important;
             color: #167d7f;
-            background: linear-gradient(135deg, #f2fbfb 0%, #ffffff 52%, #fff1f4 100%);
+            background: linear-gradient(135deg, #f2fbfb 0%, #ffffff 52%, #ecfeff 100%);
             border: 1px solid rgba(226, 232, 240, 0.9);
             box-shadow: 0 10px 24px rgba(15, 23, 42, 0.055);
           }
@@ -439,7 +449,7 @@ function AnalysisCapturePage() {
 
           .sf-card-label {
             display: block;
-            color: #64748b;
+            color: #167d7f;
             font-size: 12px;
             font-weight: 950;
           }
@@ -470,8 +480,8 @@ function AnalysisCapturePage() {
           }
 
           .sf-status-pill.is-locked {
-            color: #f43f5e;
-            background: rgba(244, 63, 94, 0.1);
+            color: #14b8a6;
+            background: rgba(20, 184, 166, 0.1);
           }
 
           .sf-upload-zone {
@@ -484,7 +494,7 @@ function AnalysisCapturePage() {
             border: 1px dashed rgba(22, 125, 127, 0.35);
             background:
               radial-gradient(circle at 80% 10%, rgba(22, 125, 127, 0.12), transparent 32%),
-              radial-gradient(circle at 18% 82%, rgba(244, 63, 94, 0.10), transparent 30%),
+              radial-gradient(circle at 18% 82%, rgba(20, 184, 166, 0.10), transparent 30%),
               #f8fafc;
             cursor: pointer;
             transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
@@ -533,7 +543,7 @@ function AnalysisCapturePage() {
             display: grid;
             place-items: center;
             color: #167d7f;
-            background: linear-gradient(135deg, #effafa, #ffffff 52%, #fff1f4);
+            background: linear-gradient(135deg, #effafa, #ffffff 52%, #ecfeff);
             border: 1px solid rgba(226, 232, 240, 0.95);
             box-shadow: 0 18px 38px rgba(15, 23, 42, 0.08);
           }
@@ -624,7 +634,7 @@ function AnalysisCapturePage() {
             padding: 13px 14px;
             border-radius: 18px;
             color: #be123c;
-            background: rgba(244, 63, 94, 0.08);
+            background: rgba(20, 184, 166, 0.08);
             font-size: 13px;
             font-weight: 750;
             line-height: 1.48;
@@ -739,31 +749,44 @@ function AnalysisCapturePage() {
 
           .sf-guide-row {
             display: grid;
-            grid-template-columns: 40px 1fr;
-            gap: 11px;
+            grid-template-columns: 42px 1fr;
+            gap: 12px;
             align-items: center;
             min-height: 66px;
-            padding: 10px;
+            padding: 11px 12px;
             border-radius: 18px;
-            border: 1px solid rgba(226, 232, 240, 0.9);
-            background: #f8fafc;
+            border: 1px solid rgba(22, 125, 127, 0.14);
+            background:
+              radial-gradient(circle at 96% 18%, rgba(34, 197, 200, 0.08), transparent 34%),
+              linear-gradient(135deg, #ffffff 0%, #f8fafc 58%, #f0fdfa 100%);
           }
 
-          .sf-guide-row .sf-icon-tile {
-            width: 36px;
-            height: 36px;
-            min-width: 36px;
-            min-height: 36px;
-            border-radius: 14px;
+          .sf-guide-row > .sf-icon-tile {
+            width: 42px;
+            height: 42px;
+            min-width: 42px;
+            min-height: 42px;
+            margin: 0;
+            align-self: center;
+            justify-self: center;
+            border-radius: 15px;
             display: grid !important;
             place-items: center !important;
+            line-height: 0 !important;
+            color: #167d7f;
+            background: linear-gradient(135deg, #f2fbfb 0%, #ffffff 52%, #ecfeff 100%);
+            border: 1px solid rgba(226, 232, 240, 0.9);
           }
 
-          .sf-guide-row .sf-icon-tile svg {
-            width: 17px !important;
-            height: 17px !important;
-            min-width: 17px;
-            min-height: 17px;
+          .sf-guide-row > .sf-icon-tile svg {
+            display: block;
+            width: 18px !important;
+            height: 18px !important;
+            min-width: 18px;
+            min-height: 18px;
+            margin: 0;
+            transform: none;
+            stroke-width: 2.15;
           }
 
           .sf-guide-row strong {
@@ -773,7 +796,7 @@ function AnalysisCapturePage() {
             letter-spacing: -0.03em;
           }
 
-          .sf-guide-row span {
+          .sf-guide-row > div > span {
             display: block;
             margin-top: 3px;
             color: #64748b;
@@ -843,7 +866,7 @@ function AnalysisCapturePage() {
               <h1>
                 스마트폰 사진으로
                 <br />
-                피부 분석을 시작하세요
+                <span className="sf-gradient-text">피부 분석을 시작하세요</span>
               </h1>
 
               <p>

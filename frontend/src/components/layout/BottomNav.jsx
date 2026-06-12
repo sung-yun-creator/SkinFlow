@@ -108,7 +108,7 @@ function BottomNav() {
             }
 
             .bottom-nav-item.active .bottom-nav-icon-tile {
-              background: linear-gradient(135deg, #f2fbfb 0%, #ffffff 52%, #fff1f4 100%);
+              background: linear-gradient(135deg, #f2fbfb 0%, #ffffff 52%, #ecfeff 100%);
               border-color: rgba(226, 232, 240, 0.95);
               box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
             }

@@ -20,6 +20,10 @@ const navItems = [
     label: "맞춤 추천",
   },
   {
+    to: "/diet-guide",
+    label: "식습관 가이드",
+  },
+  {
     to: "/history",
     label: "분석 이력",
   },
@@ -166,7 +170,7 @@ function Header() {
             place-items: center;
             line-height: 0;
             color: #167d7f;
-            background: linear-gradient(135deg, #f0fdfa 0%, #ffffff 52%, #fff1f4 100%);
+            background: linear-gradient(135deg, #f0fdfa 0%, #ffffff 52%, #ecfeff 100%);
             border: 1px solid rgba(226, 232, 240, 0.92);
             box-shadow: 0 10px 24px rgba(15, 23, 42, 0.055);
           }
@@ -184,7 +188,7 @@ function Header() {
           }
 
           .global-analysis-status[data-tone="warning"] .global-analysis-icon {
-            color: #f43f5e;
+            color: #14b8a6;
           }
 
           .global-analysis-content {
@@ -233,7 +237,7 @@ function Header() {
           }
 
           .global-analysis-status[data-tone="warning"] .global-analysis-percent {
-            color: #f43f5e;
+            color: #14b8a6;
           }
 
           .global-analysis-track {
@@ -247,7 +251,7 @@ function Header() {
             display: block;
             height: 100%;
             border-radius: inherit;
-            background: linear-gradient(90deg, #167d7f, #22c5c8, #f43f5e);
+            background: linear-gradient(90deg, #167d7f, #22c5c8, #0f766e);
             transition: width 0.25s ease;
           }
 
@@ -289,9 +293,9 @@ function Header() {
           }
 
           .global-analysis-dismiss:hover {
-            color: #f43f5e;
+            color: #14b8a6;
             background: #ffffff;
-            border-color: rgba(244, 63, 94, 0.24);
+            border-color: rgba(20, 184, 166, 0.24);
           }
 
           .global-analysis-dismiss svg {

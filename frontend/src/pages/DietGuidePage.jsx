@@ -135,6 +135,15 @@ function DietGuidePage() {
           letter-spacing: -0.072em;
         }
 
+        .sf-gradient-text {
+          display: inline-block;
+          background: linear-gradient(90deg, #167d7f 0%, #14b8a6 52%, #22c5c8 100%);
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          -webkit-text-fill-color: transparent;
+        }
+
         .sf-diet-copy p {
           max-width: 650px;
           margin: 0;
@@ -175,7 +184,7 @@ function DietGuidePage() {
           place-items: center;
           line-height: 0;
           color: #167d7f;
-          background: linear-gradient(135deg, #f2fbfb 0%, #ffffff 52%, #fff1f4 100%);
+          background: linear-gradient(135deg, #f2fbfb 0%, #ffffff 52%, #ecfeff 100%);
           border: 1px solid rgba(226, 232, 240, 0.88);
           box-shadow: 0 10px 24px rgba(15, 23, 42, 0.055);
         }
@@ -253,7 +262,7 @@ function DietGuidePage() {
           display: block;
           height: 100%;
           border-radius: inherit;
-          background: linear-gradient(90deg, #167d7f, #22c5c8, #f43f5e);
+          background: linear-gradient(90deg, #167d7f, #22c5c8, #0f766e);
         }
 
         .sf-diet-notice {
@@ -572,7 +581,7 @@ function DietGuidePage() {
               <h1>
                 오늘 실천할
                 <br />
-                식습관 가이드
+                <span className="sf-gradient-text">식습관 가이드</span>
               </h1>
 
               <p>
