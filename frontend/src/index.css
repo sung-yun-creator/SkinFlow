@@ -4513,3 +4513,51 @@ input {
   font-size: 13px;
   font-weight: 700;
 }
+
+/* ==========================================================================
+   Global Icon Tile Alignment Guard
+   - 둥근 아이콘 타일 안의 svg가 위쪽으로 쏠리는 문제 방지
+   - span 전체 선택자나 line-height 영향으로부터 아이콘 정렬 보호
+   ========================================================================== */
+
+.brand-icon,
+.lovable-brand-icon,
+.sf-icon-tile,
+.dashboard-icon-tile,
+.dashboard-mini-tile,
+.recommend-icon,
+.guide-card-icon,
+.history-date-icon,
+.bottom-nav-icon {
+  display: grid;
+  place-items: center;
+  line-height: 0;
+  flex-shrink: 0;
+}
+
+.brand-icon svg,
+.lovable-brand-icon svg,
+.sf-icon-tile svg,
+.dashboard-icon-tile svg,
+.dashboard-mini-tile svg,
+.recommend-icon svg,
+.guide-card-icon svg,
+.history-date-icon svg,
+.bottom-nav-icon svg {
+  display: block;
+  margin: 0;
+  transform: none;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.sf-icon-tile span,
+.dashboard-icon-tile span,
+.dashboard-mini-tile span,
+.recommend-icon span,
+.guide-card-icon span,
+.history-date-icon span,
+.bottom-nav-icon span {
+  margin: 0;
+  line-height: 0;
+}
