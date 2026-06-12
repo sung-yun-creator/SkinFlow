@@ -647,31 +647,51 @@ function AnalysisCapturePage() {
 
           .sf-upload-actions {
             display: grid;
-            grid-template-columns: 1fr auto;
+            grid-template-columns: 1fr;
             gap: 10px;
             align-items: center;
+          }
+
+          .sf-upload-actions .sf-button {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            height: 54px;
+            min-height: 54px;
+            padding: 0 24px 2px;
+            line-height: 1;
+          }
+
+          .sf-upload-actions .sf-button .sf-action-label {
+            display: inline-flex;
+            align-items: center;
+            line-height: 1;
+            transform: translateY(1px);
+          }
+
+          .sf-upload-actions .sf-button svg {
+            display: block;
+            flex: 0 0 auto;
+            width: 18px !important;
+            height: 18px !important;
+            margin: 0;
+            transform: translateY(1px);
           }
 
           .sf-capture-bottom {
             display: grid;
             grid-template-columns: minmax(0, 0.9fr) minmax(420px, 1.1fr);
             gap: 16px;
-            align-items: start !important;
+            align-items: stretch !important;
           }
 
           .sf-capture-flow-card,
           .sf-capture-guide-card {
+            display: flex;
+            flex-direction: column;
+            min-height: 100%;
             padding: 18px;
-          }
-
-          .sf-capture-flow-card {
-            align-self: start !important;
-            height: auto !important;
-            min-height: 0 !important;
-          }
-
-          .sf-capture-guide-card {
-            align-self: start;
+            align-self: stretch !important;
           }
 
           .sf-bottom-title-row {
@@ -684,67 +704,86 @@ function AnalysisCapturePage() {
 
           .sf-flow-grid {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 12px;
+            gap: 8px;
+            flex: 1;
           }
 
           .sf-flow-card {
-            min-height: 118px;
-            padding: 13px;
-            border-radius: 20px;
-            border: 1px solid rgba(226, 232, 240, 0.9);
+            display: grid;
+            grid-template-columns: 42px minmax(0, 1fr) auto;
+            gap: 12px;
+            align-items: center;
+            min-height: 66px;
+            padding: 11px 12px;
+            border-radius: 18px;
+            border: 1px solid rgba(22, 125, 127, 0.14);
             background:
-              radial-gradient(circle at 100% 0%, rgba(22, 125, 127, 0.06), transparent 38%),
-              #f8fafc;
+              radial-gradient(circle at 96% 18%, rgba(34, 197, 200, 0.08), transparent 34%),
+              linear-gradient(135deg, #ffffff 0%, #f8fafc 58%, #f0fdfa 100%);
           }
 
-          .sf-flow-head {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            gap: 10px;
-            margin-bottom: 10px;
+          .sf-flow-copy {
+            min-width: 0;
           }
 
           .sf-flow-index {
-            color: #cbd5e1;
-            font-size: 12px;
+            justify-self: end;
+            padding: 5px 9px;
+            border-radius: 999px;
+            color: #167d7f;
+            background: rgba(22, 125, 127, 0.08);
+            font-size: 11px;
             font-weight: 950;
+            line-height: 1;
           }
 
           .sf-flow-card strong {
             display: block;
             color: #0f172a;
-            font-size: 15px;
-            letter-spacing: -0.035em;
+            font-size: 13.5px;
+            letter-spacing: -0.03em;
           }
 
           .sf-flow-card p {
-            margin: 6px 0 0;
+            margin: 3px 0 0;
             color: #64748b;
             font-size: 11.5px;
-            line-height: 1.44;
+            line-height: 1.42;
             word-break: keep-all;
           }
 
-          .sf-flow-card .sf-icon-tile {
+          .sf-flow-card > .sf-icon-tile {
             width: 42px;
             height: 42px;
             min-width: 42px;
             min-height: 42px;
+            margin: 0;
+            align-self: center;
+            justify-self: center;
             border-radius: 15px;
+            display: grid !important;
+            place-items: center !important;
+            line-height: 0 !important;
+            color: #167d7f;
+            background: linear-gradient(135deg, #f2fbfb 0%, #ffffff 52%, #ecfeff 100%);
+            border: 1px solid rgba(226, 232, 240, 0.9);
           }
 
-          .sf-flow-card .sf-icon-tile svg {
+          .sf-flow-card > .sf-icon-tile svg {
+            display: block;
             width: 18px !important;
             height: 18px !important;
             min-width: 18px;
             min-height: 18px;
+            margin: 0;
+            transform: none;
+            stroke-width: 2.15;
           }
 
           .sf-guide-list {
             display: grid;
             gap: 8px;
+            flex: 1;
           }
 
           .sf-guide-row {
@@ -991,18 +1030,17 @@ function AnalysisCapturePage() {
               <Button full onClick={handleStartAnalysis} disabled={isSubmitting}>
                 {isSubmitting ? (
                   <>
-                    ROI 분석 요청 중 <Loader2 size={18} />
+                    <span className="sf-action-label">ROI 분석 요청 중</span>
+                    <Loader2 size={18} />
                   </>
                 ) : (
                   <>
-                    {isLoggedIn ? "분석 시작" : "로그인 후 분석하기"} <ArrowRight size={18} />
+                    <span className="sf-action-label">{isLoggedIn ? "분석 시작" : "로그인 후 분석하기"}</span>
+                    <ArrowRight size={18} />
                   </>
                 )}
               </Button>
 
-              <Button to="/dashboard" variant="secondary">
-                대시보드로 이동
-              </Button>
             </div>
           </Card>
         </section>
@@ -1023,14 +1061,14 @@ function AnalysisCapturePage() {
 
                 return (
                   <article className="sf-flow-card" key={step.title}>
-                    <div className="sf-flow-head">
-                      <span className="sf-icon-tile" aria-hidden="true">
-                        <StepIcon size={21} />
-                      </span>
-                      <span className="sf-flow-index">0{index + 1}</span>
+                    <span className="sf-icon-tile" aria-hidden="true">
+                      <StepIcon size={18} />
+                    </span>
+                    <div className="sf-flow-copy">
+                      <strong>{step.title}</strong>
+                      <p>{step.description}</p>
                     </div>
-                    <strong>{step.title}</strong>
-                    <p>{step.description}</p>
+                    <span className="sf-flow-index">0{index + 1}</span>
                   </article>
                 );
               })}

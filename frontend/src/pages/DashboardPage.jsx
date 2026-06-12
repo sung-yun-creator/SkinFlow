@@ -2,16 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   ArrowRight,
-  CalendarDays,
   Camera,
   CheckCircle2,
-  ClipboardList,
   History,
   Leaf,
-  LineChart,
-  RefreshCw,
   Sparkles,
-  User,
 } from "lucide-react";
 import PageLayout from "../components/layout/PageLayout";
 import Button from "../components/common/Button";
@@ -52,12 +47,6 @@ const quickActions = [
     variant: "secondary",
     step: "04",
   },
-];
-
-const firstUserSteps = [
-  "스마트폰으로 얼굴 사진을 촬영합니다.",
-  "이미지를 업로드하고 ROI 확인을 진행합니다.",
-  "분석 결과와 추천 가이드를 이어서 확인합니다.",
 ];
 
 function formatDate(dateValue) {
@@ -162,32 +151,6 @@ function normalizeMetrics(latestAnalysis) {
   }));
 }
 
-function getItemTitle(item, fallback) {
-  return (
-    item?.title ||
-    item?.name ||
-    item?.recommendationName ||
-    item?.recommendation_name ||
-    item?.guideTitle ||
-    item?.guide_title ||
-    fallback
-  );
-}
-
-function getItemDescription(item, fallback) {
-  return (
-    item?.description ||
-    item?.summary ||
-    item?.reason ||
-    item?.recommendationReason ||
-    item?.recommendation_reason ||
-    item?.content ||
-    item?.guideContent ||
-    item?.guide_content ||
-    fallback
-  );
-}
-
 function DashboardPage() {
   const [dashboard, setDashboard] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -232,15 +195,6 @@ function DashboardPage() {
   const latestAnalysis = dashboard?.latestAnalysis || null;
   const mainConcern = dashboard?.mainConcern || null;
   const nextAction = dashboard?.nextAction || {};
-  const recentAnalyses = Array.isArray(dashboard?.recentAnalyses)
-    ? dashboard.recentAnalyses.slice(0, 2)
-    : [];
-  const recommendations = Array.isArray(dashboard?.recommendations)
-    ? dashboard.recommendations.slice(0, 2)
-    : [];
-  const dietGuides = Array.isArray(dashboard?.dietGuides)
-    ? dashboard.dietGuides.slice(0, 1)
-    : [];
 
   const latestScore = formatScore(
     latestAnalysis?.totalScore ||
@@ -278,7 +232,7 @@ function DashboardPage() {
             display: grid;
             grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
             gap: 20px;
-            align-items: start;
+            align-items: stretch;
           }
 
           .dashboard-welcome-card,
@@ -363,7 +317,11 @@ function DashboardPage() {
           }
 
           .dashboard-status-card {
+            min-height: 100%;
             padding: 24px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
             background: #ffffff;
           }
 
@@ -597,151 +555,6 @@ function DashboardPage() {
             word-break: keep-all;
           }
 
-          .dashboard-bottom-compact {
-            display: grid;
-            grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
-            gap: 18px;
-            align-items: start;
-          }
-
-          .dashboard-mini-card {
-            padding: 20px;
-            background: #ffffff;
-          }
-
-          .dashboard-mini-title-row {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            gap: 14px;
-            margin-bottom: 14px;
-          }
-
-          .dashboard-mini-title-row h2 {
-            margin: 5px 0 0;
-            color: #0f172a;
-            font-size: 20px;
-            letter-spacing: -0.045em;
-          }
-
-          .dashboard-flow-grid {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 10px;
-          }
-
-          .dashboard-flow-card,
-          .dashboard-guide-action-card {
-            position: relative;
-            min-height: 126px;
-            padding: 15px;
-            border-radius: 20px;
-            background:
-              radial-gradient(circle at 100% 0%, rgba(22, 125, 127, 0.06), transparent 34%),
-              #f8fafc;
-            border: 1px solid rgba(226, 232, 240, 0.9);
-            transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
-          }
-
-          .dashboard-flow-card:hover,
-          .dashboard-guide-action-card:hover {
-            transform: translateY(-2px);
-            border-color: rgba(22, 125, 127, 0.2);
-            box-shadow: 0 18px 38px rgba(15, 23, 42, 0.08);
-          }
-
-          .dashboard-flow-head {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            gap: 10px;
-            margin-bottom: 12px;
-          }
-
-          .dashboard-flow-index {
-            color: #cbd5e1;
-            font-size: 12px;
-            font-weight: 950;
-            line-height: 1;
-          }
-
-          .dashboard-mini-tile {
-            width: 44px;
-            height: 44px;
-            min-width: 44px;
-            min-height: 44px;
-            border-radius: 16px;
-            display: grid;
-            place-items: center;
-            line-height: 0;
-            color: #167d7f;
-            background: linear-gradient(135deg, #f2fbfb 0%, #ffffff 50%, #ecfeff 100%);
-            border: 1px solid rgba(226, 232, 240, 0.88);
-            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.055);
-          }
-
-          .dashboard-mini-tile svg {
-            display: block;
-            width: 20px !important;
-            height: 20px !important;
-            min-width: 20px;
-            min-height: 20px;
-            margin: 0;
-            flex: 0 0 auto;
-            transform: none;
-            stroke-width: 2.1;
-          }
-
-          .dashboard-flow-card strong,
-          .dashboard-guide-action-card strong {
-            display: block;
-            color: #0f172a;
-            font-size: 15px;
-            letter-spacing: -0.035em;
-          }
-
-          .dashboard-flow-card p,
-          .dashboard-guide-action-card p {
-            margin: 6px 0 0;
-            color: #64748b;
-            font-size: 12px;
-            line-height: 1.55;
-            word-break: keep-all;
-          }
-
-          .dashboard-guide-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 10px;
-          }
-
-          .dashboard-guide-action-card {
-            min-height: 92px;
-            display: grid;
-            grid-template-columns: 44px 1fr auto;
-            align-items: center;
-            gap: 12px;
-          }
-
-          .dashboard-guide-badge {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 46px;
-            padding: 7px 10px;
-            border-radius: 999px;
-            color: #167d7f;
-            background: rgba(22, 125, 127, 0.1);
-            font-size: 12px;
-            font-weight: 950;
-            white-space: nowrap;
-          }
-
-          .dashboard-guide-badge.is-muted {
-            color: #64748b;
-            background: rgba(100, 116, 139, 0.1);
-          }
-
           .dashboard-error-note {
             display: flex;
             gap: 8px;
@@ -757,8 +570,7 @@ function DashboardPage() {
           }
 
           @media (max-width: 980px) {
-            .dashboard-app-hero,
-            .dashboard-bottom-compact {
+            .dashboard-app-hero {
               grid-template-columns: 1fr;
             }
 
@@ -806,18 +618,6 @@ function DashboardPage() {
               text-align: left;
             }
 
-            .dashboard-flow-grid {
-              grid-template-columns: 1fr;
-            }
-
-            .dashboard-guide-action-card {
-              grid-template-columns: 48px 1fr;
-            }
-
-            .dashboard-guide-badge {
-              grid-column: 2;
-              width: fit-content;
-            }
           }
         `}
       </style>
@@ -830,7 +630,7 @@ function DashboardPage() {
               <h1>
                 {userName}님의 피부 관리,
                 <br />
-                <span className="dashboard-gradient-text">오늘은 여기서 시작하세요</span>
+                <span className="dashboard-gradient-text">SkinFlow에서 시작하세요</span>
               </h1>
               <p>
                 분석 시작, 추천 확인, 식습관 가이드, 이력 관리를 한 화면에서 빠르게 이동할 수 있는 로그인 후 앱 홈입니다.
@@ -952,153 +752,6 @@ function DashboardPage() {
           })}
         </div>
 
-        <div className="dashboard-bottom-compact">
-          <Card className="dashboard-mini-card">
-            <div className="dashboard-mini-title-row">
-              <div>
-                <span className="dashboard-card-label">
-                  {hasLatestAnalysis ? "최근 분석 이력" : "처음 이용 흐름"}
-                </span>
-                <h2>{hasLatestAnalysis ? "최근 기록" : "3단계로 시작하세요"}</h2>
-              </div>
-
-              <Button
-                to={hasLatestAnalysis ? "/history" : "/analysis/capture"}
-                variant="ghost"
-                size="sm"
-              >
-                {hasLatestAnalysis ? "전체 보기" : "분석 시작"}
-              </Button>
-            </div>
-
-            {recentAnalyses.length > 0 ? (
-              <div className="dashboard-guide-grid">
-                {recentAnalyses.map((analysis, index) => (
-                  <div
-                    className="dashboard-guide-action-card"
-                    key={analysis.analysisId || analysis.id || index}
-                  >
-                    <span className="dashboard-mini-tile" aria-hidden="true">
-                      <CalendarDays size={20} />
-                    </span>
-
-                    <div>
-                      <strong>{formatDate(analysis.analyzedAt || analysis.analyzed_at)}</strong>
-                      <p>{analysis.summary || "분석 결과가 기록되었습니다."}</p>
-                    </div>
-
-                    <span className="dashboard-guide-badge">
-                      {formatScore(analysis.totalScore || analysis.total_score) ?? "-"}점
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="dashboard-flow-grid">
-                {firstUserSteps.map((step, index) => {
-                  const StepIcon = index === 0 ? Camera : index === 1 ? LineChart : Sparkles;
-                  const titles = ["사진 준비", "ROI 확인", "결과 확인"];
-
-                  return (
-                    <div className="dashboard-flow-card" key={step}>
-                      <div className="dashboard-flow-head">
-                        <span className="dashboard-mini-tile" aria-hidden="true">
-                          <StepIcon size={20} />
-                        </span>
-                        <span className="dashboard-flow-index">0{index + 1}</span>
-                      </div>
-
-                      <strong>{titles[index]}</strong>
-                      <p>{step}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </Card>
-
-          <Card className="dashboard-mini-card">
-            <div className="dashboard-mini-title-row">
-              <div>
-                <span className="dashboard-card-label">추천·가이드</span>
-                <h2>다음 관리 행동</h2>
-              </div>
-
-              <Button to="/diet-guide" variant="ghost" size="sm">
-                식습관 보기
-              </Button>
-            </div>
-
-            <div className="dashboard-guide-grid">
-              {recommendations.length > 0 || dietGuides.length > 0 ? (
-                <>
-                  {recommendations.map((item, index) => (
-                    <div className="dashboard-guide-action-card" key={`recommendation-${index}`}>
-                      <span className="dashboard-mini-tile" aria-hidden="true">
-                        <Sparkles size={20} />
-                      </span>
-
-                      <div>
-                        <strong>{getItemTitle(item, "맞춤 추천")}</strong>
-                        <p>{getItemDescription(item, "분석 결과 기반 추천입니다.")}</p>
-                      </div>
-
-                      <span className="dashboard-guide-badge">추천</span>
-                    </div>
-                  ))}
-
-                  {dietGuides.map((item, index) => (
-                    <div className="dashboard-guide-action-card" key={`diet-${index}`}>
-                      <span className="dashboard-mini-tile" aria-hidden="true">
-                        <Leaf size={20} />
-                      </span>
-
-                      <div>
-                        <strong>{getItemTitle(item, "식습관 가이드")}</strong>
-                        <p>
-                          {getItemDescription(
-                            item,
-                            "피부 관리에 참고할 수 있는 식습관 가이드입니다."
-                          )}
-                        </p>
-                      </div>
-
-                      <span className="dashboard-guide-badge">가이드</span>
-                    </div>
-                  ))}
-                </>
-              ) : (
-                <>
-                  <div className="dashboard-guide-action-card">
-                    <span className="dashboard-mini-tile" aria-hidden="true">
-                      <RefreshCw size={20} />
-                    </span>
-
-                    <div>
-                      <strong>분석 결과 연결 대기</strong>
-                      <p>첫 분석 후 성분, 제품, 식습관 가이드가 연결됩니다.</p>
-                    </div>
-
-                    <span className="dashboard-guide-badge">준비</span>
-                  </div>
-
-                  <div className="dashboard-guide-action-card">
-                    <span className="dashboard-mini-tile" aria-hidden="true">
-                      <ClipboardList size={20} />
-                    </span>
-
-                    <div>
-                      <strong>피부 관리 참고 정보</strong>
-                      <p>분석 결과는 의료적 판단이 아닌 관리 참고 정보입니다.</p>
-                    </div>
-
-                    <span className="dashboard-guide-badge is-muted">안내</span>
-                  </div>
-                </>
-              )}
-            </div>
-          </Card>
-        </div>
       </section>
     </PageLayout>
   );

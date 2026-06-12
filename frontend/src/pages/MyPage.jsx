@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   AlertCircle,
   ArrowRight,
@@ -13,7 +12,6 @@ import {
   History,
   Image,
   LockKeyhole,
-  LogOut,
   Mail,
   ShieldCheck,
   Sparkles,
@@ -115,7 +113,6 @@ function getDisplayValue(value, emptyText = "미설정") {
 }
 
 function MyPage() {
-  const navigate = useNavigate();
   const [mypage, setMypage] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [mypageError, setMypageError] = useState("");
@@ -215,13 +212,6 @@ function MyPage() {
     [profile.skinType, stats.mainConcern, stats.latestAnalyzedAt]
   );
 
-  const handleLogout = () => {
-    localStorage.removeItem("skinflow_token");
-    localStorage.removeItem("skinflow_user_email");
-    localStorage.removeItem("skinflow_user");
-
-    navigate("/login");
-  };
 
   return (
     <PageLayout>
@@ -495,11 +485,15 @@ function MyPage() {
           display: grid;
           grid-template-columns: minmax(0, 1fr) minmax(360px, 0.86fr);
           gap: 18px;
-          align-items: start;
+          align-items: stretch;
         }
 
         .sf-mypage-panel {
+          display: flex;
+          flex-direction: column;
+          min-height: 100%;
           padding: 22px;
+          align-self: stretch;
         }
 
         .sf-panel-title-row {
@@ -531,6 +525,7 @@ function MyPage() {
         .sf-info-list {
           display: grid;
           gap: 10px;
+          flex: 1;
         }
 
         .sf-info-row,
@@ -544,6 +539,10 @@ function MyPage() {
           min-height: 70px;
           padding: 13px;
           border-radius: 18px;
+        }
+
+        .sf-mypage-panel .sf-info-list > * {
+          height: 100%;
         }
 
         .sf-info-row {
@@ -596,44 +595,6 @@ function MyPage() {
           color: #64748b;
           font-size: 13px;
           line-height: 1.6;
-        }
-
-        .sf-logout-panel {
-          display: grid;
-          grid-template-columns: 54px 1fr auto;
-          align-items: center;
-          gap: 14px;
-          padding: 20px;
-          border-radius: 28px;
-          border: 1px solid rgba(226, 232, 240, 0.9);
-          background: #ffffff;
-          box-shadow: 0 18px 48px rgba(15, 23, 42, 0.06);
-        }
-
-        .sf-logout-panel h2 {
-          margin: 0 0 4px;
-          color: #0f172a;
-          font-size: 20px;
-          letter-spacing: -0.045em;
-        }
-
-        .sf-logout-panel p {
-          margin: 0;
-          color: #64748b;
-          font-size: 12px;
-          line-height: 1.55;
-        }
-
-        .sf-logout-button {
-          height: 42px;
-          padding: 0 18px;
-          border: 0;
-          border-radius: 999px;
-          color: #ffffff;
-          background: #0f172a;
-          font-size: 14px;
-          font-weight: 900;
-          cursor: pointer;
         }
 
         .sf-mypage-error {
@@ -969,19 +930,6 @@ function MyPage() {
               ))}
             </div>
           </Card>
-        </section>
-
-        <section className="sf-logout-panel">
-          <span className="sf-icon-tile" aria-hidden="true">
-            <LogOut size={20} />
-          </span>
-          <div>
-            <h2>로그아웃</h2>
-            <p>공용 기기라면 이용 후 로그아웃하는 것을 권장합니다.</p>
-          </div>
-          <button className="sf-logout-button" type="button" onClick={handleLogout}>
-            로그아웃
-          </button>
         </section>
       </div>
     </PageLayout>

@@ -327,9 +327,18 @@ function HistoryPage() {
         .sf-history-main-card h1 {
           margin: 16px 0 12px;
           color: #0f172a;
-          font-size: clamp(34px, 4.5vw, 52px);
+          font-size: clamp(34px, 4.3vw, 48px);
           line-height: 1.08;
           letter-spacing: -0.065em;
+        }
+
+        .sf-gradient-text {
+          display: inline-block;
+          background: linear-gradient(90deg, #167d7f 0%, #14b8a6 52%, #22c5c8 100%);
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          -webkit-text-fill-color: transparent;
         }
 
         .sf-history-main-card p {
@@ -498,10 +507,13 @@ function HistoryPage() {
           display: grid;
           grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
           gap: 18px;
-          align-items: start;
+          align-items: stretch;
         }
 
         .sf-history-card {
+          display: flex;
+          flex-direction: column;
+          min-height: 100%;
           padding: 24px;
         }
 
@@ -579,6 +591,7 @@ function HistoryPage() {
         .sf-record-list {
           display: grid;
           gap: 12px;
+          flex: 1;
         }
 
         .sf-record-card {
@@ -679,6 +692,11 @@ function HistoryPage() {
           font-size: 16px;
         }
 
+        .sf-empty-card {
+          min-height: 238px;
+          align-content: center;
+        }
+
         .sf-empty-card p,
         .sf-detail-card p {
           margin: 0;
@@ -722,7 +740,7 @@ function HistoryPage() {
 
         .sf-history-bottom {
           display: grid;
-          grid-template-columns: minmax(0, 1fr) minmax(320px, 0.76fr);
+          grid-template-columns: 1fr;
           gap: 18px;
         }
 
@@ -757,34 +775,6 @@ function HistoryPage() {
           word-break: keep-all;
         }
 
-        .sf-next-card {
-          display: grid;
-          align-content: center;
-          gap: 14px;
-          background:
-            radial-gradient(circle at 0% 0%, rgba(22, 125, 127, 0.09), transparent 36%),
-            #ffffff;
-        }
-
-        .sf-next-card h2 {
-          margin: 0;
-          color: #0f172a;
-          font-size: 24px;
-          letter-spacing: -0.05em;
-        }
-
-        .sf-next-card p {
-          margin: 0;
-          color: #64748b;
-          font-size: 13px;
-          line-height: 1.65;
-          word-break: keep-all;
-        }
-
-        .sf-next-actions {
-          display: grid;
-          gap: 10px;
-        }
 
         @media (max-width: 980px) {
           .sf-history-hero,
@@ -809,17 +799,6 @@ function HistoryPage() {
           .sf-history-card {
             padding: 18px;
             border-radius: 24px;
-          }
-
-
-
-          .sf-gradient-text {
-            display: inline-block;
-            background: linear-gradient(90deg, #167d7f 0%, #14b8a6 52%, #22c5c8 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-            -webkit-text-fill-color: transparent;
           }
           .sf-history-main-card h1 {
             font-size: 36px;
@@ -864,9 +843,9 @@ function HistoryPage() {
               </span>
 
               <h1>
-                피부 변화 흐름을
+                피부 변화 흐름,
                 <br />
-                <span className="sf-gradient-text">기록하세요</span>
+                <span className="sf-gradient-text">SkinFlow에서 기록하세요</span>
               </h1>
 
               <p>
@@ -1119,24 +1098,6 @@ function HistoryPage() {
                 <strong>추천 연결</strong>
                 <p>이력은 성분, 제품, 식습관 가이드를 다시 확인하는 기준입니다.</p>
               </div>
-            </div>
-          </Card>
-
-          <Card className="sf-history-card sf-next-card">
-            <span className="sf-icon-tile" aria-hidden="true">
-              <LineChart size={21} />
-            </span>
-            <h2>다음 분석을 이어가세요</h2>
-            <p>
-              새로운 분석을 추가하면 이전 결과와 비교해 피부 변화 흐름을 더 쉽게 확인할 수 있습니다.
-            </p>
-            <div className="sf-next-actions">
-              <Button to="/analysis/capture" full>
-                새 분석 시작하기
-              </Button>
-              <Button to="/dashboard" variant="secondary" full>
-                대시보드로 이동
-              </Button>
             </div>
           </Card>
         </section>

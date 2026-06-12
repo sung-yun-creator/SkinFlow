@@ -1,10 +1,8 @@
 import {
   ArrowRight,
   CheckCircle2,
-  ClipboardList,
   Droplets,
   Leaf,
-  LineChart,
   Moon,
   ShieldCheck,
   Sparkles,
@@ -469,53 +467,9 @@ function DietGuidePage() {
 
         .sf-diet-bottom {
           display: grid;
-          grid-template-columns: minmax(0, 1fr) minmax(320px, 0.78fr);
+          grid-template-columns: 1fr;
           gap: 18px;
           align-items: stretch;
-        }
-
-        .sf-notice-list {
-          display: grid;
-          gap: 10px;
-        }
-
-        .sf-notice-item {
-          display: grid;
-          grid-template-columns: 42px 1fr;
-          gap: 12px;
-          align-items: center;
-          padding: 13px;
-          border-radius: 18px;
-          background: #f8fafc;
-          border: 1px solid rgba(226, 232, 240, 0.88);
-        }
-
-        .sf-notice-item span:not(.sf-icon-tile) {
-          color: #64748b;
-          font-size: 12px;
-          line-height: 1.45;
-          word-break: keep-all;
-        }
-
-        .sf-next-card {
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-          gap: 18px;
-        }
-
-        .sf-next-card p {
-          margin: 10px 0 0;
-          color: #64748b;
-          font-size: 13px;
-          line-height: 1.62;
-          word-break: keep-all;
-        }
-
-        .sf-next-actions {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 10px;
         }
 
         @media (max-width: 1080px) {
@@ -546,8 +500,7 @@ function DietGuidePage() {
             font-size: 36px;
           }
 
-          .sf-diet-actions,
-          .sf-next-actions {
+          .sf-diet-actions {
             grid-template-columns: 1fr;
             display: grid;
           }
@@ -726,41 +679,6 @@ function DietGuidePage() {
                   </span>
                 </div>
               ))}
-            </div>
-          </div>
-
-          <div className="sf-diet-card sf-diet-side-card sf-next-card">
-            <div>
-              <div className="sf-diet-side-title">
-                <div>
-                  <span className="sf-diet-label">Next Action</span>
-                  <h2>다음 단계로 이어가기</h2>
-                </div>
-                <LineChart size={24} color="#167d7f" />
-              </div>
-
-              <p>
-                같은 조명과 각도에서 주기적으로 분석하면 식습관과 관리 루틴의
-                변화를 함께 비교할 수 있습니다.
-              </p>
-            </div>
-
-            <div className="sf-notice-list">
-              <div className="sf-notice-item">
-                <span className="sf-icon-tile" aria-hidden="true">
-                  <ClipboardList size={18} />
-                </span>
-                <span>분석 결과와 식습관 가이드는 피부 관리 참고 정보입니다.</span>
-              </div>
-            </div>
-
-            <div className="sf-next-actions">
-              <Button to="/analysis/capture" full>
-                새 분석 시작
-              </Button>
-              <Button to="/dashboard" variant="secondary" full>
-                대시보드로 이동
-              </Button>
             </div>
           </div>
         </section>
