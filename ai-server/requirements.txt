@@ -4,3 +4,6 @@ python-multipart
 mediapipe
 numpy
 opencv-python
+Pillow
+torch
+torchvision
