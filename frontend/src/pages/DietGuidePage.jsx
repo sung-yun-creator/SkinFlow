@@ -16,23 +16,23 @@ const guideItems = [
   {
     icon: Droplets,
     title: "수분 섭취",
-    description: "피부 컨디션 유지를 위해 하루 동안 물을 나누어 마시는 습관을 확인합니다.",
-    tag: "기본 관리",
-    percent: 80,
+    description: "피부 컨디션 유지를 위해 하루 동안 물을 나누어 마시는 습관을 참고합니다.",
+    tag: "기본 권장",
+    priority: "우선 참고",
   },
   {
     icon: Leaf,
     title: "항산화 식품",
-    description: "채소, 과일 등 항산화 식품을 식단에 균형 있게 포함하는 방향을 참고합니다.",
-    tag: "피부톤 관리",
-    percent: 90,
+    description: "채소, 과일 등 항산화 식품을 식단에 균형 있게 포함하는 방향을 살펴봅니다.",
+    tag: "선택 권장",
+    priority: "균형 참고",
   },
   {
     icon: Utensils,
     title: "당 섭취 조절",
-    description: "단 음료와 고당 간식 빈도를 줄이고 피부 관리 루틴과 함께 점검합니다.",
+    description: "단 음료와 고당 간식 빈도를 줄이는 생활 루틴을 피부 관리와 함께 참고합니다.",
     tag: "생활 루틴",
-    percent: 45,
+    priority: "루틴 참고",
   },
 ];
 
@@ -57,23 +57,19 @@ const routineItems = [
 const checkItems = [
   {
     title: "물 충분히 마시기",
-    percent: 80,
-    done: true,
+    category: "기본 권장",
   },
   {
     title: "채소 또는 과일 챙기기",
-    percent: 90,
-    done: true,
+    category: "선택 권장",
   },
   {
     title: "단 음료 줄이기",
-    percent: 45,
-    done: false,
+    category: "생활 루틴",
   },
   {
     title: "늦은 야식 피하기",
-    percent: 30,
-    done: false,
+    category: "생활 루틴",
   },
 ];
 
@@ -244,25 +240,6 @@ function DietGuidePage() {
           letter-spacing: -0.045em;
         }
 
-        .sf-main-progress,
-        .sf-mini-progress {
-          overflow: hidden;
-          border-radius: 999px;
-          background: #e2e8f0;
-        }
-
-        .sf-main-progress {
-          height: 7px;
-        }
-
-        .sf-main-progress span,
-        .sf-mini-progress span {
-          display: block;
-          height: 100%;
-          border-radius: inherit;
-          background: linear-gradient(90deg, #167d7f, #22c5c8, #0f766e);
-        }
-
         .sf-diet-notice {
           display: flex;
           align-items: flex-start;
@@ -377,11 +354,6 @@ function DietGuidePage() {
           font-size: 11px;
           font-weight: 950;
           white-space: nowrap;
-        }
-
-        .sf-mini-progress {
-          width: 72px;
-          height: 5px;
         }
 
         .sf-side-stack {
@@ -532,14 +504,15 @@ function DietGuidePage() {
               </span>
 
               <h1>
-                오늘 실천할
+                피부 분석 후 이어지는
                 <br />
                 <span className="sf-gradient-text">식습관 가이드</span>
               </h1>
 
               <p>
-                피부 분석 결과 이후 바로 참고할 수 있도록 수분 섭취, 항산화 식품,
-                당 섭취 조절 중심의 관리 방향을 짧게 정리했습니다.
+                피부 분석, 성분 추천, 제품 추천 흐름 다음에 참고할 수 있는
+                피부 관리 참고 정보입니다. 개인 맞춤 식습관 기능이 연동되기 전까지는
+                일반적인 관리 방향을 기본 가이드로 제공합니다.
               </p>
             </div>
 
@@ -559,28 +532,25 @@ function DietGuidePage() {
                 <CheckCircle2 size={21} />
               </span>
               <div>
-                <span className="sf-diet-label">오늘의 실천 현황</span>
-                <h2>2 / 4 완료</h2>
+                <span className="sf-diet-label">가이드 제공 상태</span>
+                <h2>기본 가이드 모드</h2>
               </div>
             </div>
 
             <div className="sf-diet-score-box">
               <div className="sf-diet-score-head">
                 <div>
-                  <span className="sf-diet-label">관리 달성률</span>
-                  <strong>50%</strong>
+                  <span className="sf-diet-label">개인화 연동 전</span>
+                  <strong>피부 관리 참고 정보</strong>
                 </div>
-                <span>50%</span>
-              </div>
-              <div className="sf-main-progress" aria-label="관리 달성률 50%">
-                <span style={{ width: "50%" }} />
+                <span className="sf-diet-chip">기본 제공</span>
               </div>
             </div>
 
             <div className="sf-diet-notice">
               <ShieldCheck size={17} />
               <span>
-                식습관 가이드는 의료적 판단이 아닌 피부 관리 참고 정보입니다.
+                현재 식습관 가이드는 개인 맞춤 식습관 기능 연동 전 제공되는 기본 참고 가이드입니다.
               </span>
             </div>
           </div>
@@ -591,9 +561,9 @@ function DietGuidePage() {
             <div className="sf-diet-section-title">
               <div>
                 <span className="sf-diet-label">Care Guide</span>
-                <h2>추천 식습관 관리 방향</h2>
+                <h2>기본 식습관 참고 항목</h2>
               </div>
-              <span className="sf-diet-chip">핵심 3개</span>
+              <span className="sf-diet-chip">기본 가이드</span>
             </div>
 
             <div className="sf-guide-grid">
@@ -613,10 +583,7 @@ function DietGuidePage() {
                     <p>{item.description}</p>
 
                     <footer>
-                      <div className="sf-mini-progress" aria-label={`${item.title} 참고도 ${item.percent}%`}>
-                        <span style={{ width: `${item.percent}%` }} />
-                      </div>
-                      <span className="sf-guide-tag">{item.percent}%</span>
+                      <span className="sf-guide-tag">{item.priority}</span>
                     </footer>
                   </article>
                 );
@@ -646,7 +613,7 @@ function DietGuidePage() {
                       <strong>{item.time}</strong>
                       <span>{item.text}</span>
                     </div>
-                    <span className="sf-check-state">권장</span>
+                    <span className="sf-check-state">기본 권장</span>
                   </div>
                 );
               })}
@@ -658,10 +625,10 @@ function DietGuidePage() {
           <div className="sf-diet-card sf-diet-section-card">
             <div className="sf-diet-section-title">
               <div>
-                <span className="sf-diet-label">SkinFlow Check</span>
-                <h2>오늘의 체크리스트</h2>
+                <span className="sf-diet-label">Reference List</span>
+                <h2>기본 권장 루틴</h2>
               </div>
-              <span className="sf-diet-chip">짧은 실천</span>
+              <span className="sf-diet-chip">참고 정보</span>
             </div>
 
             <div className="sf-side-stack">
@@ -672,11 +639,9 @@ function DietGuidePage() {
                   </span>
                   <div>
                     <strong>{item.title}</strong>
-                    <span>오늘 실천 여부를 기준으로 관리 흐름을 점검합니다.</span>
+                    <span>개인 기록이 아닌 기본 피부 관리 참고 항목입니다.</span>
                   </div>
-                  <span className={`sf-check-state ${item.done ? "" : "is-muted"}`}>
-                    {item.done ? "완료" : "예정"}
-                  </span>
+                  <span className="sf-check-state">{item.category}</span>
                 </div>
               ))}
             </div>
