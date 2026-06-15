@@ -72,18 +72,22 @@ function shouldShowProgress(progress) {
     "roi_pending",
     "roi_processing",
     "roi_complete",
-    "model_missing",
+    "skin_analysis_processing",
     "analysis_waiting",
+    "analysis_pending",
+    "ai_model_pending",
+    "analysis_completed",
+    "model_missing",
     "failed",
   ].includes(progress.status);
 }
 
 function getProgressTone(status) {
-  if (status === "failed" || status === "model_missing") {
+  if (status === "failed" || status === "model_missing" || status === "ai_model_pending") {
     return "warning";
   }
 
-  if (status === "roi_complete") {
+  if (status === "roi_complete" || status === "analysis_completed") {
     return "ready";
   }
 
