@@ -77,17 +77,27 @@ function formatScore(score) {
 function getStatusLabel(status) {
   if (!status) return "분석 전";
 
+  const normalizedStatus = String(status).toLowerCase();
   const statusMap = {
     good: "양호",
+    low: "양호",
     normal: "보통",
     caution: "주의",
+    medium: "주의",
+    risk: "위험",
+    high: "위험",
+    danger: "위험",
     severe: "집중 관리",
     pending: "분석 대기",
+    processing: "분석 중",
+    analysis_pending: "분석 대기",
+    ai_model_pending: "AI 모델 연결 대기",
     completed: "분석 완료",
+    error: "분석 실패",
     failed: "분석 실패",
   };
 
-  return statusMap[status] || status;
+  return statusMap[normalizedStatus] || status;
 }
 
 function getMetricName(metric) {
