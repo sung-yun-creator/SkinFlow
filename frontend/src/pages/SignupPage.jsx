@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Mail,
@@ -15,6 +15,7 @@ import Card from "../components/common/Card";
 import Badge from "../components/common/Badge";
 import {
   checkEmail,
+  cleanupLegacyAuthStorage,
   getAuthErrorMessage,
   sendEmailCode,
   verifyEmailCode,
@@ -41,6 +42,9 @@ function SignupPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [signupMessage, setSignupMessage] = useState("");
   const [signupError, setSignupError] = useState("");
+  useEffect(() => {
+    cleanupLegacyAuthStorage();
+  }, []);
 
   function handleChange(event) {
     const { name, value, type, checked } = event.target;
