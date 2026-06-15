@@ -73,6 +73,12 @@ function getScoreNumber(score) {
   return Math.max(0, Math.min(100, Math.round(numericScore)));
 }
 
+function hasScoreValue(score) {
+  if (score === null || score === undefined || score === "") return false;
+
+  return !Number.isNaN(Number(score));
+}
+
 function formatDiff(scoreDiff) {
   if (scoreDiff === null || scoreDiff === undefined || scoreDiff === "") {
     return "비교 전";
@@ -229,6 +235,7 @@ function HistoryPage() {
   const summary = historyData.summary || defaultHistoryData.summary;
   const records = Array.isArray(historyData.records) ? historyData.records : [];
   const latestScore = getScoreNumber(summary.latestTotalScore);
+  const hasLatestScore = hasScoreValue(summary.latestTotalScore);
   const hasRecords = records.length > 0;
 
   const filteredRecords = useMemo(() => {
@@ -251,15 +258,6 @@ function HistoryPage() {
 
   const trendItems = useMemo(() => {
     const source = records.slice(-4);
-
-    if (source.length === 0) {
-      return [
-        { label: "1회차", score: 0 },
-        { label: "2회차", score: 0 },
-        { label: "3회차", score: 0 },
-        { label: "4회차", score: 0 },
-      ];
-    }
 
     return source.map((record, index) => ({
       label: formatDate(getRecordDate(record), `${index + 1}회차`),
@@ -876,14 +874,14 @@ function HistoryPage() {
             <div className="sf-score-preview">
               <div
                 className="sf-score-ring"
-                style={{ "--score": `${latestScore}%` }}
+                style={{ "--score": `${hasLatestScore ? latestScore : 0}%` }}
               >
-                <strong>{latestScore}</strong>
+                <strong>{hasLatestScore ? latestScore : "분석 전"}</strong>
               </div>
               <span>
-                {hasRecords
+                {hasLatestScore && hasRecords
                   ? `최근 분석일 ${formatDate(summary.latestAnalyzedAt)}`
-                  : "첫 분석 후 점수가 표시됩니다"}
+                  : "첫 분석 후 표시"}
               </span>
             </div>
           </div>
@@ -943,21 +941,29 @@ function HistoryPage() {
             </div>
 
             <div className="sf-trend-chart">
-              {trendItems.map((item, index) => (
-                <div className="sf-trend-row" key={`${item.label}-${index}`}>
-                  <span>{item.label}</span>
-                  <div className="sf-trend-bar">
-                    <span
-                      style={{
-                        width: `${hasRecords ? Math.max(6, (item.score / maxTrendScore) * 100) : 0}%`,
-                      }}
-                    />
+              {hasRecords ? (
+                trendItems.map((item, index) => (
+                  <div className="sf-trend-row" key={`${item.label}-${index}`}>
+                    <span>{item.label}</span>
+                    <div className="sf-trend-bar">
+                      <span
+                        style={{
+                          width: `${Math.max(6, (item.score / maxTrendScore) * 100)}%`,
+                        }}
+                      />
+                    </div>
+                    <div className="sf-trend-score">{item.score}점</div>
                   </div>
-                  <div className="sf-trend-score">
-                    {hasRecords ? `${item.score}점` : "-"}
-                  </div>
+                ))
+              ) : (
+                <div className="sf-empty-card">
+                  <span className="sf-icon-tile" aria-hidden="true">
+                    <LineChart size={21} />
+                  </span>
+                  <strong>아직 비교할 분석 이력이 없습니다</strong>
+                  <p>첫 분석 후 변화 흐름이 표시됩니다.</p>
                 </div>
-              ))}
+              )}
             </div>
 
             <p className="sf-notice-line" style={{ marginTop: 16 }}>

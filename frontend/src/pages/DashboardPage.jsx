@@ -127,6 +127,20 @@ function getMetricScore(metric) {
   return Math.max(0, Math.min(100, Math.round(score)));
 }
 
+function hasMetricScore(metric) {
+  const rawScore =
+    metric?.score ??
+    metric?.metricScore ??
+    metric?.metric_score ??
+    metric?.value ??
+    metric?.metricValue ??
+    metric?.metric_value;
+
+  if (rawScore === null || rawScore === undefined || rawScore === "") return false;
+
+  return !Number.isNaN(Number(rawScore));
+}
+
 function getMetricGrade(metric) {
   return metric?.gradeName || metric?.grade_name || metric?.status || metric?.level;
 }
@@ -143,13 +157,15 @@ function normalizeMetrics(latestAnalysis) {
     return [
       {
         label: "색소침착",
-        score: 0,
-        status: "분석 전",
+        score: null,
+        status: "첫 분석 후 표시",
+        hasScore: false,
       },
       {
         label: "주름",
-        score: 0,
-        status: "분석 전",
+        score: null,
+        status: "첫 분석 후 표시",
+        hasScore: false,
       },
     ];
   }
@@ -158,6 +174,7 @@ function normalizeMetrics(latestAnalysis) {
     label: getMetricName(metric),
     score: getMetricScore(metric),
     status: getStatusLabel(getMetricGrade(metric)),
+    hasScore: hasMetricScore(metric),
   }));
 }
 
@@ -217,7 +234,8 @@ function DashboardPage() {
     summary.analysisCount || summary.analysis_count || profile.analysisCount || 0
   );
 
-  const hasLatestAnalysis = Boolean(latestAnalysis);
+  const hasLatestAnalysisScore = Boolean(latestAnalysis) && latestScore !== null;
+  const hasLatestAnalysis = Boolean(latestAnalysis) && hasLatestAnalysisScore;
   const metrics = useMemo(() => normalizeMetrics(latestAnalysis), [latestAnalysis]);
 
   const mainConcernName = mainConcern ? getMetricName(mainConcern) : "분석 전";
@@ -696,10 +714,10 @@ function DashboardPage() {
             <div className="dashboard-score-box">
               <div
                 className="dashboard-score-ring-compact"
-                style={{ "--score-value": `${latestScore || 0}%` }}
+                style={{ "--score-value": `${hasLatestAnalysisScore ? latestScore : 0}%` }}
               >
-                <strong>{latestScore || 0}</strong>
-                <small>/100</small>
+                <strong>{hasLatestAnalysisScore ? latestScore : "분석 전"}</strong>
+                <small>{hasLatestAnalysisScore ? "/100" : "첫 분석 후 표시"}</small>
               </div>
 
               <div className="dashboard-score-summary">
@@ -726,9 +744,9 @@ function DashboardPage() {
                 <div className="dashboard-metric-compact" key={metric.label}>
                   <strong>{metric.label}</strong>
                   <div className="dashboard-bar">
-                    <span style={{ width: `${metric.score}%` }} />
+                    <span style={{ width: `${metric.hasScore ? metric.score : 0}%` }} />
                   </div>
-                  <small>{metric.score > 0 ? `${metric.score}점 · ${metric.status}` : metric.status}</small>
+                  <small>{metric.hasScore ? `${metric.score}점 · ${metric.status}` : metric.status}</small>
                 </div>
               ))}
             </div>
