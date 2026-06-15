@@ -134,9 +134,7 @@ function MyPage() {
         console.error("마이페이지 API 호출 실패:", error);
 
         if (isMounted) {
-          setMypageError(
-            "마이페이지 정보를 불러오지 못했습니다. 로그인 상태를 확인한 후 다시 시도해주세요."
-          );
+          setMypageError("마이페이지 정보를 불러오지 못했습니다.");
         }
       } finally {
         if (isMounted) {
@@ -154,7 +152,7 @@ function MyPage() {
 
   const profile = mypage?.profile ?? {
     name: "사용자",
-    email: "skinflow@example.com",
+    email: null,
     skinType: "미설정",
     createdAt: null,
   };
@@ -169,6 +167,8 @@ function MyPage() {
   const recentActivity = Array.isArray(mypage?.recentActivity)
     ? mypage.recentActivity.slice(0, 3)
     : [];
+  const profileName = getDisplayValue(profile.name, "사용자");
+  const profileEmail = getDisplayValue(profile.email, "로그인 정보 확인 필요");
 
   const profileStats = useMemo(
     () => [
@@ -182,7 +182,7 @@ function MyPage() {
       },
       {
         label: "관심 지표",
-        value: getDisplayValue(stats.mainConcern, "분석 전"),
+        value: getDisplayValue(stats.mainConcern, "분석 후 표시"),
       },
     ],
     [stats.analysisCount, stats.latestTotalScore, stats.mainConcern]
@@ -199,13 +199,13 @@ function MyPage() {
       {
         icon: Sparkles,
         label: "관심 지표",
-        value: getDisplayValue(stats.mainConcern, "분석 전"),
+        value: getDisplayValue(stats.mainConcern, "분석 후 표시"),
         description: "최근 분석 후 우선 관리 항목이 표시됩니다.",
       },
       {
         icon: CalendarDays,
         label: "최근 분석일",
-        value: formatDate(stats.latestAnalyzedAt),
+        value: formatDate(stats.latestAnalyzedAt, "기록 없음"),
         description: "마지막 분석 기록 기준으로 표시됩니다.",
       },
     ],
@@ -716,8 +716,8 @@ function MyPage() {
 
               <div>
                 <span className="sf-card-label">Profile</span>
-                <h2>{profile.name || "사용자"}님</h2>
-                <p>{profile.email || "이메일 정보 없음"}</p>
+                <h2>{isLoading ? "계정 정보 확인 중" : `${profileName}님`}</h2>
+                <p>{isLoading ? "로그인 정보 확인 중" : profileEmail}</p>
               </div>
             </div>
 
@@ -801,11 +801,11 @@ function MyPage() {
             <div className="sf-info-list">
               <div className="sf-info-row">
                 <span>이름</span>
-                <strong>{getDisplayValue(profile.name, "사용자")}</strong>
+                <strong>{isLoading ? "계정 정보 확인 중" : profileName}</strong>
               </div>
               <div className="sf-info-row">
                 <span>이메일</span>
-                <strong>{getDisplayValue(profile.email, "이메일 정보 없음")}</strong>
+                <strong>{isLoading ? "로그인 정보 확인 중" : profileEmail}</strong>
               </div>
               <div className="sf-info-row">
                 <span>가입일</span>
@@ -813,7 +813,7 @@ function MyPage() {
               </div>
               <div className="sf-info-row">
                 <span>최근 분석일</span>
-                <strong>{formatDate(stats.latestAnalyzedAt)}</strong>
+                <strong>{formatDate(stats.latestAnalyzedAt, "기록 없음")}</strong>
               </div>
             </div>
           </Card>
@@ -876,9 +876,9 @@ function MyPage() {
                       <CalendarDays size={20} />
                     </span>
                     <div>
-                      <strong>{activity.title || "활동 기록"}</strong>
+                      <strong>{activity.title || "활동 정보 확인 중"}</strong>
                       <span>
-                        {activity.description || "분석 관련 활동이 기록되었습니다."} ·{" "}
+                        {activity.description || "상세 내용 확인 필요"} ·{" "}
                         {formatDate(activity.occurredAt, "날짜 없음")}
                       </span>
                     </div>
@@ -891,7 +891,7 @@ function MyPage() {
                     <History size={20} />
                   </span>
                   <div>
-                    <strong>아직 활동 내역이 없습니다</strong>
+                    <strong>아직 표시할 활동이 없습니다.</strong>
                     <span>
                       피부 분석을 시작하면 분석 결과와 추천 내용을 이곳에서 확인할 수 있습니다.
                     </span>
