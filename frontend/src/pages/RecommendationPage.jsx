@@ -1,8 +1,11 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Droplets,
+  AlertCircle,
+  ExternalLink,
   FlaskConical,
-  Heart,
   Leaf,
+  LoaderCircle,
+  PackageCheck,
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
@@ -10,53 +13,141 @@ import PageLayout from "../components/layout/PageLayout";
 import Button from "../components/common/Button";
 import Card from "../components/common/Card";
 import Badge from "../components/common/Badge";
+import {
+  getIngredientRecommendations,
+  getProductRecommendations,
+} from "../api/recommendationApi";
 
-const ingredientRecommendations = [
-  {
-    name: "나이아신아마이드",
-    description: "색소침착 관리와 피부톤 케어에 참고할 수 있는 대표 기능성 성분입니다.",
-    match: 96,
-    tags: ["색소침착", "피부톤"],
-  },
-  {
-    name: "비타민 C 유도체",
-    description: "칙칙한 피부톤과 항산화 케어 루틴에 함께 고려할 수 있습니다.",
-    match: 92,
-    tags: ["브라이트닝", "항산화"],
-  },
-  {
-    name: "아데노신",
-    description: "주름 관리와 탄력 케어에 참고할 수 있는 기능성 성분입니다.",
-    match: 88,
-    tags: ["주름", "탄력"],
-  },
-];
+function getApiErrorMessage(error) {
+  if (error?.status === 401) {
+    return "로그인 후 추천 정보를 확인할 수 있습니다.";
+  }
 
-const productRecommendations = [
-  {
-    brand: "SkinFlow Lab",
-    name: "글로우 세럼 30ml",
-    description: "나이아신아마이드 5% 함유, 색소침착 케어 참고",
-    match: 95,
-    icon: Droplets,
-  },
-  {
-    brand: "Aurora Beauty",
-    name: "리프팅 아이크림",
-    description: "눈가 주름 집중 관리에 참고 가능한 제품",
-    match: 90,
-    icon: Leaf,
-  },
-  {
-    brand: "Pure Lab",
-    name: "비타민 부스터 앰플",
-    description: "피부톤 관리와 항산화 케어에 참고",
-    match: 87,
-    icon: Heart,
-  },
-];
+  return error?.message || "추천 정보를 불러오지 못했습니다.";
+}
+
+function formatCount(value) {
+  const numericValue = Number(value);
+
+  if (!Number.isFinite(numericValue)) {
+    return "0개";
+  }
+
+  return `${numericValue}개`;
+}
+
+function formatScore(value) {
+  const numericValue = Number(value);
+
+  if (!Number.isFinite(numericValue)) {
+    return "-";
+  }
+
+  return `${Math.round(numericValue)}점`;
+}
+
+function getFocusMetricName(...summaries) {
+  const focusMetric = summaries.find((summary) => summary?.focusMetric?.name)?.focusMetric;
+
+  return focusMetric?.name || "분석 대기";
+}
+
+function RecommendationSectionState({ type, message }) {
+  const isLoading = type === "loading";
+  const isError = type === "error";
+
+  return (
+    <div className={`sf-section-state ${isLoading ? "is-loading" : ""} ${isError ? "is-error" : ""}`}>
+      <span className="sf-section-state-icon" aria-hidden="true">
+        {isLoading ? <LoaderCircle size={20} /> : <AlertCircle size={20} />}
+      </span>
+      <p>{message}</p>
+    </div>
+  );
+}
 
 function RecommendationPage() {
+  const [ingredients, setIngredients] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [ingredientSummary, setIngredientSummary] = useState(null);
+  const [productSummary, setProductSummary] = useState(null);
+  const [ingredientError, setIngredientError] = useState("");
+  const [productError, setProductError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+
+  const loadRecommendations = useCallback(async () => {
+    setIsLoading(true);
+    setIngredientError("");
+    setProductError("");
+
+    const [ingredientResult, productResult] = await Promise.allSettled([
+      getIngredientRecommendations(),
+      getProductRecommendations(),
+    ]);
+
+    if (ingredientResult.status === "fulfilled") {
+      setIngredients(ingredientResult.value.ingredients);
+      setIngredientSummary(ingredientResult.value.summary);
+    } else {
+      setIngredients([]);
+      setIngredientSummary(null);
+      setIngredientError(getApiErrorMessage(ingredientResult.reason));
+    }
+
+    if (productResult.status === "fulfilled") {
+      setProducts(productResult.value.products);
+      setProductSummary(productResult.value.summary);
+    } else {
+      setProducts([]);
+      setProductSummary(null);
+      setProductError(getApiErrorMessage(productResult.reason));
+    }
+
+    setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    loadRecommendations();
+  }, [loadRecommendations]);
+
+  const summary = productSummary || ingredientSummary;
+
+  const summaryItems = useMemo(
+    () => [
+      {
+        label: "중점 지표",
+        value: getFocusMetricName(productSummary, ingredientSummary),
+      },
+      {
+        label: "추천 성분",
+        value: formatCount(ingredientSummary?.recommendationCount ?? ingredients.length),
+      },
+      {
+        label: "추천 제품",
+        value: formatCount(productSummary?.recommendationCount ?? products.length),
+      },
+    ],
+    [ingredientSummary, ingredients.length, productSummary, products.length],
+  );
+
+  const summaryNote = useMemo(() => {
+    if (isLoading) {
+      return "최근 분석 결과를 기준으로 추천 정보를 불러오는 중입니다.";
+    }
+
+    if (ingredientError && productError) {
+      return "추천 API 연결 상태를 확인해 주세요. 로그인 토큰 또는 백엔드 서버 상태가 필요합니다.";
+    }
+
+    if (!ingredients.length && !products.length) {
+      return summary?.message || "최근 분석 결과 기반 추천 데이터가 아직 없습니다.";
+    }
+
+    return `최근 분석 결과 기준 ${formatScore(summary?.totalScore)} 상태에서 참고할 수 있는 성분과 제품 추천입니다.`;
+  }, [ingredientError, ingredients.length, isLoading, productError, products.length, summary]);
+
+  const statusLabel = isLoading ? "불러오는 중" : ingredientError && productError ? "연결 확인" : "API 연동";
+
   return (
     <PageLayout>
       <style>{`
@@ -142,8 +233,7 @@ function RecommendationPage() {
         }
 
         .sf-recommend-summary-top h2,
-        .sf-recommend-panel-head h2,
-        .sf-recommend-guide-card h2 {
+        .sf-recommend-panel-head h2 {
           margin: 5px 0 0;
           color: #0f172a;
           font-size: 21px;
@@ -256,7 +346,6 @@ function RecommendationPage() {
 
         .sf-recommend-list {
           display: grid;
-          grid-template-rows: repeat(3, minmax(0, 1fr));
           gap: 10px;
           flex: 1;
         }
@@ -309,6 +398,24 @@ function RecommendationPage() {
           flex: 0 0 auto;
           transform: none;
           stroke-width: 2.05;
+        }
+
+        .sf-product-thumb {
+          width: 50px;
+          height: 50px;
+          min-width: 50px;
+          min-height: 50px;
+          overflow: hidden;
+          border: 1px solid rgba(226, 232, 240, 0.9);
+          border-radius: 17px;
+          background: #f8fafc;
+        }
+
+        .sf-product-thumb img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
         }
 
         .sf-ingredient-main,
@@ -382,6 +489,82 @@ function RecommendationPage() {
           font-weight: 900;
         }
 
+        .sf-product-link {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          width: fit-content;
+          margin-top: 10px;
+          color: #167d7f;
+          font-size: 12px;
+          font-weight: 950;
+          text-decoration: none;
+        }
+
+        .sf-product-link:hover {
+          text-decoration: underline;
+        }
+
+        .sf-section-state {
+          display: grid;
+          justify-items: center;
+          align-content: center;
+          gap: 10px;
+          min-height: 228px;
+          padding: 22px;
+          border: 1px dashed rgba(22, 125, 127, 0.24);
+          border-radius: 20px;
+          background: #f8fafc;
+          color: #64748b;
+          text-align: center;
+        }
+
+        .sf-section-state.is-error {
+          border-color: rgba(244, 63, 94, 0.24);
+          background: rgba(244, 63, 94, 0.045);
+        }
+
+        .sf-section-state-icon {
+          display: grid;
+          place-items: center;
+          width: 42px;
+          height: 42px;
+          border-radius: 15px;
+          color: #167d7f;
+          background: #ffffff;
+          box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+        }
+
+        .sf-section-state.is-error .sf-section-state-icon {
+          color: #f43f5e;
+        }
+
+        .sf-section-state-icon svg {
+          display: block;
+        }
+
+        .sf-section-state.is-loading .sf-section-state-icon svg {
+          animation: sf-spin 1s linear infinite;
+        }
+
+        .sf-section-state p {
+          max-width: 340px;
+          margin: 0;
+          font-size: 13px;
+          font-weight: 800;
+          line-height: 1.55;
+          word-break: keep-all;
+        }
+
+        @keyframes sf-spin {
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
+        }
+
         @media (max-width: 1020px) {
           .sf-recommend-hero,
           .sf-recommend-content-grid {
@@ -422,13 +605,13 @@ function RecommendationPage() {
             padding-top: 2px;
           }
 
-          .sf-icon-tile {
+          .sf-icon-tile,
+          .sf-product-thumb {
             width: 48px;
             height: 48px;
             min-width: 48px;
             min-height: 48px;
           }
-
         }
       `}</style>
 
@@ -453,6 +636,9 @@ function RecommendationPage() {
               <Button to="/analysis/result" variant="secondary" size="lg">
                 분석 결과 다시 보기
               </Button>
+              <Button variant="secondary" size="lg" onClick={loadRecommendations} disabled={isLoading}>
+                추천 다시 불러오기
+              </Button>
             </div>
           </Card>
 
@@ -463,30 +649,22 @@ function RecommendationPage() {
                 <h2>오늘의 관리 방향</h2>
               </div>
               <span className="sf-status-pill">
-                <ShieldCheck size={14} /> 미리보기
+                <ShieldCheck size={14} /> {statusLabel}
               </span>
             </div>
 
             <div className="sf-recommend-summary-grid">
-              <div className="sf-summary-metric">
-                <span>중점 지표</span>
-                <strong>색소침착</strong>
-              </div>
-              <div className="sf-summary-metric">
-                <span>추천 성분</span>
-                <strong>3개</strong>
-              </div>
-              <div className="sf-summary-metric">
-                <span>추천 제품</span>
-                <strong>3개</strong>
-              </div>
+              {summaryItems.map((item) => (
+                <div className="sf-summary-metric" key={item.label}>
+                  <span>{item.label}</span>
+                  <strong>{item.value}</strong>
+                </div>
+              ))}
             </div>
 
             <div className="sf-summary-note">
               <Sparkles size={18} />
-              <span>
-                추천 결과는 피부 관리 참고 정보이며, 실제 추천 API 연동 전 화면입니다.
-              </span>
+              <span>{summaryNote}</span>
             </div>
           </Card>
         </section>
@@ -503,32 +681,40 @@ function RecommendationPage() {
               </div>
             </div>
 
-            <div className="sf-recommend-list">
-              {ingredientRecommendations.map((item) => (
-                <article className="sf-ingredient-card" key={item.name}>
-                  <span className="sf-icon-tile" aria-hidden="true">
-                    <FlaskConical size={22} />
-                  </span>
+            {isLoading ? (
+              <RecommendationSectionState type="loading" message="기능성 성분 추천을 불러오는 중입니다." />
+            ) : ingredientError ? (
+              <RecommendationSectionState type="error" message={ingredientError} />
+            ) : ingredients.length === 0 ? (
+              <RecommendationSectionState type="empty" message="표시할 성분 추천 데이터가 없습니다." />
+            ) : (
+              <div className="sf-recommend-list">
+                {ingredients.map((item) => (
+                  <article className="sf-ingredient-card" key={item.id || item.name}>
+                    <span className="sf-icon-tile" aria-hidden="true">
+                      <FlaskConical size={22} />
+                    </span>
 
-                  <div className="sf-ingredient-main">
-                    <h3>{item.name}</h3>
-                    <p>{item.description}</p>
-                    <div className="sf-tag-row">
-                      {item.tags.map((tag) => (
-                        <span className="sf-tag" key={tag}>
-                          #{tag}
-                        </span>
-                      ))}
+                    <div className="sf-ingredient-main">
+                      <h3>{item.name}</h3>
+                      <p>{item.description}</p>
+                      <div className="sf-tag-row">
+                        {item.tags.map((tag) => (
+                          <span className="sf-tag" key={tag}>
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="sf-match-score">
-                    <span>매칭</span>
-                    {item.match}점
-                  </div>
-                </article>
-              ))}
-            </div>
+                    <div className="sf-match-score">
+                      <span>매칭</span>
+                      {item.match}점
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
           </Card>
 
           <Card className="sf-recommend-panel">
@@ -542,20 +728,47 @@ function RecommendationPage() {
               </div>
             </div>
 
-            <div className="sf-recommend-list">
-              {productRecommendations.map((item) => {
-                const ProductIcon = item.icon;
-
-                return (
-                  <article className="sf-product-card" key={item.name}>
-                    <span className="sf-icon-tile" aria-hidden="true">
-                      <ProductIcon size={22} />
-                    </span>
+            {isLoading ? (
+              <RecommendationSectionState type="loading" message="화장품 제품 추천을 불러오는 중입니다." />
+            ) : productError ? (
+              <RecommendationSectionState type="error" message={productError} />
+            ) : products.length === 0 ? (
+              <RecommendationSectionState type="empty" message="표시할 제품 추천 데이터가 없습니다." />
+            ) : (
+              <div className="sf-recommend-list">
+                {products.map((item) => (
+                  <article className="sf-product-card" key={item.id || item.name}>
+                    {item.imageUrl ? (
+                      <span className="sf-product-thumb" aria-hidden="true">
+                        <img src={item.imageUrl} alt="" />
+                      </span>
+                    ) : (
+                      <span className="sf-icon-tile" aria-hidden="true">
+                        <PackageCheck size={22} />
+                      </span>
+                    )}
 
                     <div className="sf-product-main">
                       <span className="sf-product-brand">{item.brand}</span>
                       <h3>{item.name}</h3>
                       <p>{item.description}</p>
+                      <div className="sf-tag-row">
+                        {item.tags.map((tag) => (
+                          <span className="sf-tag" key={tag}>
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                      {item.productUrl && (
+                        <a
+                          className="sf-product-link"
+                          href={item.productUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          올리브영에서 보기 <ExternalLink size={13} />
+                        </a>
+                      )}
                     </div>
 
                     <div className="sf-match-score">
@@ -563,9 +776,9 @@ function RecommendationPage() {
                       {item.match}점
                     </div>
                   </article>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            )}
           </Card>
         </section>
       </div>
