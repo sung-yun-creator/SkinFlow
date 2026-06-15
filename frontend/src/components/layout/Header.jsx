@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Activity, ArrowRight, CheckCircle2, LoaderCircle, Sparkles, X } from "lucide-react";
 import Button from "../common/Button";
+import { clearLoginSession, cleanupLegacyAuthStorage } from "../../api/authApi";
 
 const ANALYSIS_PROGRESS_KEY = "skinflow_analysis_progress";
 const ANALYSIS_PROGRESS_EVENT = "skinflow-analysis-progress";
@@ -109,6 +110,10 @@ function Header() {
   );
 
   useEffect(() => {
+    cleanupLegacyAuthStorage();
+  }, []);
+
+  useEffect(() => {
     const syncProgress = () => {
       setAnalysisProgress(getStoredAnalysisProgress());
     };
@@ -133,9 +138,7 @@ function Header() {
   const progressPath = analysisProgress?.path || "/analysis/loading";
 
   const handleLogout = () => {
-    localStorage.removeItem("skinflow_token");
-    localStorage.removeItem("skinflow_user_email");
-    localStorage.removeItem("skinflow_user");
+    clearLoginSession();
     clearStoredAnalysisProgress();
     navigate("/login");
   };
