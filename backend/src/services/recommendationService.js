@@ -67,18 +67,29 @@ function getIngredientMetricCode(ingredient, concernMetrics) {
 
 function toIngredientRecommendation(ingredient, metric, index) {
     const meta = getMetricMeta(metric.code);
+    const name = ingredient.ingredient_name || ingredient.name;
+    const type = ingredient.ingredient_type || ingredient.type || null;
+    const description = ingredient.description;
+    const match = scoreToMatch(metric.score, index);
+    const tags = ingredient.tags || getIngredientTags(ingredient, meta);
 
     return {
         id: ingredient.ingredient_id || null,
-        name: ingredient.ingredient_name || ingredient.name,
-        type: ingredient.ingredient_type || ingredient.type || null,
-        description: ingredient.description,
-        match: scoreToMatch(metric.score, index),
+        name,
+        type,
+        description,
+        match,
         reason: `${metric.name || meta.name} 지표를 기준으로 추천한 성분입니다.`,
         priority: index + 1,
         metricCode: metric.code,
         metricName: metric.name || meta.name,
-        tags: ingredient.tags || getIngredientTags(ingredient, meta),
+        tags,
+        card: {
+            name,
+            description,
+            match,
+            tags,
+        },
     };
 }
 
