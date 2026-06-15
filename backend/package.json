@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "seed:analysis-reference": "node scripts/seedAnalysisReferenceData.js"
+    "seed:analysis-reference": "node scripts/seedAnalysisReferenceData.js",
+    "seed:ingredients": "node scripts/seedIngredientData.js"
   },
   "keywords": [],
   "author": "",
