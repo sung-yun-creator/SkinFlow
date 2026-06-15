@@ -42,7 +42,7 @@ function toScore(value) {
 
 function buildMetricCards(analysisResult) {
   if (!analysisResult?.saved) {
-    return previewMetrics;
+    return [];
   }
 
   const metricCards = [
@@ -68,26 +68,18 @@ function buildMetricCards(analysisResult) {
   return metricCards;
 }
 
-const previewMetrics = [
-  {
-    label: "종합 점수",
-    value: 78,
-    status: "예시",
-    color: "#167D7F",
+const emptyResultMessages = {
+  pending: {
+    title: "AI 모델 연결 대기",
+    description:
+      "현재 AI 모델이 실제 점수를 반환하지 않아 점수 카드를 표시하지 않습니다. 저장 가능한 분석 결과가 생성되면 색소침착·주름 점수가 이 영역에 표시됩니다.",
   },
-  {
-    label: "색소침착",
-    value: 85,
-    status: "양호 예시",
-    color: "#22C55E",
+  empty: {
+    title: "표시할 실제 분석 결과가 없습니다",
+    description:
+      "아직 저장된 분석 결과가 없습니다. 업로드 또는 웹캠 촬영으로 분석을 진행하면 실제 API 응답 기준으로 결과를 표시합니다.",
   },
-  {
-    label: "주름",
-    value: 42,
-    status: "주의 예시",
-    color: "#F59E0B",
-  },
-];
+};
 
 const nextCards = [
   {
@@ -113,10 +105,10 @@ const nextCards = [
   },
 ];
 
-const integrationItems = [
-  "ROI 확인 이후 색소침착·주름 분석 결과 API 연결 예정",
-  "추천·식습관 가이드는 실제 분석 결과 생성 후 연결 예정",
-  "현재 점수와 문구는 화면 구성을 확인하기 위한 미리보기 데이터",
+const emptyResultNoticeItems = [
+  "저장된 실제 분석 결과가 없을 때는 예시 점수를 표시하지 않습니다.",
+  "AI 모델 연결 전에는 pending 상태를 안내하고 가짜 이력을 생성하지 않습니다.",
+  "업로드 이미지와 웹캠 촬영 이미지는 같은 분석 요청 흐름으로 처리됩니다.",
 ];
 
 function AnalysisResultPage() {
@@ -130,39 +122,48 @@ function AnalysisResultPage() {
     [analysisResult],
   );
 
+  const hasDisplayableMetrics = hasSavedResult && metricCards.length > 0;
+  const emptyResultMessage = isPending
+    ? emptyResultMessages.pending
+    : emptyResultMessages.empty;
+
   const heroBadge = hasSavedResult
     ? "Analysis Result"
     : isPending
       ? "AI 모델 연결 대기"
-      : "Result Preview";
+      : "실제 결과 없음";
+
   const summaryBadge = hasSavedResult
     ? "API 연동 완료"
     : isPending
       ? "저장 보류"
-      : "API 연동 전";
+      : "점수 미표시";
+
   const summaryTitle = hasSavedResult
     ? "색소침착·주름 분석 결과"
     : isPending
       ? "AI 모델 응답 대기 상태"
-      : "색소침착·주름 중심 결과 화면";
+      : "실제 분석 결과 대기";
+
   const summaryText = hasSavedResult
     ? analysisResult.summary || "색소침착과 주름 지표를 기준으로 산출한 분석 결과입니다."
     : isPending
       ? analysisResult.message || "AI 모델 분석 결과가 아직 준비되지 않았습니다."
-      : "전반적인 피부 톤은 양호한 편이며, 눈가 주름 관리에 집중하면 다음 분석에서 변화를 확인하기 쉽습니다. 이 문구는 실제 분석값이 아닌 화면 확인용 예시입니다.";
+      : "아직 표시할 실제 분석 결과가 없습니다. 분석을 진행하면 API 응답을 기준으로 결과를 표시합니다.";
+
   const noticeItems = hasSavedResult
     ? [
-        "분석 결과 저장 API에서 받은 실제 점수와 등급을 표시합니다.",
-        "색소침착·주름 지표의 표시명은 name, 화면 분기는 code를 기준으로 처리합니다.",
-        "추천·식습관 가이드는 별도 추천 API 연결 후 실제 데이터로 확장합니다.",
-      ]
+      "분석 결과 저장 API에서 받은 실제 점수와 등급을 표시합니다.",
+      "색소침착·주름 지표의 표시명은 name, 화면 분기는 code를 기준으로 처리합니다.",
+      "추천·식습관 가이드는 별도 추천 API 연결 후 실제 데이터로 확장합니다.",
+    ]
     : isPending
       ? [
-          "AI 모델이 아직 실제 점수를 반환하지 않아 분석 이력 저장은 보류되었습니다.",
-          "현재 상태에서는 가짜 점수나 가짜 이력을 생성하지 않습니다.",
-          "AI 모델 연결 완료 후 같은 API 흐름으로 실제 결과를 표시할 수 있습니다.",
-        ]
-      : integrationItems;
+        "AI 모델이 아직 실제 점수를 반환하지 않아 분석 이력 저장은 보류되었습니다.",
+        "현재 상태에서는 가짜 점수나 가짜 이력을 생성하지 않습니다.",
+        "AI 모델 연결 완료 후 같은 API 흐름으로 실제 결과를 표시할 수 있습니다.",
+      ]
+      : emptyResultNoticeItems;
 
   return (
     <PageLayout>
@@ -373,6 +374,40 @@ function AnalysisResultPage() {
             letter-spacing: -0.035em;
           }
 
+          .sf-result-empty-state {
+            display: grid;
+            grid-template-columns: 48px 1fr;
+            gap: 14px;
+            align-items: start;
+            min-height: 132px;
+            padding: 18px;
+            border-radius: 22px;
+            border: 1px dashed rgba(20, 184, 166, 0.42);
+            background:
+              radial-gradient(circle at 100% 0%, rgba(20, 184, 166, 0.08), transparent 34%),
+              #f8fafc;
+          }         
+
+          .sf-result-empty-state .sf-result-icon-tile {
+            background: linear-gradient(135deg, #f0fdfa 0%, #ffffff 52%, #ecfeff 100%);
+          }
+
+          .sf-result-empty-state strong {
+            display: block;
+            margin-bottom: 6px;
+            color: #0f172a;
+            font-size: 16px;
+            font-weight: 950;
+            letter-spacing: -0.04em;
+          }
+
+          .sf-result-empty-state p {
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 750;
+            line-height: 1.65;
+          }
+
           .sf-result-comment {
             display: grid;
             grid-template-columns: 44px 1fr;
@@ -575,7 +610,7 @@ function AnalysisResultPage() {
                 ? "분석 결과 저장 API에서 받은 색소침착·주름 지표를 표시합니다."
                 : isPending
                   ? "AI 모델이 아직 실제 점수를 반환하지 않아 저장 보류 상태를 안내합니다."
-                  : "현재 화면은 ROI 확인 이후 연결될 분석 결과 UI 미리보기입니다. 실제 점수와 설명은 분석 결과 API 연동 후 표시됩니다."}
+                  : "실제 분석 결과가 없을 때는 예시 점수를 표시하지 않고, 분석 진행을 안내합니다."}
             </p>
 
             <div className="sf-result-face-map" aria-label="피부 ROI 미리보기">
@@ -601,30 +636,42 @@ function AnalysisResultPage() {
               <Badge variant="secondary">{summaryBadge}</Badge>
             </div>
 
-            <div className="sf-result-score-grid">
-              {metricCards.map((metric) => (
-                <div className="sf-result-score-card" key={metric.label}>
-                  <div
-                    className="sf-result-score-ring"
-                    style={{
-                      "--metric-color": metric.color,
-                      "--metric-value": `${metric.value}%`,
-                    }}
-                  >
-                    <strong>{metric.value}</strong>
+            {hasDisplayableMetrics ? (
+              <div className="sf-result-score-grid">
+                {metricCards.map((metric) => (
+                  <div className="sf-result-score-card" key={metric.label}>
+                    <div
+                      className="sf-result-score-ring"
+                      style={{
+                        "--metric-color": metric.color,
+                        "--metric-value": `${metric.value}%`,
+                      }}
+                    >
+                      <strong>{metric.value}</strong>
+                    </div>
+                    <span>{metric.status}</span>
+                    <h3>{metric.label}</h3>
                   </div>
-                  <span>{metric.status}</span>
-                  <h3>{metric.label}</h3>
+                ))}
+              </div>
+            ) : (
+              <div className="sf-result-empty-state">
+                <span className="sf-result-icon-tile" aria-hidden="true">
+                  <Info size={20} />
+                </span>
+                <div>
+                  <strong>{emptyResultMessage.title}</strong>
+                  <p>{emptyResultMessage.description}</p>
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
 
             <div className="sf-result-comment">
               <span className="sf-result-icon-tile" aria-hidden="true">
                 <Sparkles size={20} />
               </span>
               <div>
-                <strong>{hasSavedResult ? "AI 분석 요약" : isPending ? "AI 모델 연결 대기" : "AI 분석 코멘트 예시"}</strong>
+                <strong>{hasSavedResult ? "AI 분석 요약" : isPending ? "AI 모델 연결 대기" : "분석 상태 안내"}</strong>
                 <p>{summaryText}</p>
               </div>
             </div>
@@ -677,7 +724,7 @@ function AnalysisResultPage() {
             <div className="sf-result-card-head">
               <div>
                 <span className="sf-result-section-label">연동 상태</span>
-                <h2>{hasSavedResult ? "실제 결과 반영 완료" : isPending ? "AI 모델 연결 대기" : "현재는 미리보기 단계입니다"}</h2>
+                <h2>{hasSavedResult ? "실제 결과 반영 완료" : isPending ? "AI 모델 연결 대기" : "실제 결과가 없습니다"}</h2>
               </div>
               <ClipboardCheck size={26} />
             </div>
@@ -687,7 +734,7 @@ function AnalysisResultPage() {
                 ? "분석 결과 저장 API 응답을 기준으로 결과 화면을 구성했습니다."
                 : isPending
                   ? "현재는 AI 모델이 실제 점수를 반환하지 않아 저장되지 않은 상태입니다."
-                  : "ROI 확인 화면 다음 단계에서 보여줄 결과 화면 구조입니다. 실제 AI 결과와 DB 저장은 분석 결과 API가 연결된 뒤 반영해야 합니다."}
+                  : "현재 저장된 분석 결과가 없어 점수 카드를 표시하지 않습니다. 실제 AI 결과와 DB 저장이 완료되면 결과가 반영됩니다."}
             </p>
 
             <div className="sf-result-notice-list">
