@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Activity, ArrowRight, CheckCircle2, LoaderCircle, Sparkles, X } from "lucide-react";
 import Button from "../common/Button";
+import { clearLoginSession, cleanupLegacyAuthStorage } from "../../api/authApi";
 
 const ANALYSIS_PROGRESS_KEY = "skinflow_analysis_progress";
 const ANALYSIS_PROGRESS_EVENT = "skinflow-analysis-progress";
@@ -72,18 +73,22 @@ function shouldShowProgress(progress) {
     "roi_pending",
     "roi_processing",
     "roi_complete",
-    "model_missing",
+    "skin_analysis_processing",
     "analysis_waiting",
+    "analysis_pending",
+    "ai_model_pending",
+    "analysis_completed",
+    "model_missing",
     "failed",
   ].includes(progress.status);
 }
 
 function getProgressTone(status) {
-  if (status === "failed" || status === "model_missing") {
+  if (status === "failed" || status === "model_missing" || status === "ai_model_pending") {
     return "warning";
   }
 
-  if (status === "roi_complete") {
+  if (status === "roi_complete" || status === "analysis_completed") {
     return "ready";
   }
 
@@ -103,6 +108,10 @@ function Header() {
   const [analysisProgress, setAnalysisProgress] = useState(() =>
     getStoredAnalysisProgress()
   );
+
+  useEffect(() => {
+    cleanupLegacyAuthStorage();
+  }, []);
 
   useEffect(() => {
     const syncProgress = () => {
@@ -129,9 +138,7 @@ function Header() {
   const progressPath = analysisProgress?.path || "/analysis/loading";
 
   const handleLogout = () => {
-    localStorage.removeItem("skinflow_token");
-    localStorage.removeItem("skinflow_user_email");
-    localStorage.removeItem("skinflow_user");
+    clearLoginSession();
     clearStoredAnalysisProgress();
     navigate("/login");
   };

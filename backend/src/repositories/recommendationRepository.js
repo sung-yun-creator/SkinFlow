@@ -69,7 +69,38 @@ async function findIngredients() {
     return rows;
 }
 
+async function findActiveProductsWithIngredients() {
+    const [rows] = await pool.query(
+        `
+            SELECT
+                p.product_id,
+                p.brand_name,
+                p.product_name,
+                p.product_type,
+                p.price_amount,
+                p.product_url,
+                p.description AS product_description,
+                p.product_img,
+                pi.ingredient_id,
+                pi.ingredient_pct,
+                i.ingredient_name,
+                i.ingredient_type,
+                i.description AS ingredient_description
+            FROM t_product p
+            LEFT JOIN t_product_ingredient pi
+                ON pi.product_id = p.product_id
+            LEFT JOIN t_ingredient i
+                ON i.ingredient_id = pi.ingredient_id
+            WHERE p.is_active = 1
+            ORDER BY p.product_id ASC, pi.ingredient_pct DESC, pi.ingredient_id ASC
+        `,
+    );
+
+    return rows;
+}
+
 module.exports = {
+    findActiveProductsWithIngredients,
     findIngredients,
     findLatestAnalysisWithMetricsByUserId,
 };

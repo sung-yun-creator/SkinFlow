@@ -1,28 +1,10 @@
 const dashboardRepository = require('../repositories/dashboardRepository');
+const {
+    toAnalysis,
+    toMetric,
+    toRecommendation,
+} = require('../utils/analysisResponseMapper');
 const { toNumber } = require('../utils/number');
-
-function toMetric(metric) {
-    return {
-        id: metric.skin_metric_id,
-        code: metric.metric_code || null,
-        name: metric.metric_name || null,
-        value: toNumber(metric.metric_value),
-        score: toNumber(metric.metric_score),
-        grade: metric.grade_name || null,
-        unit: metric.unit_name || null,
-    };
-}
-
-function toAnalysis(record) {
-    return {
-        analysisId: record.skin_analysis_id,
-        analyzedAt: record.analyzed_at || record.created_at || null,
-        totalScore: toNumber(record.total_skin_score),
-        status: record.grade_name || record.analysis_status || null,
-        statusDescription: record.grade_description || null,
-        summary: record.summary_text || null,
-    };
-}
 
 function toMainConcern(metrics) {
     const scoredMetrics = metrics.filter((metric) => metric.score !== null);
@@ -34,17 +16,6 @@ function toMainConcern(metrics) {
     return scoredMetrics.reduce((lowest, metric) => (
         metric.score < lowest.score ? metric : lowest
     ));
-}
-
-function toRecommendation(recommendation) {
-    return {
-        id: recommendation.analysis_recommendation_id,
-        analysisId: recommendation.skin_analysis_id,
-        type: recommendation.recommendation_type,
-        title: recommendation.recommendation_title,
-        content: recommendation.recommendation_content,
-        createdAt: recommendation.created_at,
-    };
 }
 
 function toDietGuide(guide) {
@@ -118,7 +89,9 @@ function toDashboardResponse(user, summary, metrics, recentAnalyses, recommendat
             : null,
         mainConcern,
         recentAnalyses: recentAnalyses.map(toAnalysis),
-        recommendations: recommendations.map(toRecommendation),
+        recommendations: recommendations.map((recommendation) => (
+            toRecommendation(recommendation, { includeAnalysisId: true })
+        )),
         dietGuides: dietGuides.map(toDietGuide),
         nextAction: toNextAction(summary),
     };

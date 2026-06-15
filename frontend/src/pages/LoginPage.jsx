@@ -1,10 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Mail, LockKeyhole, ArrowRight, ShieldCheck } from "lucide-react";
 import PageLayout from "../components/layout/PageLayout";
 import Card from "../components/common/Card";
 import Badge from "../components/common/Badge";
-import { getAuthErrorMessage, login, saveLoginSession } from "../api/authApi";
+import {
+  cleanupLegacyAuthStorage,
+  getAuthErrorMessage,
+  login,
+  saveLoginSession,
+} from "../api/authApi";
 
 function LoginPage() {
   const navigate = useNavigate();
@@ -15,6 +20,9 @@ function LoginPage() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
+  useEffect(() => {
+    cleanupLegacyAuthStorage();
+  }, []);
 
   function handleChange(event) {
     const { name, value } = event.target;

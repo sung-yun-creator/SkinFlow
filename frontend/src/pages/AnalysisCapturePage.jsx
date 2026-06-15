@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   AlertCircle,
@@ -113,6 +113,22 @@ function getProgressFromRoiResult(roiResult) {
 
 const allowedImageTypes = ["image/jpeg", "image/png"];
 
+function stopMediaStream(stream) {
+  if (!stream) return;
+
+  stream.getTracks().forEach((track) => {
+    track.stop();
+  });
+}
+
+function createCapturedImageFile(blob) {
+  const capturedAt = new Date().toISOString().replace(/[:.]/g, "-");
+
+  return new File([blob], `skinflow-webcam-${capturedAt}.jpg`, {
+    type: "image/jpeg",
+  });
+}
+
 const uploadGuideItems = [
   {
     title: "정면 얼굴",
@@ -130,8 +146,8 @@ const uploadGuideItems = [
 
 const flowSteps = [
   {
-    title: "사진 선택",
-    description: "스마트폰으로 촬영한 얼굴 이미지를 업로드합니다.",
+    title: "이미지 입력",
+    description: "스마트폰 사진을 업로드하거나 웹캠으로 얼굴 이미지를 촬영합니다.",
   },
   {
     title: "ROI 확인",
@@ -157,12 +173,18 @@ function getFileSizeLabel(file) {
 
 function AnalysisCapturePage() {
   const navigate = useNavigate();
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const webcamStreamRef = useRef(null);
 
   const [selectedMethod, setSelectedMethod] = useState("upload");
   const [selectedFile, setSelectedFile] = useState(null);
   const [selectedFileName, setSelectedFileName] = useState("");
   const [uploadError, setUploadError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isStartingWebcam, setIsStartingWebcam] = useState(false);
+  const [isWebcamActive, setIsWebcamActive] = useState(false);
+  const [webcamStatus, setWebcamStatus] = useState("웹캠 준비 전");
 
   const isLoggedIn = Boolean(localStorage.getItem("skinflow_token"));
 
@@ -179,17 +201,44 @@ function AnalysisCapturePage() {
     };
   }, [previewUrl]);
 
+  useEffect(() => {
+    return () => {
+      stopMediaStream(webcamStreamRef.current);
+    };
+  }, []);
+
   const selectedMethodLabel = selectedMethod === "webcam" ? "웹캠 촬영" : "이미지 업로드";
   const fileSizeLabel = getFileSizeLabel(selectedFile);
+
+  const resetSelectedImage = () => {
+    setSelectedFile(null);
+    setSelectedFileName("");
+  };
 
   const handleSelectWebcam = () => {
     setSelectedMethod("webcam");
     setUploadError("");
+
+    if (selectedMethod !== "webcam") {
+      resetSelectedImage();
+    }
   };
 
   const handleSelectUpload = () => {
     setSelectedMethod("upload");
     setUploadError("");
+    setIsWebcamActive(false);
+    setWebcamStatus("웹캠 준비 전");
+    stopMediaStream(webcamStreamRef.current);
+    webcamStreamRef.current = null;
+
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+
+    if (selectedMethod !== "upload") {
+      resetSelectedImage();
+    }
   };
 
   const handleFileChange = (event) => {
@@ -217,6 +266,118 @@ function AnalysisCapturePage() {
     setUploadError("");
   };
 
+  const handleStartWebcam = async () => {
+    if (isSubmitting || isStartingWebcam) return;
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setUploadError("현재 브라우저에서는 웹캠 촬영을 사용할 수 없습니다. 이미지 업로드를 사용해주세요.");
+      return;
+    }
+
+    try {
+      setSelectedMethod("webcam");
+      setIsStartingWebcam(true);
+      setUploadError("");
+      setWebcamStatus("웹캠 권한을 확인하고 있습니다.");
+      resetSelectedImage();
+      stopMediaStream(webcamStreamRef.current);
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: "user",
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        audio: false,
+      });
+
+      webcamStreamRef.current = stream;
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+
+      setIsWebcamActive(true);
+      setWebcamStatus("웹캠 준비 완료");
+    } catch (error) {
+      stopMediaStream(webcamStreamRef.current);
+      webcamStreamRef.current = null;
+      setIsWebcamActive(false);
+      setWebcamStatus("웹캠 연결 실패");
+
+      const isPermissionError =
+        error.name === "NotAllowedError" || error.name === "PermissionDeniedError";
+
+      setUploadError(
+        isPermissionError
+          ? "웹캠 권한이 차단되었습니다. 브라우저 권한을 허용하거나 이미지 업로드를 사용해주세요."
+          : "웹캠을 시작하지 못했습니다. 기기 연결 상태를 확인하거나 이미지 업로드를 사용해주세요.",
+      );
+    } finally {
+      setIsStartingWebcam(false);
+    }
+  };
+
+  const handleCaptureWebcam = async () => {
+    if (isSubmitting) return;
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+
+    if (!isWebcamActive || !video || !canvas) {
+      setUploadError("웹캠을 먼저 켠 뒤 얼굴 이미지를 촬영해주세요.");
+      return;
+    }
+
+    const width = video.videoWidth;
+    const height = video.videoHeight;
+
+    if (!width || !height) {
+      setUploadError("웹캠 화면을 아직 읽지 못했습니다. 잠시 후 다시 촬영해주세요.");
+      return;
+    }
+
+    canvas.width = width;
+    canvas.height = height;
+
+    const context = canvas.getContext("2d");
+    context.drawImage(video, 0, 0, width, height);
+
+    try {
+      const blob = await new Promise((resolve, reject) => {
+        canvas.toBlob(
+          (capturedBlob) => {
+            if (capturedBlob) {
+              resolve(capturedBlob);
+              return;
+            }
+
+            reject(new Error("촬영 이미지를 생성하지 못했습니다."));
+          },
+          "image/jpeg",
+          0.92,
+        );
+      });
+
+      const capturedFile = createCapturedImageFile(blob);
+
+      setSelectedFile(capturedFile);
+      setSelectedFileName(capturedFile.name);
+      setUploadError("");
+      setWebcamStatus("촬영 완료 · 분석 요청 가능");
+      setIsWebcamActive(false);
+      stopMediaStream(webcamStreamRef.current);
+      webcamStreamRef.current = null;
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+    } catch (error) {
+      setUploadError(error.message || "웹캠 촬영 이미지를 처리하지 못했습니다.");
+    }
+  };
+
   const handleStartAnalysis = async () => {
     if (isSubmitting) return;
 
@@ -225,28 +386,16 @@ function AnalysisCapturePage() {
       return;
     }
 
-    if (selectedMethod === "upload" && !selectedFile) {
-      setUploadError("이미지 파일을 먼저 선택해주세요.");
+    if (!selectedFile) {
+      setUploadError(
+        selectedMethod === "webcam"
+          ? "웹캠을 켜고 얼굴 이미지를 촬영해주세요."
+          : "이미지 파일을 먼저 선택해주세요.",
+      );
       return;
     }
 
-    if (selectedMethod === "webcam") {
-      saveAnalysisProgress({
-        status: "roi_pending",
-        label: "웹캠 입력 확인 대기",
-        description: "웹캠 촬영 방식은 보조 기능입니다. 현재는 입력 방식 확인 단계입니다.",
-        progress: 20,
-      });
-
-      navigate("/analysis/loading", {
-        state: {
-          analysisInput: {
-            method: "webcam",
-          },
-        },
-      });
-      return;
-    }
+    const analysisMethod = selectedMethod;
 
     try {
       setIsSubmitting(true);
@@ -285,7 +434,7 @@ function AnalysisCapturePage() {
       navigate("/analysis/loading", {
         state: {
           analysisInput: {
-            method: "upload",
+            method: analysisMethod,
             fileName: selectedFile.name,
             roiResult,
             analysisResult,
@@ -331,6 +480,39 @@ function AnalysisCapturePage() {
             grid-template-columns: minmax(0, 0.86fr) minmax(420px, 1.14fr);
             gap: 18px;
             align-items: stretch;
+          }
+
+          .sf-capture-hero.is-webcam-mode {
+            grid-template-columns: 1fr;
+          }
+
+          .sf-capture-hero.is-webcam-mode .sf-capture-intro {
+            min-height: auto;
+            padding: 24px 28px;
+          }
+
+          .sf-capture-hero.is-webcam-mode .sf-capture-intro-content {
+            gap: 16px;
+          }
+
+          .sf-capture-hero.is-webcam-mode .sf-capture-intro h1 {
+            margin: 8px 0 6px;
+            font-size: clamp(30px, 3vw, 42px);
+            line-height: 1.06;
+          }
+
+          .sf-capture-hero.is-webcam-mode .sf-capture-intro p {
+            max-width: 760px;
+          }
+
+          .sf-capture-hero.is-webcam-mode .sf-capture-note {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            margin-top: 4px;
+          }
+
+          .sf-capture-hero.is-webcam-mode .sf-capture-upload-card {
+            width: min(100%, 980px);
+            justify-self: center;
           }
 
           .sf-capture-intro,
@@ -616,6 +798,99 @@ function AnalysisCapturePage() {
             height: 220px;
             object-fit: cover;
             display: block;
+          }
+
+          .sf-webcam-zone {
+            cursor: default;
+          }
+
+          .sf-webcam-zone:hover {
+            transform: none;
+          }
+
+          .sf-webcam-panel {
+            position: relative;
+            width: 100%;
+            min-height: 220px;
+            overflow: hidden;
+            border-radius: 28px;
+            background: #0f172a;
+          }
+
+          .sf-capture-hero.is-webcam-mode .sf-webcam-panel,
+          .sf-capture-hero.is-webcam-mode .sf-webcam-panel video,
+          .sf-capture-hero.is-webcam-mode .sf-upload-preview,
+          .sf-capture-hero.is-webcam-mode .sf-upload-preview img {
+            min-height: clamp(320px, 45vw, 460px);
+            height: clamp(320px, 45vw, 460px);
+          }
+
+          .sf-webcam-panel video {
+            width: 100%;
+            height: 220px;
+            object-fit: cover;
+            display: block;
+            opacity: 0;
+            transform: scaleX(-1);
+            transition: opacity 0.18s ease;
+          }
+
+          .sf-webcam-panel video.is-active {
+            opacity: 1;
+          }
+
+          .sf-webcam-placeholder {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            padding: 22px;
+            text-align: center;
+            background:
+              radial-gradient(circle at 80% 10%, rgba(34, 197, 200, 0.16), transparent 34%),
+              linear-gradient(135deg, #0f172a 0%, #143d45 100%);
+          }
+
+          .sf-webcam-placeholder-content {
+            display: grid;
+            justify-items: center;
+            gap: 10px;
+            color: #ffffff;
+          }
+
+          .sf-webcam-placeholder-content h3 {
+            margin: 0;
+            color: #ffffff;
+            font-size: 20px;
+            letter-spacing: -0.04em;
+          }
+
+          .sf-webcam-placeholder-content p {
+            max-width: 360px;
+            margin: 0;
+            color: rgba(255, 255, 255, 0.72);
+            font-size: 13px;
+            line-height: 1.6;
+            word-break: keep-all;
+          }
+
+          .sf-capture-hero.is-webcam-mode .sf-webcam-placeholder-content p {
+            max-width: 520px;
+          }
+
+          .sf-webcam-canvas {
+            display: none;
+          }
+
+          .sf-webcam-actions {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 12px;
+          }
+
+          .sf-webcam-actions .sf-button {
+            min-height: 48px;
           }
 
           .sf-preview-overlay {
@@ -924,6 +1199,15 @@ function AnalysisCapturePage() {
               padding: 20px;
             }
 
+            .sf-capture-hero.is-webcam-mode .sf-capture-intro,
+            .sf-capture-hero.is-webcam-mode .sf-capture-upload-card {
+              padding: 20px;
+            }
+
+            .sf-capture-hero.is-webcam-mode .sf-capture-note {
+              grid-template-columns: 1fr;
+            }
+
             .sf-capture-intro h1 {
               font-size: 34px;
             }
@@ -936,12 +1220,23 @@ function AnalysisCapturePage() {
 
             .sf-upload-zone,
             .sf-upload-preview,
-            .sf-upload-preview img {
+            .sf-upload-preview img,
+            .sf-webcam-panel,
+            .sf-webcam-panel video {
               min-height: 210px;
               height: 210px;
             }
 
-            .sf-upload-actions {
+            .sf-capture-hero.is-webcam-mode .sf-webcam-panel,
+            .sf-capture-hero.is-webcam-mode .sf-webcam-panel video,
+            .sf-capture-hero.is-webcam-mode .sf-upload-preview,
+            .sf-capture-hero.is-webcam-mode .sf-upload-preview img {
+              min-height: 260px;
+              height: 260px;
+            }
+
+            .sf-upload-actions,
+            .sf-webcam-actions {
               grid-template-columns: 1fr;
             }
 
@@ -954,20 +1249,20 @@ function AnalysisCapturePage() {
       </style>
 
       <div className="sf-capture-page">
-        <section className="sf-capture-hero">
+        <section className={`sf-capture-hero ${selectedMethod === "webcam" ? "is-webcam-mode" : ""}`}>
           <Card className="sf-capture-intro">
             <div className="sf-capture-intro-content">
               <Badge>피부 분석 준비</Badge>
 
               <h1>
-                스마트폰 사진으로
+                사진 업로드와 웹캠으로
                 <br />
                 <span className="sf-gradient-text">피부 분석을 시작하세요</span>
               </h1>
 
               <p>
-                웹캠보다 안정적인 스마트폰 촬영 이미지를 중심으로 분석 흐름을
-                진행합니다. 업로드 후 ROI 확인 단계를 거쳐 색소침착과 주름 중심의
+                스마트폰 이미지 업로드를 기본으로 제공하고, 웹캠 촬영 이미지를 같은
+                분석 요청 흐름에 연결합니다. ROI 확인 단계를 거쳐 색소침착과 주름 중심의
                 결과 화면으로 이어집니다.
               </p>
 
@@ -1029,37 +1324,96 @@ function AnalysisCapturePage() {
               </span>
             </div>
 
-            <label className="sf-upload-zone">
-              {previewUrl ? (
-                <div className="sf-upload-preview">
-                  <img src={previewUrl} alt="업로드한 얼굴 이미지 미리보기" />
-                  <div className="sf-preview-overlay">
-                    <div>
-                      <strong>{selectedFileName}</strong>
-                      <span>{fileSizeLabel || "이미지 선택 완료"}</span>
+            {selectedMethod === "webcam" ? (
+              <div className="sf-upload-zone sf-webcam-zone">
+                {previewUrl ? (
+                  <div className="sf-upload-preview">
+                    <img src={previewUrl} alt="웹캠으로 촬영한 얼굴 이미지 미리보기" />
+                    <div className="sf-preview-overlay">
+                      <div>
+                        <strong>{selectedFileName}</strong>
+                        <span>{fileSizeLabel || "웹캠 촬영 완료"}</span>
+                      </div>
+                      <Badge>촬영 완료</Badge>
                     </div>
-                    <Badge>선택 완료</Badge>
                   </div>
-                </div>
-              ) : (
-                <div className="sf-upload-empty">
-                  <span className="sf-upload-icon-large">
-                    <ImagePlus size={30} />
-                  </span>
-                  <div>
-                    <h3>얼굴 이미지 업로드</h3>
-                    <p>JPG 또는 PNG 파일을 선택하면 ROI 분석 요청을 진행할 수 있습니다.</p>
+                ) : (
+                  <div className="sf-webcam-panel">
+                    <video
+                      ref={videoRef}
+                      className={isWebcamActive ? "is-active" : ""}
+                      autoPlay
+                      playsInline
+                      muted
+                    />
+                    {!isWebcamActive && (
+                      <div className="sf-webcam-placeholder">
+                        <div className="sf-webcam-placeholder-content">
+                          <span className="sf-upload-icon-large">
+                            <Camera size={30} />
+                          </span>
+                          <div>
+                            <h3>{webcamStatus}</h3>
+                            <p>웹캠을 켠 뒤 얼굴이 중앙에 오도록 맞추고 촬영 버튼을 눌러주세요.</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                )}
+                <canvas ref={canvasRef} className="sf-webcam-canvas" />
+              </div>
+            ) : (
+              <label className="sf-upload-zone">
+                {previewUrl ? (
+                  <div className="sf-upload-preview">
+                    <img src={previewUrl} alt="업로드한 얼굴 이미지 미리보기" />
+                    <div className="sf-preview-overlay">
+                      <div>
+                        <strong>{selectedFileName}</strong>
+                        <span>{fileSizeLabel || "이미지 선택 완료"}</span>
+                      </div>
+                      <Badge>선택 완료</Badge>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="sf-upload-empty">
+                    <span className="sf-upload-icon-large">
+                      <ImagePlus size={30} />
+                    </span>
+                    <div>
+                      <h3>얼굴 이미지 업로드</h3>
+                      <p>JPG 또는 PNG 파일을 선택하면 ROI 분석 요청을 진행할 수 있습니다.</p>
+                    </div>
+                  </div>
+                )}
 
-              <input
-                type="file"
-                accept="image/png, image/jpeg"
-                onChange={handleFileChange}
-                disabled={isSubmitting}
-              />
-            </label>
+                <input
+                  type="file"
+                  accept="image/png, image/jpeg"
+                  onChange={handleFileChange}
+                  disabled={isSubmitting}
+                />
+              </label>
+            )}
+
+            {selectedMethod === "webcam" && (
+              <div className="sf-webcam-actions">
+                <Button
+                  variant="secondary"
+                  onClick={handleStartWebcam}
+                  disabled={isSubmitting || isStartingWebcam}
+                >
+                  {isStartingWebcam ? "웹캠 연결 중" : selectedFile ? "다시 촬영 준비" : "웹캠 켜기"}
+                </Button>
+                <Button
+                  onClick={handleCaptureWebcam}
+                  disabled={isSubmitting || isStartingWebcam || !isWebcamActive}
+                >
+                  얼굴 이미지 촬영
+                </Button>
+              </div>
+            )}
 
             <div className="sf-upload-meta">
               <div className="sf-meta-card">
@@ -1072,7 +1426,15 @@ function AnalysisCapturePage() {
               </div>
               <div className="sf-meta-card">
                 <span>진행 상태</span>
-                <strong>{selectedFile ? "업로드 준비" : "대기 중"}</strong>
+                <strong>
+                  {selectedFile
+                    ? selectedMethod === "webcam"
+                      ? "촬영 완료"
+                      : "업로드 준비"
+                    : selectedMethod === "webcam"
+                      ? webcamStatus
+                      : "대기 중"}
+                </strong>
               </div>
             </div>
 
