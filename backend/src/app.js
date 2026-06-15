@@ -5,6 +5,7 @@ const authRoutes = require('./routes/authRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const historyRoutes = require('./routes/historyRoutes');
 const mypageRoutes = require('./routes/mypageRoutes');
+const recommendationRoutes = require('./routes/recommendationRoutes');
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.use('/api/analysis', analysisRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/history', historyRoutes);
 app.use('/api/mypage', mypageRoutes);
+app.use('/api/recommendations', recommendationRoutes);
 
 // 각 라우트에서 next(error)로 넘긴 에러를 마지막에 JSON 응답으로 변환합니다.
 app.use((error, req, res, next) => {
