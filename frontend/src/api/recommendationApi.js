@@ -17,6 +17,27 @@ function normalizeIngredient(item) {
   };
 }
 
+function normalizeSummary(response, defaultSource) {
+  const summary = response?.summary ?? {};
+  const source =
+    response?.source ??
+    summary?.source ??
+    response?.ingredientSource ??
+    response?.productSource ??
+    defaultSource;
+
+  return {
+    ...summary,
+    source,
+    message: response?.message ?? summary?.message ?? "",
+    ingredientSource: response?.ingredientSource ?? summary?.ingredientSource ?? null,
+    productSource: response?.productSource ?? summary?.productSource ?? null,
+    isFallback: response?.isFallback ?? summary?.isFallback ?? false,
+    fallback: response?.fallback ?? summary?.fallback ?? false,
+    fromDefault: response?.fromDefault ?? summary?.fromDefault ?? false,
+  };
+}
+
 function normalizeProduct(item) {
   const card = item?.card ?? {};
 
@@ -39,8 +60,8 @@ async function getIngredientRecommendations() {
   const response = await http.get("/api/recommendations/ingredients");
 
   return {
-    source: response?.source ?? "unknown",
-    summary: response?.summary ?? null,
+    source: response?.source ?? response?.summary?.source ?? "unknown",
+    summary: normalizeSummary(response, "unknown"),
     ingredients: toArray(response?.ingredients).map(normalizeIngredient),
   };
 }
@@ -49,8 +70,8 @@ async function getProductRecommendations() {
   const response = await http.get("/api/recommendations/products");
 
   return {
-    source: response?.source ?? "unknown",
-    summary: response?.summary ?? null,
+    source: response?.source ?? response?.summary?.source ?? "unknown",
+    summary: normalizeSummary(response, "unknown"),
     products: toArray(response?.products).map(normalizeProduct),
   };
 }
