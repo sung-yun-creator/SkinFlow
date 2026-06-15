@@ -5,6 +5,7 @@ const authRoutes = require('./routes/authRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const historyRoutes = require('./routes/historyRoutes');
 const mypageRoutes = require('./routes/mypageRoutes');
+const chatRoutes = require('./routes/chatRoutes');
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.use('/api/analysis', analysisRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/history', historyRoutes);
 app.use('/api/mypage', mypageRoutes);
+app.use('/api/chat', chatRoutes);
 
 // 각 라우터에서 next(error)로 넘긴 에러를 마지막에 한 곳에서 응답으로 바꿉니다.
 app.use((error, req, res, next) => {
