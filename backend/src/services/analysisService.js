@@ -157,9 +157,9 @@ function normalizeMetric(code, label, source) {
     }
 
     const value = Number(firstDefined(
-        metricSource.value,
         metricSource.metric_value,
         metricSource.metricValue,
+        metricSource.value,
         score,
     ));
     const metricGrade = findGradeByScore(score);
@@ -227,6 +227,7 @@ function normalizeAnalysisResult(aiResult) {
     const totalScore = toScore(firstDefined(
         predictionResult.totalScore,
         predictionResult.total_score,
+        predictionResult.skin_score,
         predictionResult.score,
         metrics.reduce((sum, metric) => sum + metric.score, 0) / metrics.length,
     ));

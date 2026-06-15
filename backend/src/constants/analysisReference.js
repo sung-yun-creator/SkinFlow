@@ -3,13 +3,13 @@ const ANALYSIS_GRADES = [
         code: 'good',
         name: '양호',
         description: '피부 지표가 안정적인 상태입니다.',
-        minScore: 75,
+        minScore: 80,
     },
     {
         code: 'caution',
         name: '주의',
         description: '일부 지표에 관리가 필요한 상태입니다.',
-        minScore: 45,
+        minScore: 60,
     },
     {
         code: 'risk',
