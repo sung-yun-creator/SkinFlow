@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Droplets,
   FlaskConical,
@@ -57,6 +58,106 @@ const productRecommendations = [
 ];
 
 function RecommendationPage() {
+  const [message, setMessage] = useState("");
+  const [chatMessages, setChatMessages] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+
+  const analysisResult = {
+    skinType: "건성",
+    pigmentation: 90,
+    pore: 20,
+    wrinkle: 10,
+  };
+  const allowedKeywords = [
+  "피부",
+  "스킨케어",
+  "화장품",
+  "성분",
+  "색소침착",
+  "모공",
+  "주름",
+  "건성",
+  "지성",
+  "여드름",
+  "보습",
+  "운동",
+  "선크림",
+  "자외선",
+];
+
+const isSkinRelatedQuestion = (text) => {
+  const normalizedText = text.replace(/\s/g, "").toLowerCase();
+
+  return allowedKeywords.some((keyword) =>
+    normalizedText.includes(keyword.toLowerCase())
+  );
+};
+
+  const handleSendChat = async (question = message) => {
+  const trimmedQuestion = question.trim();
+
+  if (!trimmedQuestion) return;
+
+  if (!isSkinRelatedQuestion(trimmedQuestion)) {
+    setMessage("");
+    return;
+  }
+
+  setIsChatOpen(true);
+
+  setChatMessages((prev) => [
+    ...prev,
+    {
+      role: "user",
+      text: trimmedQuestion,
+    },
+  ]);
+     
+
+    setMessage("");
+    setIsLoading(true);
+
+    try {
+      const res = await fetch("http://localhost:3000/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: trimmedQuestion,
+          analysisResult,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "챗봇 요청 실패");
+      }
+
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: "bot",
+          text: data.answer,
+        },
+      ]);
+    } catch (error) {
+      console.error(error);
+
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: "bot",
+          text: "챗봇 답변을 불러오지 못했습니다.",
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <PageLayout>
       <style>{`
@@ -142,8 +243,7 @@ function RecommendationPage() {
         }
 
         .sf-recommend-summary-top h2,
-        .sf-recommend-panel-head h2,
-        .sf-recommend-guide-card h2 {
+        .sf-recommend-panel-head h2 {
           margin: 5px 0 0;
           color: #0f172a;
           font-size: 21px;
@@ -382,6 +482,150 @@ function RecommendationPage() {
           font-weight: 900;
         }
 
+        .sf-floating-chat-button {
+          position: fixed;
+          right: 28px;
+          bottom: 28px;
+          z-index: 1000;
+          width: 64px;
+          height: 64px;
+          border: none;
+          border-radius: 50%;
+          background: #167d7f;
+          color: white;
+          font-size: 28px;
+          cursor: pointer;
+          box-shadow: 0 16px 36px rgba(15, 23, 42, 0.22);
+        }
+
+        .sf-chat-modal {
+          position: fixed;
+          right: 28px;
+          bottom: 104px;
+          z-index: 1001;
+          width: 390px;
+          max-width: calc(100vw - 32px);
+          height: 620px;
+          max-height: calc(100vh - 140px);
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+          border-radius: 28px;
+          background: #ffffff;
+          box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+        }
+
+        .sf-chat-header {
+          display: flex;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 22px;
+          color: white;
+          background: linear-gradient(135deg, #167d7f, #22c5c8);
+        }
+
+        .sf-chat-header strong {
+          font-size: 18px;
+        }
+
+        .sf-chat-header p {
+          margin: 6px 0 0;
+          font-size: 13px;
+          opacity: 0.9;
+        }
+
+        .sf-chat-header button {
+          width: 34px;
+          height: 34px;
+          border: none;
+          border-radius: 50%;
+          background: rgba(255, 255, 255, 0.22);
+          color: white;
+          font-size: 24px;
+          cursor: pointer;
+        }
+
+     .sf-chat-quick {
+     display: flex;
+     flex-wrap: wrap;
+     gap: 8px;
+     padding: 14px;
+     border-bottom: 1px solid #e2e8f0;
+     background: #ffffff;
+}
+
+        .sf-chat-quick button {
+          flex: 0 0 auto;
+          padding: 8px 11px;
+          border: 1px solid #dbeafe;
+          border-radius: 999px;
+          background: #f8fafc;
+          color: #0f172a;
+          font-size: 12px;
+          font-weight: 700;
+          cursor: pointer;
+        }
+
+        .sf-chat-body {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          overflow-y: auto;
+          padding: 18px;
+          background: #f8fafc;
+        }
+
+        .sf-chat-message {
+          max-width: 78%;
+          padding: 12px 14px;
+          border-radius: 18px;
+          font-size: 14px;
+          line-height: 1.55;
+          word-break: keep-all;
+        }
+
+        .sf-chat-message.user {
+          align-self: flex-end;
+          color: #ffffff;
+          background: #167d7f;
+          border-bottom-right-radius: 6px;
+        }
+
+        .sf-chat-message.bot {
+          align-self: flex-start;
+          color: #0f172a;
+          background: #ffffff;
+          border-bottom-left-radius: 6px;
+          box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
+        }
+
+        .sf-chat-input-row {
+          display: flex;
+          gap: 8px;
+          padding: 14px;
+          border-top: 1px solid #e2e8f0;
+          background: #ffffff;
+        }
+
+        .sf-chat-input-row input {
+          flex: 1;
+          padding: 12px 13px;
+          border: 1px solid #cbd5e1;
+          border-radius: 14px;
+          outline: none;
+        }
+
+        .sf-chat-input-row button {
+          padding: 0 16px;
+          border: none;
+          border-radius: 14px;
+          background: #167d7f;
+          color: white;
+          font-weight: 800;
+          cursor: pointer;
+        }
+
         @media (max-width: 1020px) {
           .sf-recommend-hero,
           .sf-recommend-content-grid {
@@ -429,6 +673,19 @@ function RecommendationPage() {
             min-height: 48px;
           }
 
+          .sf-floating-chat-button {
+            right: 18px;
+            bottom: 18px;
+            width: 58px;
+            height: 58px;
+          }
+
+          .sf-chat-modal {
+            right: 16px;
+            bottom: 88px;
+            width: calc(100vw - 32px);
+            height: 560px;
+          }
         }
       `}</style>
 
@@ -568,6 +825,87 @@ function RecommendationPage() {
             </div>
           </Card>
         </section>
+
+        <button
+          type="button"
+          className="sf-floating-chat-button"
+          onClick={() => setIsChatOpen(true)}
+        >
+          💬
+        </button>
+
+        {isChatOpen && (
+          <div className="sf-chat-modal">
+            <div className="sf-chat-header">
+              <div>
+                <strong>SkinFlow 피부 상담 챗봇</strong>
+                <p>피부 고민을 선택하거나 입력해 주세요.</p>
+              </div>
+
+              <button type="button" onClick={() => setIsChatOpen(false)}>
+                ×
+              </button>
+            </div>
+
+            <div className="sf-chat-quick">
+              {[
+                 "운동 후 스킨케어 루틴 알려줘",
+                 "건성 피부 관리법 알려줘",
+                 "지성 피부 관리법 알려줘",
+                 "민감성 피부 관리법 알려줘",
+                 "색소침착 관리 방법 알려줘",
+                 "모공 관리법 알려줘",
+                 "주름 관리법 알려줘",
+                 "선크림 사용법 알려줘",
+                 "여드름 관리법 알려줘",
+              ].map((question) => (
+                <button
+                  key={question}
+                  type="button"
+                  onClick={() => handleSendChat(question)}
+                >
+                  {question}
+                </button>
+              ))}
+            </div>
+
+            <div className="sf-chat-body">
+              {chatMessages.length === 0 && (
+                <div className="sf-chat-message bot">
+                  안녕하세요. SkinFlow 피부 상담 챗봇입니다. 궁금한 피부 고민을 입력해 주세요.
+                </div>
+              )}
+
+              {chatMessages.map((item, index) => (
+                <div key={index} className={`sf-chat-message ${item.role}`}>
+                  {item.text}
+                </div>
+              ))}
+
+              {isLoading && (
+                <div className="sf-chat-message bot">답변 생성 중...</div>
+              )}
+            </div>
+
+            <div className="sf-chat-input-row">
+              <input
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="피부 고민을 입력하세요"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleSendChat();
+                  }
+                }}
+              />
+
+              <button type="button" onClick={() => handleSendChat()}>
+                전송
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </PageLayout>
   );
