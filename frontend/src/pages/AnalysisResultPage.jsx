@@ -44,8 +44,34 @@ function toScore(value) {
   return Math.max(0, Math.min(100, Math.round(score)));
 }
 
+function isCompletedAnalysisResult(analysisResult) {
+  const status =
+    analysisResult?.analysisStatus ??
+    analysisResult?.analysis_status ??
+    analysisResult?.latestStatus ??
+    analysisResult?.latest_status ??
+    analysisResult?.status;
+  const code = analysisResult?.code;
+  const normalizedStatus = String(status || "").toLowerCase();
+  const normalizedCode = String(code || "").toLowerCase();
+
+  if (["ai_model_pending", "pending", "processing"].includes(normalizedStatus)) {
+    return false;
+  }
+
+  if (["ai_model_pending", "pending", "processing"].includes(normalizedCode)) {
+    return false;
+  }
+
+  if (status !== null && status !== undefined && String(status).trim() !== "") {
+    return normalizedStatus === "completed";
+  }
+
+  return true;
+}
+
 function buildMetricCards(analysisResult) {
-  if (!analysisResult?.saved) {
+  if (!analysisResult?.saved || !isCompletedAnalysisResult(analysisResult)) {
     return [];
   }
 
@@ -150,7 +176,13 @@ function AnalysisResultPage() {
   const analysisResult = latestAnalysis?.result || null;
   const hasSavedResult = Boolean(analysisResult?.saved);
   const normalizedResultStatus = String(
-    analysisResult?.code || analysisResult?.status || ""
+    analysisResult?.code ||
+      analysisResult?.analysisStatus ||
+      analysisResult?.analysis_status ||
+      analysisResult?.latestStatus ||
+      analysisResult?.latest_status ||
+      analysisResult?.status ||
+      ""
   ).toLowerCase();
   const isPending =
     normalizedResultStatus === "ai_model_pending" ||

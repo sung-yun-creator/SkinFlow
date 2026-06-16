@@ -246,6 +246,7 @@ function HistoryPage() {
     : null;
   const hasLatestScore = latestScore !== null;
   const hasRecords = records.length > 0;
+  const canShowScoreDiff = hasLatestScore && summary.scoreDiff !== null && summary.scoreDiff !== undefined && summary.scoreDiff !== "";
 
   const filteredRecords = useMemo(() => {
     const keyword = searchText.trim().toLowerCase();
@@ -935,14 +936,14 @@ function HistoryPage() {
               </div>
               <div className="sf-summary-item">
                 <span>점수 변화</span>
-                <strong>{formatDiff(summary.scoreDiff)}</strong>
+                <strong>{canShowScoreDiff ? formatDiff(summary.scoreDiff) : "비교 전"}</strong>
               </div>
             </div>
 
             <p className="sf-notice-line">
               <LineChart size={16} />
               <span>
-                {summary.scoreDiff === null || summary.scoreDiff === undefined
+                {!canShowScoreDiff
                   ? "아직 비교할 분석 이력이 없습니다."
                   : `최근 분석 기준 점수 변화는 ${formatDiff(summary.scoreDiff)}입니다.`}
               </span>
@@ -1036,7 +1037,9 @@ function HistoryPage() {
                         <small>{formatDate(getRecordDate(record))}</small>
                         <strong>{record.summary || "피부 분석 기록"}</strong>
                         <p>
-                          색소침착 {getMetricScore(record.metrics, "색소")} · 주름 {getMetricScore(record.metrics, "주름")}
+                          {canShowRecordScore
+                            ? `색소침착 ${getMetricScore(record.metrics, "색소")} · 주름 ${getMetricScore(record.metrics, "주름")}`
+                            : "분석 완료 후 세부 점수가 표시됩니다."}
                         </p>
                       </div>
 

@@ -18,15 +18,21 @@ function normalizeMatch(value) {
 }
 
 function normalizeIngredient(item) {
+  const name = normalizeText(item?.name);
+
+  if (!name) {
+    return null;
+  }
+
   return {
-    id: item?.id ?? item?.name,
-    name: item?.name ?? "성분 정보 없음",
-    description: item?.description ?? "추천 성분 설명을 불러오지 못했습니다.",
+    id: item?.id ?? name,
+    name,
+    description: normalizeText(item?.description),
     match: normalizeMatch(item?.match),
-    reason: item?.reason ?? "최근 분석 결과를 기준으로 추천된 성분입니다.",
+    reason: normalizeText(item?.reason),
     priority: item?.priority ?? null,
-    metricName: item?.metricName ?? "피부 지표",
-    tags: toArray(item?.tags),
+    metricName: normalizeText(item?.metricName),
+    tags: toArray(item?.tags).map(normalizeText).filter(Boolean),
   };
 }
 
@@ -53,14 +59,20 @@ function normalizeSummary(response, defaultSource) {
 
 function normalizeProduct(item) {
   const card = item?.card ?? {};
+  const brand = normalizeText(card?.brandName) || normalizeText(item?.brandName);
+  const name = normalizeText(card?.name) || normalizeText(item?.productName);
+
+  if (!brand || !name) {
+    return null;
+  }
 
   return {
-    id: item?.id ?? card?.name ?? item?.productName,
-    brand: card?.brandName ?? item?.brandName ?? "브랜드 정보 없음",
-    name: card?.name ?? item?.productName ?? "제품 정보 없음",
-    description: card?.description ?? item?.description ?? "제품 추천 설명을 불러오지 못했습니다.",
+    id: item?.id ?? name,
+    brand,
+    name,
+    description: normalizeText(card?.description) || normalizeText(item?.description),
     match: normalizeMatch(card?.match ?? item?.match),
-    tags: toArray(card?.tags ?? item?.tags),
+    tags: toArray(card?.tags ?? item?.tags).map(normalizeText).filter(Boolean),
     productUrl: card?.productUrl ?? item?.productUrl ?? "",
     imageUrl: card?.imageUrl ?? item?.imageUrl ?? "",
     matchedIngredients: toArray(item?.matchedIngredients),
@@ -121,7 +133,7 @@ async function getIngredientRecommendations() {
   return {
     source: response?.source ?? response?.summary?.source ?? "unknown",
     summary: normalizeSummary(response, "unknown"),
-    ingredients: toArray(response?.ingredients).map(normalizeIngredient),
+    ingredients: toArray(response?.ingredients).map(normalizeIngredient).filter(Boolean),
   };
 }
 
@@ -131,7 +143,7 @@ async function getProductRecommendations() {
   return {
     source: response?.source ?? response?.summary?.source ?? "unknown",
     summary: normalizeSummary(response, "unknown"),
-    products: toArray(response?.products).map(normalizeProduct),
+    products: toArray(response?.products).map(normalizeProduct).filter(Boolean),
   };
 }
 
