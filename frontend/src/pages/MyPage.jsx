@@ -11,7 +11,6 @@ import {
   Droplets,
   History,
   Image,
-  LockKeyhole,
   Mail,
   ShieldCheck,
   Sparkles,

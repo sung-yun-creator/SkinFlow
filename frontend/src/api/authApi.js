@@ -52,7 +52,7 @@ function safelySanitizeJsonStorage(storage, key) {
     const safeValue = removeSensitiveFields(parsedValue);
 
     storage.setItem(key, JSON.stringify(safeValue));
-  } catch (error) {
+  } catch {
     storage.removeItem(key);
   }
 }

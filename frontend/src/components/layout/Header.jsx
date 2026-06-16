@@ -113,7 +113,7 @@ function getStoredAnalysisProgress() {
     }
 
     return normalizedProgress;
-  } catch (error) {
+  } catch {
     localStorage.removeItem(ANALYSIS_PROGRESS_KEY);
     return null;
   }
