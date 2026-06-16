@@ -3,6 +3,11 @@ const {
     INGREDIENT_REFERENCES,
     METRIC_INGREDIENT_META,
 } = require('../constants/ingredientReference');
+const {
+    DIET_CHECK_REFERENCES,
+    DIET_GUIDE_REFERENCES,
+    DIET_ROUTINE_REFERENCES,
+} = require('../constants/dietGuideReference');
 const { toNumber } = require('../utils/number');
 
 function scoreToMatch(score, index) {
@@ -233,6 +238,35 @@ function buildProductRecommendations(productRows, ingredientRecommendations) {
         }));
 }
 
+function toDietGuide(guide, index) {
+    const title = guide.guide_title || guide.title;
+    const reference = DIET_GUIDE_REFERENCES.find((item) => item.title === title);
+    const priority = guide.priority || reference?.priority || `${index + 1}순위`;
+
+    return {
+        id: guide.diet_guide_id || null,
+        recommendationId: guide.analysis_recommendation_id || null,
+        ingredientId: guide.ingredient_id || null,
+        ingredientName: guide.ingredient_name || null,
+        category: guide.diet_category || guide.category,
+        title,
+        content: guide.guide_content || guide.content,
+        reason: guide.recommend_reason || guide.reason,
+        priority,
+        createdAt: guide.created_at || null,
+        card: {
+            title,
+            description: guide.guide_content || guide.content,
+            tag: guide.diet_category || guide.category,
+            priority,
+        },
+    };
+}
+
+function buildFallbackDietGuides() {
+    return DIET_GUIDE_REFERENCES.map(toDietGuide);
+}
+
 async function getIngredientRecommendations(userId) {
     const [latestAnalysis, ingredients] = await Promise.all([
         recommendationRepository.findLatestAnalysisWithMetricsByUserId(userId),
@@ -253,6 +287,52 @@ async function getIngredientRecommendations(userId) {
             ingredientSource: ingredients.length > 0 ? 'database' : 'fallback',
         },
         ingredients: recommendations,
+    };
+}
+
+async function getDietGuideRecommendations(userId) {
+    const latestAnalysis = await recommendationRepository.findLatestAnalysisWithMetricsByUserId(userId);
+    const latestAnalysisId = latestAnalysis?.analysis.skin_analysis_id || null;
+
+    if (!latestAnalysisId) {
+        return {
+            source: 'default',
+            summary: {
+                analysisId: null,
+                analyzedAt: null,
+                totalScore: null,
+                guideSource: 'fallback',
+                guideCount: DIET_GUIDE_REFERENCES.length,
+                message: '분석 이력이 없어 기본 식습관 가이드를 제공합니다.',
+            },
+            guides: buildFallbackDietGuides(),
+            routines: DIET_ROUTINE_REFERENCES,
+            checks: DIET_CHECK_REFERENCES,
+        };
+    }
+
+    let dietGuides = await recommendationRepository.findDietGuidesByAnalysisId(latestAnalysisId);
+
+    if (dietGuides.length === 0) {
+        dietGuides = await recommendationRepository.createDietGuidesForAnalysis(
+            latestAnalysisId,
+            DIET_GUIDE_REFERENCES,
+        );
+    }
+
+    return {
+        source: 'latest_analysis',
+        summary: {
+            analysisId: latestAnalysisId,
+            analyzedAt: latestAnalysis.analysis.analyzed_at || latestAnalysis.analysis.created_at || null,
+            totalScore: toNumber(latestAnalysis.analysis.total_skin_score),
+            guideSource: 'database',
+            guideCount: dietGuides.length,
+            message: null,
+        },
+        guides: dietGuides.map(toDietGuide),
+        routines: DIET_ROUTINE_REFERENCES,
+        checks: DIET_CHECK_REFERENCES,
     };
 }
 
@@ -279,6 +359,7 @@ async function getProductRecommendations(userId) {
 }
 
 module.exports = {
+    getDietGuideRecommendations,
     getIngredientRecommendations,
     getProductRecommendations,
 };
