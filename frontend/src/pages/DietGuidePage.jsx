@@ -13,6 +13,7 @@ import { getDietGuideRecommendations } from "../api/recommendationApi";
 
 const sourceLabelMap = {
   latest_analysis: "최근 분석 결과 기반 가이드",
+  analysis_unsaved: "분석 저장 전 참고 가이드",
   default: "기본 참고 가이드",
   fallback: "기본 참고 가이드",
 };
@@ -31,16 +32,28 @@ function getSourceLabel(source) {
 function getGuideSourceState(source, summary) {
   const primarySource = normalizeSourceValue(source);
   const guideSource = normalizeSourceValue(summary?.guideSource ?? summary?.guide_source);
+  const isSavedFalse = summary?.saved === false;
   const referenceSources = ["default", "fallback", "reference", "static", "seed", "unknown", ""];
-  const isLatestAnalysis = primarySource === "latest_analysis";
-  const isReference = !isLatestAnalysis && (referenceSources.includes(primarySource) || referenceSources.includes(guideSource));
-  const labelSource = isLatestAnalysis ? "latest_analysis" : isReference ? "default" : guideSource || primarySource;
+  const isLatestAnalysis = primarySource === "latest_analysis" && !isSavedFalse;
+  const isUnsavedAnalysis = primarySource === "latest_analysis" && isSavedFalse;
+  const isReference =
+    isUnsavedAnalysis ||
+    (!isLatestAnalysis && (referenceSources.includes(primarySource) || referenceSources.includes(guideSource)));
+  const labelSource = isLatestAnalysis
+    ? "latest_analysis"
+    : isUnsavedAnalysis
+      ? "analysis_unsaved"
+      : isReference
+        ? "default"
+        : guideSource || primarySource;
 
   return {
     label: getSourceLabel(labelSource),
     isReference,
     notice: isLatestAnalysis
       ? "최근 분석 결과와 연결된 식습관 참고 가이드입니다. 피부 관리 방향을 확인하는 용도로 활용해 주세요."
+      : isUnsavedAnalysis
+        ? "분석 결과가 저장되기 전 상태이므로 개인 맞춤 가이드로 확정하지 않고 참고 정보로 표시합니다."
       : isReference
         ? "현재 가이드는 개인 맞춤 결과가 아닌 기본 참고 가이드입니다. 최신 분석 완료 후 관리 방향과 함께 확인해 주세요."
         : "식습관 가이드는 피부 상태를 이해하기 위한 참고 정보이며, 의료적 판단이 아닌 관리 방향 확인용으로 제공됩니다.",

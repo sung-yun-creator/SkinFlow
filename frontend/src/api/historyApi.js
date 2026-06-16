@@ -46,3 +46,7 @@ export async function getHistoryDetail(analysisId) {
       : [],
   };
 }
+
+export async function getHistoryLlmReport(analysisId) {
+  return http.get(`/api/history/${analysisId}/llm-report`);
+}
