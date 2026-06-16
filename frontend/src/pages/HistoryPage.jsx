@@ -15,6 +15,7 @@ import Button from "../components/common/Button";
 import Card from "../components/common/Card";
 import Badge from "../components/common/Badge";
 import { getHistory, getHistoryDetail } from "../api/historyApi";
+import { shouldShowAnalysisScore } from "../utils/analysisStatus";
 
 const defaultHistoryData = {
   summary: {
@@ -113,12 +114,6 @@ function getStatusLabel(status) {
   };
 
   return statusMap[normalizedStatus] || status;
-}
-
-function isCompletedStatus(status) {
-  const normalizedStatus = String(status || "").toLowerCase();
-
-  return normalizedStatus === "completed" || status === "분석 완료";
 }
 
 function getMetricName(metric) {
@@ -244,10 +239,13 @@ function HistoryPage() {
     [historyData.records]
   );
   const latestStatus = summary.latestStatus ?? summary.latest_status;
-  const latestScore = isCompletedStatus(latestStatus)
-    ? getScoreNumber(summary.latestTotalScore ?? summary.latest_total_score)
-    : null;
-  const hasLatestScore = latestScore !== null;
+  const latestRawScore = summary.latestTotalScore ?? summary.latest_total_score;
+  const latestScore = getScoreNumber(latestRawScore);
+  const hasLatestScore = shouldShowAnalysisScore({
+    score: latestRawScore,
+    status: latestStatus,
+    saved: summary.saved,
+  });
   const hasRecords = records.length > 0;
   const canShowScoreDiff = hasLatestScore && summary.scoreDiff !== null && summary.scoreDiff !== undefined && summary.scoreDiff !== "";
 
@@ -273,12 +271,17 @@ function HistoryPage() {
     const source = records.slice(-4);
 
     return source.map((record, index) => {
-      const canShowScore = isCompletedStatus(getRecordStatus(record));
+      const recordScore = getRecordScore(record);
+      const canShowScore = shouldShowAnalysisScore({
+        score: recordScore,
+        status: getRecordStatus(record),
+        saved: record.saved,
+      });
 
       return {
         label: formatDate(getRecordDate(record), `${index + 1}회차`),
-        score: canShowScore ? getScoreNumber(getRecordScore(record)) : null,
-        hasScore: canShowScore && hasScoreValue(getRecordScore(record)),
+        score: canShowScore ? getScoreNumber(recordScore) : null,
+        hasScore: canShowScore && hasScoreValue(recordScore),
       };
     });
   }, [records]);
@@ -288,8 +291,14 @@ function HistoryPage() {
     100
   );
   const selectedDetailStatus = getRecordStatus(selectedDetail);
+  const selectedDetailScore = getRecordScore(selectedDetail);
   const canShowSelectedDetailScore =
-    Boolean(selectedDetail) && isCompletedStatus(selectedDetailStatus);
+    Boolean(selectedDetail) &&
+    shouldShowAnalysisScore({
+      score: selectedDetailScore,
+      status: selectedDetailStatus,
+      saved: selectedDetail?.saved,
+    });
 
   async function handleDetailClick(analysisId) {
     if (!analysisId) {
@@ -1028,7 +1037,11 @@ function HistoryPage() {
                   const recordId = getRecordId(record);
                   const recordScore = getRecordScore(record);
                   const recordStatus = getRecordStatus(record);
-                  const canShowRecordScore = isCompletedStatus(recordStatus);
+                  const canShowRecordScore = shouldShowAnalysisScore({
+                    score: recordScore,
+                    status: recordStatus,
+                    saved: record.saved,
+                  });
 
                   return (
                     <div className="sf-record-card" key={recordId || index}>
