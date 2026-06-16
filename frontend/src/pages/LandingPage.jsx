@@ -46,7 +46,7 @@ function getStoredAnalysisProgress() {
         ? defaultProgress.progress
         : Math.max(0, Math.min(100, Math.round(progressNumber))),
     };
-  } catch (error) {
+  } catch {
     localStorage.removeItem(ANALYSIS_PROGRESS_KEY);
     return null;
   }
@@ -963,7 +963,7 @@ function LandingPage() {
           <nav className="sf-landing-links" aria-label="랜딩 주요 메뉴">
             <a href="#service">서비스 소개</a>
             <a href="#process">분석 흐름</a>
-            <a href="#recommend">추천 예시</a>
+            <a href="#recommend">추천 흐름</a>
             <a href="#guide">이용 안내</a>
           </nav>
 
@@ -1083,7 +1083,7 @@ function LandingPage() {
             </div>
           </div>
 
-          <aside className="sf-report-card" aria-label="AI 피부 분석 리포트 예시">
+          <aside className="sf-report-card" aria-label="AI 피부 분석 리포트 미리보기">
             <div className="sf-report-top">
               <div>
                 <small>SkinFlow · 분석 리포트</small>
@@ -1091,7 +1091,7 @@ function LandingPage() {
               </div>
               <span className="sf-report-status">
                 <CheckCircle2 size={14} />
-                분석 예시
+                분석 흐름
               </span>
             </div>
 

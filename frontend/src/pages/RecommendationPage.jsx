@@ -71,6 +71,14 @@ function getFocusMetricName(...summaries) {
   return focusMetric?.name || "분석 대기";
 }
 
+function getSummaryStatus(summary) {
+  return summary?.analysisStatus ?? summary?.analysis_status ?? summary?.latestStatus ?? summary?.latest_status ?? summary?.status;
+}
+
+function isCompletedStatus(status) {
+  return String(status || "").toLowerCase() === "completed";
+}
+
 function getRecommendationSourceState(summary, itemCount = 0) {
   if (!summary && itemCount === 0) {
     return {
@@ -86,6 +94,9 @@ function getRecommendationSourceState(summary, itemCount = 0) {
       summary?.productSource ??
       "",
   ).toLowerCase();
+  const status = getSummaryStatus(summary);
+  const hasStatus = status !== null && status !== undefined && String(status).trim() !== "";
+  const isCompleted = !hasStatus || isCompletedStatus(status);
   const isFallback = Boolean(summary?.isFallback || summary?.fallback || summary?.fromDefault);
   const hasItems = itemCount > 0;
 
@@ -94,6 +105,14 @@ function getRecommendationSourceState(summary, itemCount = 0) {
       tone: "empty",
       label: "추천 데이터 없음",
       message: summary?.message || "분석 후 추천 데이터가 표시됩니다.",
+    };
+  }
+
+  if (!isCompleted) {
+    return {
+      tone: "reference",
+      label: "분석 완료 전 참고 정보",
+      message: summary?.message || "분석이 완료되지 않아 개인 맞춤 결과로 표시하지 않습니다. 완료 후 추천을 다시 확인해 주세요.",
     };
   }
 
@@ -109,7 +128,7 @@ function getRecommendationSourceState(summary, itemCount = 0) {
     };
   }
 
-  if (["latest", "analysis", "personalized", "result", "completed"].includes(sourceText)) {
+  if (isCompleted && ["latest", "analysis", "personalized", "result", "completed"].includes(sourceText)) {
     return {
       tone: "personalized",
       label: "최근 분석 결과 기반 추천",
@@ -179,7 +198,11 @@ function RecommendationPage() {
   }, []);
 
   useEffect(() => {
-    loadRecommendations();
+    const timeoutId = window.setTimeout(loadRecommendations, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [loadRecommendations]);
 
   const summary = productSummary || ingredientSummary;
