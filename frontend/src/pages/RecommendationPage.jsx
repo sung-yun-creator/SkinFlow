@@ -40,7 +40,7 @@ function formatScore(value) {
   const numericValue = Number(value);
 
   if (!Number.isFinite(numericValue)) {
-    return "-";
+    return "점수 없음";
   }
 
   return `${Math.round(numericValue)}점`;
@@ -55,10 +55,14 @@ function hasMatchScore(value) {
 
 function formatMatchScore(value) {
   if (!hasMatchScore(value)) {
-    return "분석 후 표시";
+    return "매칭 점수 없음";
   }
 
   return `${Math.round(Number(value))}점`;
+}
+
+function getRecommendationMatchScore(item) {
+  return item?.match_score ?? item?.matchScore ?? item?.match ?? item?.score;
 }
 
 function getFocusMetricName(...summaries) {
@@ -231,7 +235,13 @@ function RecommendationPage() {
     }
 
     if (sourceState.tone === "personalized") {
-      return `최근 분석 결과 기준 ${formatScore(summary?.totalScore)} 상태에서 참고할 수 있는 성분과 제품 추천입니다.`;
+      const scoreText = formatScore(
+        summary?.totalScore ?? summary?.totalSkinScore ?? summary?.total_skin_score ?? summary?.score
+      );
+
+      return scoreText === "점수 없음"
+        ? "최근 분석 결과를 기준으로 참고할 수 있는 성분과 제품 추천입니다."
+        : `최근 분석 결과 기준 ${scoreText} 상태에서 참고할 수 있는 성분과 제품 추천입니다.`;
     }
 
     return sourceState.message;
@@ -813,30 +823,34 @@ function RecommendationPage() {
               <RecommendationSectionState type="empty" message="표시할 성분 추천 데이터가 없습니다." />
             ) : (
               <div className="sf-recommend-list">
-                {ingredients.map((item) => (
-                  <article className="sf-ingredient-card" key={item.id || item.name}>
-                    <span className="sf-icon-tile" aria-hidden="true">
-                      <FlaskConical size={22} />
-                    </span>
+                {ingredients.map((item) => {
+                  const matchScore = getRecommendationMatchScore(item);
 
-                    <div className="sf-ingredient-main">
-                      <h3>{item.name}</h3>
-                      <p>{item.description}</p>
-                      <div className="sf-tag-row">
-                        {item.tags.map((tag) => (
-                          <span className="sf-tag" key={tag}>
-                            #{tag}
-                          </span>
-                        ))}
+                  return (
+                    <article className="sf-ingredient-card" key={item.id || item.name}>
+                      <span className="sf-icon-tile" aria-hidden="true">
+                        <FlaskConical size={22} />
+                      </span>
+
+                      <div className="sf-ingredient-main">
+                        <h3>{item.name}</h3>
+                        <p>{item.description}</p>
+                        <div className="sf-tag-row">
+                          {item.tags.map((tag) => (
+                            <span className="sf-tag" key={tag}>
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                    </div>
 
-                    <div className={`sf-match-score ${hasMatchScore(item.match) ? "" : "is-pending"}`}>
-                      <span>매칭</span>
-                      {formatMatchScore(item.match)}
-                    </div>
-                  </article>
-                ))}
+                      <div className={`sf-match-score ${hasMatchScore(matchScore) ? "" : "is-pending"}`}>
+                        <span>매칭</span>
+                        {formatMatchScore(matchScore)}
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             )}
           </Card>
@@ -863,47 +877,51 @@ function RecommendationPage() {
               <RecommendationSectionState type="empty" message="표시할 제품 추천 데이터가 없습니다." />
             ) : (
               <div className="sf-recommend-list">
-                {products.map((item) => (
-                  <article className="sf-product-card" key={item.id || item.name}>
-                    {item.imageUrl ? (
-                      <span className="sf-product-thumb" aria-hidden="true">
-                        <img src={item.imageUrl} alt="" />
-                      </span>
-                    ) : (
-                      <span className="sf-icon-tile" aria-hidden="true">
-                        <PackageCheck size={22} />
-                      </span>
-                    )}
+                {products.map((item) => {
+                  const matchScore = getRecommendationMatchScore(item);
 
-                    <div className="sf-product-main">
-                      <span className="sf-product-brand">{item.brand}</span>
-                      <h3>{item.name}</h3>
-                      <p>{item.description}</p>
-                      <div className="sf-tag-row">
-                        {item.tags.map((tag) => (
-                          <span className="sf-tag" key={tag}>
-                            #{tag}
-                          </span>
-                        ))}
-                      </div>
-                      {item.productUrl && (
-                        <a
-                          className="sf-product-link"
-                          href={item.productUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          올리브영에서 보기 <ExternalLink size={13} />
-                        </a>
+                  return (
+                    <article className="sf-product-card" key={item.id || item.name}>
+                      {item.imageUrl ? (
+                        <span className="sf-product-thumb" aria-hidden="true">
+                          <img src={item.imageUrl} alt="" />
+                        </span>
+                      ) : (
+                        <span className="sf-icon-tile" aria-hidden="true">
+                          <PackageCheck size={22} />
+                        </span>
                       )}
-                    </div>
 
-                    <div className={`sf-match-score ${hasMatchScore(item.match) ? "" : "is-pending"}`}>
-                      <span>매칭</span>
-                      {formatMatchScore(item.match)}
-                    </div>
-                  </article>
-                ))}
+                      <div className="sf-product-main">
+                        <span className="sf-product-brand">{item.brand}</span>
+                        <h3>{item.name}</h3>
+                        <p>{item.description}</p>
+                        <div className="sf-tag-row">
+                          {item.tags.map((tag) => (
+                            <span className="sf-tag" key={tag}>
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
+                        {item.productUrl && (
+                          <a
+                            className="sf-product-link"
+                            href={item.productUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            올리브영에서 보기 <ExternalLink size={13} />
+                          </a>
+                        )}
+                      </div>
+
+                      <div className={`sf-match-score ${hasMatchScore(matchScore) ? "" : "is-pending"}`}>
+                        <span>매칭</span>
+                        {formatMatchScore(matchScore)}
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             )}
           </Card>

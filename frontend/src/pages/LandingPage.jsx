@@ -1110,15 +1110,15 @@ function LandingPage() {
             <div className="sf-report-metrics">
               <div className="sf-report-metric">
                 <span>종합 점수</span>
-                <strong>78점</strong>
+                <strong>분석 후 표시</strong>
               </div>
               <div className="sf-report-metric">
                 <span>색소침착</span>
-                <strong>85점</strong>
+                <strong>최근 분석 결과 영역</strong>
               </div>
               <div className="sf-report-metric">
                 <span>주름</span>
-                <strong>42점</strong>
+                <strong>분석 완료 후 표시</strong>
               </div>
             </div>
 

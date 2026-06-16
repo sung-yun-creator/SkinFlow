@@ -31,10 +31,14 @@ function getMetricColor(code, index) {
 }
 
 function toScore(value) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
   const score = Number(value);
 
   if (!Number.isFinite(score)) {
-    return 0;
+    return null;
   }
 
   return Math.max(0, Math.min(100, Math.round(score)));
@@ -45,23 +49,48 @@ function buildMetricCards(analysisResult) {
     return [];
   }
 
-  const metricCards = [
-    {
+  const totalScore = toScore(
+    analysisResult.totalScore ??
+      analysisResult.totalSkinScore ??
+      analysisResult.total_skin_score ??
+      analysisResult.score
+  );
+  const metricCards = [];
+
+  if (totalScore !== null) {
+    metricCards.push({
       label: "종합 점수",
-      value: toScore(analysisResult.totalScore),
+      value: totalScore,
       status: analysisResult.grade?.name || "분석 완료",
       color: "#167D7F",
-    },
-  ];
+    });
+  }
 
   if (Array.isArray(analysisResult.metrics)) {
     metricCards.push(
-      ...analysisResult.metrics.map((metric, index) => ({
-        label: metric.name || metric.code || `지표 ${index + 1}`,
-        value: toScore(metric.score),
-        status: metric.grade?.name || "분석 완료",
-        color: getMetricColor(metric.code, index),
-      })),
+      ...analysisResult.metrics
+        .map((metric, index) => {
+          const metricScore = toScore(
+            metric.score ??
+              metric.metricScore ??
+              metric.metric_score ??
+              metric.value ??
+              metric.metricValue ??
+              metric.metric_value
+          );
+
+          if (metricScore === null) {
+            return null;
+          }
+
+          return {
+            label: metric.name || metric.code || `지표 ${index + 1}`,
+            value: metricScore,
+            status: metric.grade?.name || metric.gradeName || metric.grade_name || "분석 완료",
+            color: getMetricColor(metric.code, index),
+          };
+        })
+        .filter(Boolean),
     );
   }
 
@@ -78,6 +107,11 @@ const emptyResultMessages = {
     title: "표시할 실제 분석 결과가 없습니다",
     description:
       "아직 저장된 분석 결과가 없습니다. 업로드 또는 웹캠 촬영으로 분석을 진행하면 실제 API 응답 기준으로 결과를 표시합니다.",
+  },
+  noScore: {
+    title: "분석 결과 없음",
+    description:
+      "저장된 응답에 표시 가능한 점수 데이터가 없어 점수 카드와 원형 그래프를 표시하지 않습니다. 분석 완료 후 실제 점수가 연결되면 이 영역에 표시됩니다.",
   },
 };
 
@@ -115,8 +149,13 @@ function AnalysisResultPage() {
   const latestAnalysis = useMemo(() => readLatestAnalysisResult(), []);
   const analysisResult = latestAnalysis?.result || null;
   const hasSavedResult = Boolean(analysisResult?.saved);
+  const normalizedResultStatus = String(
+    analysisResult?.code || analysisResult?.status || ""
+  ).toLowerCase();
   const isPending =
-    analysisResult?.code === "AI_MODEL_PENDING" || analysisResult?.status === "pending";
+    normalizedResultStatus === "ai_model_pending" ||
+    normalizedResultStatus === "pending" ||
+    normalizedResultStatus === "processing";
   const metricCards = useMemo(
     () => buildMetricCards(analysisResult),
     [analysisResult],
@@ -125,33 +164,39 @@ function AnalysisResultPage() {
   const hasDisplayableMetrics = hasSavedResult && metricCards.length > 0;
   const emptyResultMessage = isPending
     ? emptyResultMessages.pending
-    : emptyResultMessages.empty;
+    : hasSavedResult
+      ? emptyResultMessages.noScore
+      : emptyResultMessages.empty;
 
-  const heroBadge = hasSavedResult
+  const heroBadge = hasDisplayableMetrics
     ? "Analysis Result"
     : isPending
       ? "AI 모델 연결 대기"
       : "실제 결과 없음";
 
-  const summaryBadge = hasSavedResult
+  const summaryBadge = hasDisplayableMetrics
     ? "API 연동 완료"
     : isPending
       ? "저장 보류"
       : "점수 미표시";
 
-  const summaryTitle = hasSavedResult
+  const summaryTitle = hasDisplayableMetrics
     ? "색소침착·주름 분석 결과"
     : isPending
       ? "AI 모델 응답 대기 상태"
-      : "실제 분석 결과 대기";
+      : hasSavedResult
+        ? "분석 결과 없음"
+        : "실제 분석 결과 대기";
 
-  const summaryText = hasSavedResult
+  const summaryText = hasDisplayableMetrics
     ? analysisResult.summary || "색소침착과 주름 지표를 기준으로 산출한 분석 결과입니다."
     : isPending
       ? analysisResult.message || "AI 모델 분석 결과가 아직 준비되지 않았습니다."
-      : "아직 표시할 실제 분석 결과가 없습니다. 분석을 진행하면 API 응답을 기준으로 결과를 표시합니다.";
+      : hasSavedResult
+        ? "저장된 응답에 표시 가능한 점수 데이터가 없어 실제 결과처럼 보이는 점수는 표시하지 않습니다."
+        : "아직 표시할 실제 분석 결과가 없습니다. 분석을 진행하면 API 응답을 기준으로 결과를 표시합니다.";
 
-  const noticeItems = hasSavedResult
+  const noticeItems = hasDisplayableMetrics
     ? [
       "분석 결과 저장 API에서 받은 실제 점수와 등급을 표시합니다.",
       "색소침착·주름 지표의 표시명은 name, 화면 분기는 code를 기준으로 처리합니다.",
@@ -163,7 +208,13 @@ function AnalysisResultPage() {
         "현재 상태에서는 가짜 점수나 가짜 이력을 생성하지 않습니다.",
         "AI 모델 연결 완료 후 같은 API 흐름으로 실제 결과를 표시할 수 있습니다.",
       ]
-      : emptyResultNoticeItems;
+      : hasSavedResult
+        ? [
+          "점수 데이터가 없으면 기본 점수로 대체하지 않습니다.",
+          "score, metric_score, total_skin_score가 유효한 숫자일 때만 점수 카드를 표시합니다.",
+          "저장 상태와 점수 표시 가능 여부를 분리해 실제 결과처럼 보이지 않게 안내합니다.",
+        ]
+        : emptyResultNoticeItems;
 
   return (
     <PageLayout>
@@ -606,7 +657,7 @@ function AnalysisResultPage() {
               <span className="sf-result-gradient-text">한눈에 확인하세요</span>
             </h1>
             <p>
-              {hasSavedResult
+              {hasDisplayableMetrics
                 ? "분석 결과 저장 API에서 받은 색소침착·주름 지표를 표시합니다."
                 : isPending
                   ? "AI 모델이 아직 실제 점수를 반환하지 않아 저장 보류 상태를 안내합니다."
@@ -671,7 +722,7 @@ function AnalysisResultPage() {
                 <Sparkles size={20} />
               </span>
               <div>
-                <strong>{hasSavedResult ? "AI 분석 요약" : isPending ? "AI 모델 연결 대기" : "분석 상태 안내"}</strong>
+                <strong>{hasDisplayableMetrics ? "AI 분석 요약" : isPending ? "AI 모델 연결 대기" : "분석 상태 안내"}</strong>
                 <p>{summaryText}</p>
               </div>
             </div>
@@ -724,13 +775,13 @@ function AnalysisResultPage() {
             <div className="sf-result-card-head">
               <div>
                 <span className="sf-result-section-label">연동 상태</span>
-                <h2>{hasSavedResult ? "실제 결과 반영 완료" : isPending ? "AI 모델 연결 대기" : "실제 결과가 없습니다"}</h2>
+                <h2>{hasDisplayableMetrics ? "실제 결과 반영 완료" : isPending ? "AI 모델 연결 대기" : "실제 결과가 없습니다"}</h2>
               </div>
               <ClipboardCheck size={26} />
             </div>
 
             <p>
-              {hasSavedResult
+              {hasDisplayableMetrics
                 ? "분석 결과 저장 API 응답을 기준으로 결과 화면을 구성했습니다."
                 : isPending
                   ? "현재는 AI 모델이 실제 점수를 반환하지 않아 저장되지 않은 상태입니다."
