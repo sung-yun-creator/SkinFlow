@@ -12,25 +12,38 @@ import Button from "../components/common/Button";
 import { getDietGuideRecommendations } from "../api/recommendationApi";
 
 const sourceLabelMap = {
-  latest_analysis: "최근 분석 이력과 연결된 참고 가이드",
+  latest_analysis: "최근 분석 결과 기반 가이드",
   default: "기본 참고 가이드",
   fallback: "기본 참고 가이드",
 };
+
+function normalizeSourceValue(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+}
 
 function getSourceLabel(source) {
   return sourceLabelMap[source] ?? "식습관 참고 가이드";
 }
 
 function getGuideSourceState(source, summary) {
-  const guideSource = String(summary?.guideSource ?? summary?.guide_source ?? source ?? "").toLowerCase();
-  const isReference = ["default", "fallback", "reference", "static", "seed", "unknown", ""].includes(guideSource);
+  const primarySource = normalizeSourceValue(source);
+  const guideSource = normalizeSourceValue(summary?.guideSource ?? summary?.guide_source);
+  const referenceSources = ["default", "fallback", "reference", "static", "seed", "unknown", ""];
+  const isLatestAnalysis = primarySource === "latest_analysis";
+  const isReference = !isLatestAnalysis && (referenceSources.includes(primarySource) || referenceSources.includes(guideSource));
+  const labelSource = isLatestAnalysis ? "latest_analysis" : isReference ? "default" : guideSource || primarySource;
 
   return {
-    label: getSourceLabel(guideSource),
+    label: getSourceLabel(labelSource),
     isReference,
-    notice: isReference
-      ? "현재 가이드는 개인 맞춤 결과가 아닌 기본 참고 가이드입니다. 최신 분석 완료 후 관리 방향과 함께 확인해 주세요."
-      : "식습관 가이드는 피부 상태를 이해하기 위한 참고 정보이며, 의료적 판단이 아닌 관리 방향 확인용으로 제공됩니다.",
+    notice: isLatestAnalysis
+      ? "최근 분석 결과와 연결된 식습관 참고 가이드입니다. 피부 관리 방향을 확인하는 용도로 활용해 주세요."
+      : isReference
+        ? "현재 가이드는 개인 맞춤 결과가 아닌 기본 참고 가이드입니다. 최신 분석 완료 후 관리 방향과 함께 확인해 주세요."
+        : "식습관 가이드는 피부 상태를 이해하기 위한 참고 정보이며, 의료적 판단이 아닌 관리 방향 확인용으로 제공됩니다.",
   };
 }
 

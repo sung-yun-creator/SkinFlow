@@ -79,6 +79,13 @@ function isCompletedStatus(status) {
   return String(status || "").toLowerCase() === "completed";
 }
 
+function normalizeSourceText(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+}
+
 function getRecommendationSourceState(summary, itemCount = 0) {
   if (!summary && itemCount === 0) {
     return {
@@ -88,16 +95,17 @@ function getRecommendationSourceState(summary, itemCount = 0) {
     };
   }
 
-  const sourceText = String(
+  const sourceText = normalizeSourceText(
     summary?.source ??
       summary?.ingredientSource ??
       summary?.productSource ??
       "",
-  ).toLowerCase();
+  );
   const status = getSummaryStatus(summary);
   const hasStatus = status !== null && status !== undefined && String(status).trim() !== "";
   const isCompleted = !hasStatus || isCompletedStatus(status);
   const isFallback = Boolean(summary?.isFallback || summary?.fallback || summary?.fromDefault);
+  const isSavedFalse = summary?.saved === false;
   const hasItems = itemCount > 0;
 
   if (!hasItems || ["empty", "none", "null"].includes(sourceText)) {
@@ -108,7 +116,7 @@ function getRecommendationSourceState(summary, itemCount = 0) {
     };
   }
 
-  if (!isCompleted) {
+  if (!isCompleted || isSavedFalse) {
     return {
       tone: "reference",
       label: "분석 완료 전 참고 정보",
@@ -123,12 +131,12 @@ function getRecommendationSourceState(summary, itemCount = 0) {
   ) {
     return {
       tone: "reference",
-      label: "기본 추천 기준",
-      message: summary?.message || "분석 전 참고 정보입니다. 최신 분석 후 개인 관리 방향에 맞춰 확인해 주세요.",
+      label: "기본 참고 추천",
+      message: summary?.message || "기본 참고 추천입니다. 최신 분석 후 개인 관리 방향에 맞춰 확인해 주세요.",
     };
   }
 
-  if (isCompleted && ["latest", "analysis", "personalized", "result", "completed"].includes(sourceText)) {
+  if (isCompleted && ["latest", "latest_analysis", "analysis", "personalized", "result", "completed"].includes(sourceText)) {
     return {
       tone: "personalized",
       label: "최근 분석 결과 기반 추천",
