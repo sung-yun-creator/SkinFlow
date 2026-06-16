@@ -283,7 +283,7 @@ function SignupPage() {
                 <input
                   type="email"
                   name="email"
-                  placeholder="skinflow@example.com"
+                  placeholder="이메일을 입력하세요"
                   value={form.email}
                   onChange={handleChange}
                 />
