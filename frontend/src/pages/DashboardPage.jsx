@@ -122,7 +122,7 @@ function getMetricScore(metric) {
 
   const score = Number(rawScore);
 
-  if (Number.isNaN(score)) return 0;
+  if (Number.isNaN(score)) return null;
 
   return Math.max(0, Math.min(100, Math.round(score)));
 }
@@ -145,7 +145,7 @@ function getMetricGrade(metric) {
   return metric?.gradeName || metric?.grade_name || metric?.status || metric?.level;
 }
 
-function normalizeMetrics(latestAnalysis) {
+function normalizeMetrics(latestAnalysis, canShowScores) {
   const metrics = Array.isArray(latestAnalysis?.metrics) ? latestAnalysis.metrics : [];
 
   const mvpMetrics = metrics.filter((metric) => {
@@ -153,18 +153,18 @@ function normalizeMetrics(latestAnalysis) {
     return name.includes("색소") || name.includes("주름");
   });
 
-  if (mvpMetrics.length === 0) {
+  if (!canShowScores || mvpMetrics.length === 0) {
     return [
       {
         label: "색소침착",
         score: null,
-        status: "첫 분석 후 표시",
+        status: canShowScores ? "첫 분석 후 표시" : "분석 완료 후 표시",
         hasScore: false,
       },
       {
         label: "주름",
         score: null,
-        status: "첫 분석 후 표시",
+        status: canShowScores ? "첫 분석 후 표시" : "분석 완료 후 표시",
         hasScore: false,
       },
     ];
@@ -222,11 +222,20 @@ function DashboardPage() {
   const latestAnalysis = dashboard?.latestAnalysis || null;
   const mainConcern = dashboard?.mainConcern || null;
   const nextAction = dashboard?.nextAction || {};
+  const latestStatus =
+    latestAnalysis?.analysis_status ||
+    latestAnalysis?.analysisStatus ||
+    latestAnalysis?.status ||
+    summary.latestStatus ||
+    summary.latest_status;
+  const isLatestAnalysisCompleted = String(latestStatus || "").toLowerCase() === "completed";
 
   const latestScore = formatScore(
-    latestAnalysis?.totalScore ||
-      latestAnalysis?.total_score ||
-      summary.latestTotalScore ||
+    latestAnalysis?.totalScore ??
+      latestAnalysis?.totalSkinScore ??
+      latestAnalysis?.total_score ??
+      latestAnalysis?.total_skin_score ??
+      summary.latestTotalScore ??
       summary.latest_total_score
   );
 
@@ -234,9 +243,13 @@ function DashboardPage() {
     summary.analysisCount || summary.analysis_count || profile.analysisCount || 0
   );
 
-  const hasLatestAnalysisScore = Boolean(latestAnalysis) && latestScore !== null;
+  const hasLatestAnalysisScore =
+    Boolean(latestAnalysis) && isLatestAnalysisCompleted && latestScore !== null;
   const hasLatestAnalysis = Boolean(latestAnalysis) && hasLatestAnalysisScore;
-  const metrics = useMemo(() => normalizeMetrics(latestAnalysis), [latestAnalysis]);
+  const metrics = useMemo(
+    () => normalizeMetrics(latestAnalysis, hasLatestAnalysisScore),
+    [hasLatestAnalysisScore, latestAnalysis],
+  );
 
   const mainConcernName = mainConcern ? getMetricName(mainConcern) : "분석 전";
   const latestDate = formatDate(
@@ -705,9 +718,7 @@ function DashboardPage() {
               </div>
               <span className="dashboard-status-pill">
                 <CheckCircle2 size={14} />
-                {getStatusLabel(
-                  latestAnalysis?.status || latestAnalysis?.analysisStatus || summary.latestStatus
-                )}
+                {getStatusLabel(latestStatus)}
               </span>
             </div>
 

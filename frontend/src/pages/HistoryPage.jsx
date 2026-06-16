@@ -115,6 +115,12 @@ function getStatusLabel(status) {
   return statusMap[normalizedStatus] || status;
 }
 
+function isCompletedStatus(status) {
+  const normalizedStatus = String(status || "").toLowerCase();
+
+  return normalizedStatus === "completed" || status === "분석 완료";
+}
+
 function getMetricName(metric) {
   return (
     metric?.metricName ||
@@ -148,7 +154,7 @@ function getMetricScore(metrics, keyword) {
 
 function getRecommendationText(recommendations) {
   if (!Array.isArray(recommendations) || recommendations.length === 0) {
-    return "추천 요약 정보는 실제 추천 API 연동 후 표시됩니다.";
+    return "이 분석 이력에 연결된 추천 요약이 없습니다.";
   }
 
   const textList = recommendations
@@ -169,7 +175,7 @@ function getRecommendationText(recommendations) {
 
   return textList.length > 0
     ? textList.join(" · ")
-    : "추천 요약 정보는 실제 추천 API 연동 후 표시됩니다.";
+    : "이 분석 이력에 연결된 추천 요약이 없습니다.";
 }
 
 function getRecordId(record) {
@@ -178,6 +184,10 @@ function getRecordId(record) {
 
 function getRecordDate(record) {
   return record?.analyzedAt || record?.analyzed_at || record?.createdAt || record?.created_at;
+}
+
+function getRecordStatus(record) {
+  return record?.analysisStatus || record?.analysis_status || record?.status;
 }
 
 function getRecordScore(record) {
@@ -230,8 +240,11 @@ function HistoryPage() {
 
   const summary = historyData.summary || defaultHistoryData.summary;
   const records = Array.isArray(historyData.records) ? historyData.records : [];
-  const latestScore = getScoreNumber(summary.latestTotalScore);
-  const hasLatestScore = hasScoreValue(summary.latestTotalScore);
+  const latestStatus = summary.latestStatus ?? summary.latest_status;
+  const latestScore = isCompletedStatus(latestStatus)
+    ? getScoreNumber(summary.latestTotalScore ?? summary.latest_total_score)
+    : null;
+  const hasLatestScore = latestScore !== null;
   const hasRecords = records.length > 0;
 
   const filteredRecords = useMemo(() => {
@@ -255,17 +268,24 @@ function HistoryPage() {
   const trendItems = useMemo(() => {
     const source = records.slice(-4);
 
-    return source.map((record, index) => ({
-      label: formatDate(getRecordDate(record), `${index + 1}회차`),
-      score: getScoreNumber(getRecordScore(record)),
-      hasScore: hasScoreValue(getRecordScore(record)),
-    }));
+    return source.map((record, index) => {
+      const canShowScore = isCompletedStatus(getRecordStatus(record));
+
+      return {
+        label: formatDate(getRecordDate(record), `${index + 1}회차`),
+        score: canShowScore ? getScoreNumber(getRecordScore(record)) : null,
+        hasScore: canShowScore && hasScoreValue(getRecordScore(record)),
+      };
+    });
   }, [records]);
 
   const maxTrendScore = Math.max(
     ...trendItems.filter((item) => item.hasScore).map((item) => item.score),
     100
   );
+  const selectedDetailStatus = getRecordStatus(selectedDetail);
+  const canShowSelectedDetailScore =
+    Boolean(selectedDetail) && isCompletedStatus(selectedDetailStatus);
 
   async function handleDetailClick(analysisId) {
     if (!analysisId) {
@@ -907,11 +927,11 @@ function HistoryPage() {
               </div>
               <div className="sf-summary-item">
                 <span>최근 종합 점수</span>
-                <strong>{formatScore(summary.latestTotalScore)}</strong>
+                <strong>{hasLatestScore ? `${latestScore}점` : "분석 전"}</strong>
               </div>
               <div className="sf-summary-item">
                 <span>최근 상태</span>
-                <strong>{getStatusLabel(summary.latestStatus)}</strong>
+                <strong>{getStatusLabel(latestStatus)}</strong>
               </div>
               <div className="sf-summary-item">
                 <span>점수 변화</span>
@@ -1003,6 +1023,8 @@ function HistoryPage() {
                 filteredRecords.map((record, index) => {
                   const recordId = getRecordId(record);
                   const recordScore = getRecordScore(record);
+                  const recordStatus = getRecordStatus(record);
+                  const canShowRecordScore = isCompletedStatus(recordStatus);
 
                   return (
                     <div className="sf-record-card" key={recordId || index}>
@@ -1019,8 +1041,10 @@ function HistoryPage() {
                       </div>
 
                       <div className="sf-record-side">
-                        <span className="sf-score-badge">{formatScore(recordScore)}</span>
-                        <span className="sf-status-badge">{getStatusLabel(record.status)}</span>
+                        <span className="sf-score-badge">
+                          {canShowRecordScore ? formatScore(recordScore, "점수 없음") : "점수 없음"}
+                        </span>
+                        <span className="sf-status-badge">{getStatusLabel(recordStatus)}</span>
                         <div className="sf-record-actions">
                           <button
                             type="button"
@@ -1057,21 +1081,33 @@ function HistoryPage() {
                     <small>{formatDate(getRecordDate(selectedDetail))}</small>
                     <h2>상세 분석 정보</h2>
                   </div>
-                  <span className="sf-status-badge">{getStatusLabel(selectedDetail.status)}</span>
+                  <span className="sf-status-badge">{getStatusLabel(selectedDetailStatus)}</span>
                 </div>
 
                 <div className="sf-detail-metrics">
                   <div>
                     <span>종합 점수</span>
-                    <strong>{formatScore(getRecordScore(selectedDetail))}</strong>
+                    <strong>
+                      {canShowSelectedDetailScore
+                        ? formatScore(getRecordScore(selectedDetail), "점수 없음")
+                        : "점수 없음"}
+                    </strong>
                   </div>
                   <div>
                     <span>색소침착</span>
-                    <strong>{getMetricScore(selectedDetail.metrics, "색소")}</strong>
+                    <strong>
+                      {canShowSelectedDetailScore
+                        ? getMetricScore(selectedDetail.metrics, "색소")
+                        : "점수 없음"}
+                    </strong>
                   </div>
                   <div>
                     <span>주름</span>
-                    <strong>{getMetricScore(selectedDetail.metrics, "주름")}</strong>
+                    <strong>
+                      {canShowSelectedDetailScore
+                        ? getMetricScore(selectedDetail.metrics, "주름")
+                        : "점수 없음"}
+                    </strong>
                   </div>
                 </div>
 
