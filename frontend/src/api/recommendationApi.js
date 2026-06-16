@@ -4,6 +4,10 @@ function toArray(value) {
   return Array.isArray(value) ? value : [];
 }
 
+function normalizeText(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 function normalizeMatch(value) {
   if (value === null || value === undefined) return null;
   if (typeof value === "string" && value.trim() === "") return null;
@@ -63,6 +67,54 @@ function normalizeProduct(item) {
   };
 }
 
+function normalizeDietSummary(response) {
+  const summary = response?.summary ?? {};
+  const hasGuideCount = summary?.guideCount !== null && summary?.guideCount !== undefined && summary?.guideCount !== "";
+  const guideCount = Number(summary?.guideCount);
+
+  return {
+    analysisId: summary?.analysisId ?? null,
+    analyzedAt: summary?.analyzedAt ?? null,
+    totalScore: summary?.totalScore ?? null,
+    guideSource: summary?.guideSource ?? null,
+    guideCount: hasGuideCount && Number.isFinite(guideCount) ? guideCount : null,
+    message: normalizeText(summary?.message),
+  };
+}
+
+function normalizeDietGuide(item) {
+  const card = item?.card ?? {};
+
+  return {
+    id: item?.id ?? item?.recommendationId ?? null,
+    recommendationId: item?.recommendationId ?? null,
+    ingredientId: item?.ingredientId ?? null,
+    ingredientName: normalizeText(item?.ingredientName),
+    category: normalizeText(item?.category),
+    title: normalizeText(card?.title) || normalizeText(item?.title),
+    description: normalizeText(card?.description) || normalizeText(item?.content),
+    content: normalizeText(item?.content),
+    reason: normalizeText(item?.reason),
+    priority: normalizeText(card?.priority) || normalizeText(item?.priority),
+    tag: normalizeText(card?.tag) || normalizeText(item?.category),
+    createdAt: item?.createdAt ?? null,
+  };
+}
+
+function normalizeDietRoutine(item) {
+  return {
+    time: normalizeText(item?.time),
+    text: normalizeText(item?.text),
+  };
+}
+
+function normalizeDietCheck(item) {
+  return {
+    title: normalizeText(item?.title),
+    category: normalizeText(item?.category),
+  };
+}
+
 async function getIngredientRecommendations() {
   const response = await http.get("/api/recommendations/ingredients");
 
@@ -83,4 +135,20 @@ async function getProductRecommendations() {
   };
 }
 
-export { getIngredientRecommendations, getProductRecommendations };
+async function getDietGuideRecommendations() {
+  const response = await http.get("/api/recommendations/diet-guides");
+
+  return {
+    source: normalizeText(response?.source) || "unknown",
+    summary: normalizeDietSummary(response),
+    guides: toArray(response?.guides).map(normalizeDietGuide),
+    routines: toArray(response?.routines).map(normalizeDietRoutine),
+    checks: toArray(response?.checks).map(normalizeDietCheck),
+  };
+}
+
+export {
+  getIngredientRecommendations,
+  getProductRecommendations,
+  getDietGuideRecommendations,
+};
