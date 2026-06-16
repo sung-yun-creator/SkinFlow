@@ -62,7 +62,7 @@ function DietGuidePage() {
         if (isMounted) {
           setDietGuide(data);
         }
-      } catch (error) {
+      } catch {
         if (isMounted) {
           setErrorMessage("식습관 가이드를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
           setDietGuide({

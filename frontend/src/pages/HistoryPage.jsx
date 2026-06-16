@@ -239,7 +239,10 @@ function HistoryPage() {
   }, []);
 
   const summary = historyData.summary || defaultHistoryData.summary;
-  const records = Array.isArray(historyData.records) ? historyData.records : [];
+  const records = useMemo(
+    () => (Array.isArray(historyData.records) ? historyData.records : []),
+    [historyData.records]
+  );
   const latestStatus = summary.latestStatus ?? summary.latest_status;
   const latestScore = isCompletedStatus(latestStatus)
     ? getScoreNumber(summary.latestTotalScore ?? summary.latest_total_score)

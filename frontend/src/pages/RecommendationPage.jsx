@@ -198,7 +198,11 @@ function RecommendationPage() {
   }, []);
 
   useEffect(() => {
-    loadRecommendations();
+    const timeoutId = window.setTimeout(loadRecommendations, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [loadRecommendations]);
 
   const summary = productSummary || ingredientSummary;
