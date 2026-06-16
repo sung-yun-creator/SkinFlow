@@ -267,26 +267,33 @@ function buildFallbackDietGuides() {
     return DIET_GUIDE_REFERENCES.map(toDietGuide);
 }
 
-async function getIngredientRecommendations(userId) {
-    const [latestAnalysis, ingredients] = await Promise.all([
-        recommendationRepository.findLatestAnalysisWithMetricsByUserId(userId),
-        recommendationRepository.findIngredients(),
-    ]);
-    const concernMetrics = getConcernMetrics(latestAnalysis?.metrics || []);
+async function buildIngredientRecommendationResult(analysisContext) {
+    const ingredients = await recommendationRepository.findIngredients();
+    const concernMetrics = getConcernMetrics(analysisContext?.metrics || []);
     const focusMetric = concernMetrics[0] || null;
     const recommendations = buildIngredientRecommendations(ingredients, concernMetrics);
 
     return {
-        source: latestAnalysis ? 'latest_analysis' : 'default',
+        source: analysisContext ? 'analysis' : 'default',
         summary: {
-            analysisId: latestAnalysis?.analysis.skin_analysis_id || null,
-            analyzedAt: latestAnalysis?.analysis.analyzed_at || latestAnalysis?.analysis.created_at || null,
-            totalScore: toNumber(latestAnalysis?.analysis.total_skin_score),
+            analysisId: analysisContext?.analysis.skin_analysis_id || null,
+            analyzedAt: analysisContext?.analysis.analyzed_at || analysisContext?.analysis.created_at || null,
+            totalScore: toNumber(analysisContext?.analysis.total_skin_score),
             focusMetric,
             recommendationCount: recommendations.length,
             ingredientSource: ingredients.length > 0 ? 'database' : 'fallback',
         },
         ingredients: recommendations,
+    };
+}
+
+async function getIngredientRecommendations(userId) {
+    const latestAnalysis = await recommendationRepository.findLatestAnalysisWithMetricsByUserId(userId);
+    const result = await buildIngredientRecommendationResult(latestAnalysis);
+
+    return {
+        ...result,
+        source: latestAnalysis ? 'latest_analysis' : 'default',
     };
 }
 
@@ -337,10 +344,8 @@ async function getDietGuideRecommendations(userId) {
 }
 
 async function getProductRecommendations(userId) {
-    const [ingredientResult, productRows] = await Promise.all([
-        getIngredientRecommendations(userId),
-        recommendationRepository.findActiveProductsWithIngredients(),
-    ]);
+    const ingredientResult = await getIngredientRecommendations(userId);
+    const productRows = await recommendationRepository.findActiveProductsWithIngredients();
     const products = buildProductRecommendations(productRows, ingredientResult.ingredients);
 
     return {
@@ -358,8 +363,36 @@ async function getProductRecommendations(userId) {
     };
 }
 
+async function getRecommendationSnapshotForAnalysis(userId, analysisId) {
+    const analysisContext = await recommendationRepository.findAnalysisWithMetricsByUserIdAndAnalysisId(userId, analysisId);
+
+    if (!analysisContext) {
+        return null;
+    }
+
+    const ingredientResult = await buildIngredientRecommendationResult(analysisContext);
+    const productRows = await recommendationRepository.findActiveProductsWithIngredients();
+    const products = buildProductRecommendations(productRows, ingredientResult.ingredients);
+    let dietGuides = await recommendationRepository.findDietGuidesByAnalysisId(analysisId);
+
+    if (dietGuides.length === 0) {
+        dietGuides = buildFallbackDietGuides();
+    }
+
+    return {
+        analysis: analysisContext.analysis,
+        metrics: analysisContext.metrics,
+        ingredients: ingredientResult.ingredients,
+        products,
+        dietGuides: dietGuides.map(toDietGuide),
+        routines: DIET_ROUTINE_REFERENCES,
+        checks: DIET_CHECK_REFERENCES,
+    };
+}
+
 module.exports = {
     getDietGuideRecommendations,
     getIngredientRecommendations,
     getProductRecommendations,
+    getRecommendationSnapshotForAnalysis,
 };
