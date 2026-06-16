@@ -10,6 +10,12 @@ const {
 } = require('../constants/dietGuideReference');
 const { toNumber } = require('../utils/number');
 
+const OLIVE_YOUNG_SEARCH_BASE_URL = 'https://www.oliveyoung.co.kr/store/search/getSearchMain.do?query=';
+
+function oliveYoungSearchUrl(keyword) {
+    return `${OLIVE_YOUNG_SEARCH_BASE_URL}${encodeURIComponent(keyword)}`;
+}
+
 function scoreToMatch(score, index) {
     const metricScore = Number(score);
 
@@ -204,7 +210,13 @@ function buildProductRecommendations(productRows, ingredientRecommendations) {
                 matchedIngredients.reduce((sum, ingredient) => sum + ingredient.match, 0)
                 / matchedIngredients.length,
             );
-            const tags = [...new Set(matchedIngredients.flatMap((ingredient) => ingredient.tags || []))].slice(0, 4);
+            const sortedMatchedIngredients = matchedIngredients
+                .sort((left, right) => right.match - left.match || left.id - right.id);
+            const primaryMatchedIngredient = sortedMatchedIngredients[0] || null;
+            const tags = [...new Set(sortedMatchedIngredients.flatMap((ingredient) => ingredient.tags || []))].slice(0, 4);
+            const productUrl = primaryMatchedIngredient?.name
+                ? oliveYoungSearchUrl(primaryMatchedIngredient.name)
+                : product.product_url;
 
             return {
                 id: product.product_id,
@@ -212,11 +224,11 @@ function buildProductRecommendations(productRows, ingredientRecommendations) {
                 productName: product.product_name,
                 productType: product.product_type,
                 priceAmount: product.price_amount,
-                productUrl: product.product_url,
+                productUrl,
                 imageUrl: product.product_img,
                 description: product.description,
                 match,
-                matchedIngredients,
+                matchedIngredients: sortedMatchedIngredients,
                 tags,
                 card: {
                     brandName: product.brand_name,
@@ -224,7 +236,7 @@ function buildProductRecommendations(productRows, ingredientRecommendations) {
                     description: product.description,
                     match,
                     tags,
-                    productUrl: product.product_url,
+                    productUrl,
                     imageUrl: product.product_img,
                 },
             };
