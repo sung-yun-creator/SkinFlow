@@ -19,7 +19,7 @@ const quickActions = [
   {
     icon: Camera,
     title: "피부 분석",
-    description: "스마트폰 촬영 이미지로 색소침착·주름 분석을 시작합니다.",
+    description: "사진 업로드로 색소침착·주름 분석을 시작합니다.",
     to: "/analysis/capture",
     variant: "primary",
     step: "01",
@@ -27,7 +27,7 @@ const quickActions = [
   {
     icon: Sparkles,
     title: "맞춤 추천",
-    description: "분석 결과에 맞는 성분과 제품 추천을 확인합니다.",
+    description: "최근 분석에 맞춘 성분과 제품 추천을 확인합니다.",
     to: "/recommendations",
     variant: "secondary",
     step: "02",
@@ -35,7 +35,7 @@ const quickActions = [
   {
     icon: Leaf,
     title: "식습관",
-    description: "오늘 실천할 수 있는 피부 관리 루틴을 확인합니다.",
+    description: "오늘 참고할 수 있는 관리 가이드를 확인합니다.",
     to: "/diet-guide",
     variant: "secondary",
     step: "03",
@@ -43,7 +43,7 @@ const quickActions = [
   {
     icon: History,
     title: "분석 이력",
-    description: "지난 결과와 피부 변화 흐름을 다시 확인합니다.",
+    description: "지난 결과와 변화 흐름을 다시 확인합니다.",
     to: "/history",
     variant: "secondary",
     step: "04",
@@ -659,14 +659,14 @@ function DashboardPage() {
         <div className="dashboard-app-hero">
           <Card className="dashboard-welcome-card">
             <div className="dashboard-welcome-copy">
-              <Badge>SkinFlow App Home</Badge>
+              <Badge>SkinFlow Home</Badge>
               <h1>
                 {userName}님의 피부 관리,
                 <br />
                 <span className="dashboard-gradient-text">SkinFlow에서 시작하세요</span>
               </h1>
               <p>
-                분석 시작, 추천 확인, 식습관 가이드, 이력 관리를 한 화면에서 빠르게 이동할 수 있는 로그인 후 앱 홈입니다.
+                분석 시작부터 추천, 식습관 가이드, 이력 관리까지 핵심 흐름을 바로 확인합니다.
               </p>
 
               <div className="dashboard-welcome-actions">
@@ -737,7 +737,7 @@ function DashboardPage() {
                         latestAnalysis.description ||
                         summary.latestSummary ||
                         "색소침착과 주름 중심의 분석 결과를 확인할 수 있습니다."
-                      : "사진 업로드 후 ROI 확인과 분석 결과, 추천 정보를 이어서 확인할 수 있습니다."}
+                      : "사진 업로드 후 분석 결과와 추천 정보를 이어서 확인할 수 있습니다."}
                 </p>
               </div>
             </div>

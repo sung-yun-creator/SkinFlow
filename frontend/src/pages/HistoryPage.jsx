@@ -182,7 +182,7 @@ function getLlmReportSourceLabel(source) {
   const sourceMap = {
     generated: "새로 생성된 리포트",
     database: "저장된 리포트",
-    copied: "이전 분석 리포트 재사용",
+    copied: "저장된 리포트",
   };
 
   return sourceMap[normalizedSource] || "리포트 출처 확인 중";
@@ -190,18 +190,18 @@ function getLlmReportSourceLabel(source) {
 
 function getLlmReportErrorMessage(error) {
   if (error?.status === 404) {
-    return "분석 이력이 없어 AI 요약 리포트를 불러오지 못했습니다.";
+    return "연결된 분석 이력이 없어 리포트를 불러오지 못했습니다.";
   }
 
   if (error?.status === 503) {
-    return "AI 요약 리포트 설정이 준비되지 않았습니다.";
+    return "리포트 생성 설정이 아직 준비되지 않았습니다.";
   }
 
   if (error?.status === 502) {
-    return "AI 요약 리포트 생성 응답을 확인하지 못했습니다.";
+    return "리포트 생성 응답을 확인하지 못했습니다.";
   }
 
-  return "AI 요약 리포트를 불러오지 못했습니다. 기존 분석 상세 정보는 계속 확인할 수 있습니다.";
+  return "리포트를 불러오지 못했습니다. 기존 분석 상세 정보는 계속 확인할 수 있습니다.";
 }
 
 function getRecordId(record) {
@@ -1022,7 +1022,7 @@ function HistoryPage() {
 
               <p>
                 분석 이력을 통해 종합 점수, 색소침착, 주름 지표를 다시 확인하고
-                같은 흐름으로 추천과 관리 가이드를 이어볼 수 있습니다.
+                추천과 관리 가이드로 이어지는 흐름을 확인합니다.
               </p>
 
               <div className="sf-history-actions">
@@ -1273,7 +1273,7 @@ function HistoryPage() {
                       <h3>AI 요약 리포트</h3>
                     </div>
                     <span className="sf-status-badge">
-                      {llmReport ? getLlmReportSourceLabel(llmReport.source) : "리포트 확인"}
+                      {llmReport ? getLlmReportSourceLabel(llmReport.source) : "리포트 출처"}
                     </span>
                   </div>
 
@@ -1286,7 +1286,7 @@ function HistoryPage() {
                   )}
 
                   {!isLlmReportLoading && !llmReportError && llmReport && !hasLlmReportContent && (
-                    <p className="sf-notice-line">표시할 AI 요약 리포트 내용이 없습니다.</p>
+                    <p className="sf-notice-line">아직 표시할 AI 요약 리포트가 없습니다.</p>
                   )}
 
                   {!isLlmReportLoading && !llmReportError && hasLlmReportContent && (

@@ -12,10 +12,10 @@ import Button from "../components/common/Button";
 import { getDietGuideRecommendations } from "../api/recommendationApi";
 
 const sourceLabelMap = {
-  latest_analysis: "최근 분석 결과 기반 가이드",
-  analysis_unsaved: "분석 저장 전 참고 가이드",
-  default: "기본 참고 가이드",
-  fallback: "기본 참고 가이드",
+  latest_analysis: "최근 분석 기반",
+  analysis_unsaved: "분석 저장 전 참고",
+  default: "기본 참고",
+  fallback: "기본 참고",
 };
 
 function normalizeSourceValue(value) {
@@ -51,12 +51,12 @@ function getGuideSourceState(source, summary) {
     label: getSourceLabel(labelSource),
     isReference,
     notice: isLatestAnalysis
-      ? "최근 분석 결과와 연결된 식습관 참고 가이드입니다. 피부 관리 방향을 확인하는 용도로 활용해 주세요."
+      ? "최근 분석 결과와 연결된 식습관 참고 가이드입니다."
       : isUnsavedAnalysis
-        ? "분석 결과가 저장되기 전 상태이므로 개인 맞춤 가이드로 확정하지 않고 참고 정보로 표시합니다."
+        ? "분석 결과 저장 전이므로 참고 정보로 표시합니다."
       : isReference
-        ? "현재 가이드는 개인 맞춤 결과가 아닌 기본 참고 가이드입니다. 최신 분석 완료 후 관리 방향과 함께 확인해 주세요."
-        : "식습관 가이드는 피부 상태를 이해하기 위한 참고 정보이며, 의료적 판단이 아닌 관리 방향 확인용으로 제공됩니다.",
+        ? "현재 가이드는 기본 참고 정보입니다. 최신 분석 후 관리 방향과 함께 확인해 주세요."
+        : "식습관 가이드는 의료적 판단이 아닌 관리 방향 확인용 참고 정보입니다.",
   };
 }
 
@@ -561,14 +561,14 @@ function DietGuidePage() {
               </span>
 
               <h1>
-                피부 분석 흐름과 연결 된
+                피부 분석 흐름과 연결된
                 <br />
                 <span className="sf-gradient-text">식습관 가이드</span>
               </h1>
 
               <p>
-                SkinFlow의 피부 상태 참고 정보와 함께 확인할 수 있는 식습관 관리 방향입니다.
-                화면에는 서버에서 전달된 가이드만 표시됩니다.
+                피부 상태 참고 정보와 함께 확인할 수 있는 식습관 관리 방향입니다.
+                서버에서 전달된 가이드만 표시합니다.
               </p>
             </div>
 
@@ -614,7 +614,7 @@ function DietGuidePage() {
 
         {!isLoading && errorMessage && <div className="sf-state-message is-error">{errorMessage}</div>}
 
-        {isEmpty && <div className="sf-state-message">표시할 식습관 가이드가 없습니다.</div>}
+        {isEmpty && <div className="sf-state-message">아직 표시할 식습관 가이드가 없습니다.</div>}
 
         {!isLoading && !errorMessage && !isEmpty && (
           <>

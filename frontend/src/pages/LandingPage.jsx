@@ -86,23 +86,23 @@ const valueCards = [
   {
     icon: ScanFace,
     title: "AI 피부 분석",
-    description: "얼굴 이미지에서 색소침착과 주름 중심의 피부 상태를 분석합니다.",
+    description: "얼굴 이미지로 색소침착과 주름 흐름을 간결하게 확인합니다.",
   },
   {
     icon: FlaskConical,
     title: "맞춤 추천 연결",
-    description: "분석 결과를 기능성 성분, 화장품 제품, 식습관 가이드와 연결합니다.",
+    description: "분석 결과를 성분, 제품, 식습관 가이드로 자연스럽게 이어줍니다.",
   },
   {
     icon: History,
     title: "분석 이력 관리",
-    description: "이전 분석 결과를 다시 확인하고 피부 변화 흐름을 기록합니다.",
+    description: "이전 결과와 관리 흐름을 한 화면에서 다시 확인합니다.",
   },
 ];
 
 const processSteps = [
   { icon: Upload, title: "사진 업로드" },
-  { icon: ScanFace, title: "ROI 확인" },
+  { icon: ScanFace, title: "얼굴 영역 확인" },
   { icon: Sparkles, title: "AI 분석" },
   { icon: ClipboardList, title: "리포트" },
   { icon: LineChart, title: "추천·이력" },
@@ -449,6 +449,15 @@ function LandingPage() {
             grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 12px;
             margin-top: 14px;
+          }
+
+          .sf-roi-note {
+            margin-top: 10px;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 800;
+            line-height: 1.5;
+            word-break: keep-all;
           }
 
           .sf-report-metric {
@@ -1054,8 +1063,8 @@ function LandingPage() {
             </h1>
 
             <p>
-              얼굴 사진 한 장으로 색소침착과 주름 중심의 피부 상태를 분석하고,
-              기능성 성분·화장품 제품·식습관 가이드까지 한 흐름으로 확인합니다.
+              얼굴 사진 한 장으로 색소침착과 주름 흐름을 확인하고,
+              성분·제품·식습관 가이드까지 이어지는 관리 방향을 제공합니다.
             </p>
 
             <div className="sf-landing-actions">
@@ -1106,6 +1115,9 @@ function LandingPage() {
                 <span className="sf-roi-label">주름</span>
               </span>
             </div>
+            <p className="sf-roi-note">
+              미리보기의 ROI 표시는 화면 이해를 돕기 위한 안내용 요소이며 실제 검출 위치가 아닙니다.
+            </p>
 
             <div className="sf-report-metrics">
               <div className="sf-report-metric">
@@ -1140,7 +1152,7 @@ function LandingPage() {
             <h2>분석 후 추천까지 한 흐름으로 확인합니다</h2>
             <p>
               색소침착과 주름 분석 결과를 바탕으로 성분, 제품, 이력 관리 흐름을
-              짧고 명확하게 이어줍니다.
+              짧고 명확하게 연결합니다.
             </p>
           </div>
 

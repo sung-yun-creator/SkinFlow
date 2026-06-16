@@ -48,7 +48,7 @@ function getRoiStatus(roiResult) {
   if (!roiResult) {
     return {
       isReady: false,
-      label: "ROI 대기",
+      label: "얼굴 영역 대기",
       description: "아직 얼굴 관심 영역 정보가 전달되지 않았습니다.",
     };
   }
@@ -59,15 +59,15 @@ function getRoiStatus(roiResult) {
   if (!status || status === "ok") {
     return {
       isReady: true,
-      label: "ROI 확인 완료",
-      description: "얼굴과 주요 피부 관심 영역 좌표를 확인했습니다.",
+      label: "얼굴 영역 확인 완료",
+      description: "분석에 필요한 얼굴 관심 영역을 확인했습니다.",
     };
   }
 
   if (status === "model_missing") {
     return {
       isReady: false,
-      label: "ROI 모델 확인 필요",
+      label: "얼굴 영역 모델 확인 필요",
       description: "AI 서버의 Face Landmarker 모델 파일 확인이 필요합니다.",
     };
   }
@@ -82,7 +82,7 @@ function getRoiStatus(roiResult) {
 
   return {
     isReady: false,
-    label: "ROI 확인 필요",
+    label: "얼굴 영역 확인 필요",
     description: "얼굴 관심 영역 확인 결과를 다시 검토해야 합니다.",
   };
 }
@@ -180,7 +180,7 @@ function AnalysisLoadingPage() {
       value: fileName || "파일 정보 없음",
     },
     {
-      label: "ROI 상태",
+      label: "얼굴 영역 확인",
       value: roiStatus.label,
     },
     {
@@ -206,7 +206,7 @@ function AnalysisLoadingPage() {
     {
       status: roiStatus.isReady ? "done" : "active",
       icon: ScanFace,
-      title: "얼굴 및 ROI 확인",
+      title: "얼굴 영역 확인",
       description: roiStatus.description,
     },
     {
@@ -603,7 +603,7 @@ function AnalysisLoadingPage() {
           </h1>
 
           <p>
-            입력된 얼굴 이미지의 ROI와 색소침착·주름 분석 결과 저장 API 응답을
+            입력된 얼굴 이미지와 색소침착·주름 분석 결과의 처리 상태를
             단계별로 확인합니다.
           </p>
 
@@ -731,8 +731,8 @@ function AnalysisLoadingPage() {
             </span>
 
             <p>
-              현재 화면은 분석 요청의 실제 응답 상태를 보여줍니다. AI 모델이 아직
-              점수를 반환하지 않으면 가짜 이력을 만들지 않고 연결 대기 상태로 안내합니다.
+              현재 화면은 분석 요청의 실제 처리 상태를 보여줍니다. AI 모델이 아직
+              점수를 반환하지 않으면 가짜 이력을 만들지 않고 대기 상태로 안내합니다.
             </p>
           </div>
         </aside>
