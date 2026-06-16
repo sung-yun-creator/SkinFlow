@@ -89,6 +89,7 @@ function normalizeDietSummary(response) {
     analyzedAt: summary?.analyzedAt ?? null,
     totalScore: summary?.totalScore ?? null,
     guideSource: summary?.guideSource ?? null,
+    saved: response?.saved ?? summary?.saved ?? null,
     guideCount: hasGuideCount && Number.isFinite(guideCount) ? guideCount : null,
     message: normalizeText(summary?.message),
   };

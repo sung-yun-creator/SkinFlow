@@ -14,7 +14,7 @@ import PageLayout from "../components/layout/PageLayout";
 import Button from "../components/common/Button";
 import Card from "../components/common/Card";
 import Badge from "../components/common/Badge";
-import { getHistory, getHistoryDetail } from "../api/historyApi";
+import { getHistory, getHistoryDetail, getHistoryLlmReport } from "../api/historyApi";
 import { shouldShowAnalysisScore } from "../utils/analysisStatus";
 
 const defaultHistoryData = {
@@ -173,6 +173,37 @@ function getRecommendationText(recommendations) {
     : "이 분석 이력에 연결된 추천 요약이 없습니다.";
 }
 
+function hasText(value) {
+  return typeof value === "string" && value.trim() !== "";
+}
+
+function getLlmReportSourceLabel(source) {
+  const normalizedSource = String(source || "").trim().toLowerCase();
+  const sourceMap = {
+    generated: "새로 생성된 리포트",
+    database: "저장된 리포트",
+    copied: "이전 분석 리포트 재사용",
+  };
+
+  return sourceMap[normalizedSource] || "리포트 출처 확인 중";
+}
+
+function getLlmReportErrorMessage(error) {
+  if (error?.status === 404) {
+    return "분석 이력이 없어 AI 요약 리포트를 불러오지 못했습니다.";
+  }
+
+  if (error?.status === 503) {
+    return "AI 요약 리포트 설정이 준비되지 않았습니다.";
+  }
+
+  if (error?.status === 502) {
+    return "AI 요약 리포트 생성 응답을 확인하지 못했습니다.";
+  }
+
+  return "AI 요약 리포트를 불러오지 못했습니다. 기존 분석 상세 정보는 계속 확인할 수 있습니다.";
+}
+
 function getRecordId(record) {
   return record?.analysisId || record?.analysis_id || record?.id || record?.resultId;
 }
@@ -195,6 +226,9 @@ function HistoryPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [historyError, setHistoryError] = useState("");
   const [detailError, setDetailError] = useState("");
+  const [llmReport, setLlmReport] = useState(null);
+  const [isLlmReportLoading, setIsLlmReportLoading] = useState(false);
+  const [llmReportError, setLlmReportError] = useState("");
   const [searchText, setSearchText] = useState("");
 
   useEffect(() => {
@@ -299,20 +333,55 @@ function HistoryPage() {
       status: selectedDetailStatus,
       saved: selectedDetail?.saved,
     });
+  const llmReportBody = llmReport?.report || {};
+  const llmReportKeyPoints = Array.isArray(llmReportBody.keyPoints)
+    ? llmReportBody.keyPoints.filter(hasText)
+    : [];
+  const hasLlmReportContent =
+    hasText(llmReportBody.title) ||
+    hasText(llmReportBody.summary) ||
+    hasText(llmReportBody.skinStatus) ||
+    llmReportKeyPoints.length > 0 ||
+    hasText(llmReportBody.recommendationSummary) ||
+    hasText(llmReportBody.careGuide) ||
+    hasText(llmReportBody.disclaimer);
 
   async function handleDetailClick(analysisId) {
     if (!analysisId) {
       setDetailError("분석 ID가 없어 상세 정보를 불러올 수 없습니다.");
+      setLlmReport(null);
+      setLlmReportError("");
       return;
     }
 
     try {
       setDetailError("");
-      const detail = await getHistoryDetail(analysisId);
-      setSelectedDetail(detail);
-    } catch (error) {
-      console.error("분석 이력 상세 API 호출 실패:", error);
-      setDetailError("상세 분석 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
+      setLlmReport(null);
+      setLlmReportError("");
+      setIsLlmReportLoading(true);
+
+      const [detailResult, reportResult] = await Promise.allSettled([
+        getHistoryDetail(analysisId),
+        getHistoryLlmReport(analysisId),
+      ]);
+
+      if (detailResult.status === "fulfilled") {
+        setSelectedDetail(detailResult.value);
+      } else {
+        console.error("분석 이력 상세 API 호출 실패:", detailResult.reason);
+        setSelectedDetail(null);
+        setDetailError("상세 분석 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
+      }
+
+      if (reportResult.status === "fulfilled") {
+        setLlmReport(reportResult.value);
+      } else {
+        console.error("AI 요약 리포트 API 호출 실패:", reportResult.reason);
+        setLlmReport(null);
+        setLlmReportError(getLlmReportErrorMessage(reportResult.reason));
+      }
+    } finally {
+      setIsLlmReportLoading(false);
     }
   }
 
@@ -779,6 +848,68 @@ function HistoryPage() {
           font-size: 16px;
         }
 
+        .sf-llm-report-card {
+          display: grid;
+          gap: 14px;
+          margin-top: 14px;
+          padding: 18px;
+          border-radius: 20px;
+          background:
+            radial-gradient(circle at 100% 0%, rgba(22, 125, 127, 0.07), transparent 34%),
+            #ffffff;
+          border: 1px solid rgba(226, 232, 240, 0.94);
+          text-align: left;
+        }
+
+        .sf-llm-report-head {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 14px;
+        }
+
+        .sf-llm-report-head small,
+        .sf-llm-report-section span {
+          display: block;
+          color: #64748b;
+          font-size: 11px;
+          font-weight: 950;
+        }
+
+        .sf-llm-report-head h3,
+        .sf-llm-report-section strong {
+          margin: 5px 0 0;
+          color: #0f172a;
+          font-size: 16px;
+          line-height: 1.35;
+          letter-spacing: -0.02em;
+        }
+
+        .sf-llm-report-section {
+          display: grid;
+          gap: 6px;
+          padding: 13px;
+          border-radius: 16px;
+          background: #f8fafc;
+          border: 1px solid rgba(226, 232, 240, 0.88);
+        }
+
+        .sf-llm-report-section p,
+        .sf-llm-report-section li {
+          margin: 0;
+          color: #475569;
+          font-size: 13px;
+          line-height: 1.62;
+          word-break: keep-all;
+        }
+
+        .sf-llm-report-section ul {
+          display: grid;
+          gap: 7px;
+          margin: 0;
+          padding-left: 18px;
+        }
+
         .sf-history-bottom {
           display: grid;
           grid-template-columns: 1fr;
@@ -1094,45 +1225,128 @@ function HistoryPage() {
             {detailError && <p className="sf-error-line" style={{ marginTop: 12 }}>{detailError}</p>}
 
             {selectedDetail && (
-              <div className="sf-detail-card">
-                <div className="sf-card-title-row">
-                  <div>
-                    <small>{formatDate(getRecordDate(selectedDetail))}</small>
-                    <h2>상세 분석 정보</h2>
+              <>
+                <div className="sf-detail-card">
+                  <div className="sf-card-title-row">
+                    <div>
+                      <small>{formatDate(getRecordDate(selectedDetail))}</small>
+                      <h2>상세 분석 정보</h2>
+                    </div>
+                    <span className="sf-status-badge">{getStatusLabel(selectedDetailStatus)}</span>
                   </div>
-                  <span className="sf-status-badge">{getStatusLabel(selectedDetailStatus)}</span>
+
+                  <div className="sf-detail-metrics">
+                    <div>
+                      <span>종합 점수</span>
+                      <strong>
+                        {canShowSelectedDetailScore
+                          ? formatScore(getRecordScore(selectedDetail), "점수 없음")
+                          : "점수 없음"}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>색소침착</span>
+                      <strong>
+                        {canShowSelectedDetailScore
+                          ? getMetricScore(selectedDetail.metrics, "색소")
+                          : "점수 없음"}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>주름</span>
+                      <strong>
+                        {canShowSelectedDetailScore
+                          ? getMetricScore(selectedDetail.metrics, "주름")
+                          : "점수 없음"}
+                      </strong>
+                    </div>
+                  </div>
+
+                  <p>{selectedDetail.statusDescription || selectedDetail.summary || "상세 분석 설명이 없습니다."}</p>
+                  <p>{getRecommendationText(selectedDetail.recommendations)}</p>
                 </div>
 
-                <div className="sf-detail-metrics">
-                  <div>
-                    <span>종합 점수</span>
-                    <strong>
-                      {canShowSelectedDetailScore
-                        ? formatScore(getRecordScore(selectedDetail), "점수 없음")
-                        : "점수 없음"}
-                    </strong>
+                <div className="sf-llm-report-card">
+                  <div className="sf-llm-report-head">
+                    <div>
+                      <small>AI Summary Report</small>
+                      <h3>AI 요약 리포트</h3>
+                    </div>
+                    <span className="sf-status-badge">
+                      {llmReport ? getLlmReportSourceLabel(llmReport.source) : "리포트 확인"}
+                    </span>
                   </div>
-                  <div>
-                    <span>색소침착</span>
-                    <strong>
-                      {canShowSelectedDetailScore
-                        ? getMetricScore(selectedDetail.metrics, "색소")
-                        : "점수 없음"}
-                    </strong>
-                  </div>
-                  <div>
-                    <span>주름</span>
-                    <strong>
-                      {canShowSelectedDetailScore
-                        ? getMetricScore(selectedDetail.metrics, "주름")
-                        : "점수 없음"}
-                    </strong>
-                  </div>
-                </div>
 
-                <p>{selectedDetail.statusDescription || selectedDetail.summary || "상세 분석 설명이 없습니다."}</p>
-                <p>{getRecommendationText(selectedDetail.recommendations)}</p>
-              </div>
+                  {isLlmReportLoading && (
+                    <p className="sf-notice-line">AI 요약 리포트를 불러오는 중입니다.</p>
+                  )}
+
+                  {!isLlmReportLoading && llmReportError && (
+                    <p className="sf-error-line">{llmReportError}</p>
+                  )}
+
+                  {!isLlmReportLoading && !llmReportError && llmReport && !hasLlmReportContent && (
+                    <p className="sf-notice-line">표시할 AI 요약 리포트 내용이 없습니다.</p>
+                  )}
+
+                  {!isLlmReportLoading && !llmReportError && hasLlmReportContent && (
+                    <>
+                      {hasText(llmReportBody.title) && (
+                        <div className="sf-llm-report-section">
+                          <span>리포트 제목</span>
+                          <strong>{llmReportBody.title}</strong>
+                        </div>
+                      )}
+
+                      {hasText(llmReportBody.summary) && (
+                        <div className="sf-llm-report-section">
+                          <span>전체 요약</span>
+                          <p>{llmReportBody.summary}</p>
+                        </div>
+                      )}
+
+                      {hasText(llmReportBody.skinStatus) && (
+                        <div className="sf-llm-report-section">
+                          <span>피부 상태 요약</span>
+                          <p>{llmReportBody.skinStatus}</p>
+                        </div>
+                      )}
+
+                      {llmReportKeyPoints.length > 0 && (
+                        <div className="sf-llm-report-section">
+                          <span>핵심 포인트</span>
+                          <ul>
+                            {llmReportKeyPoints.map((point, index) => (
+                              <li key={`${point}-${index}`}>{point}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {hasText(llmReportBody.recommendationSummary) && (
+                        <div className="sf-llm-report-section">
+                          <span>추천 요약</span>
+                          <p>{llmReportBody.recommendationSummary}</p>
+                        </div>
+                      )}
+
+                      {hasText(llmReportBody.careGuide) && (
+                        <div className="sf-llm-report-section">
+                          <span>관리 가이드</span>
+                          <p>{llmReportBody.careGuide}</p>
+                        </div>
+                      )}
+
+                      {hasText(llmReportBody.disclaimer) && (
+                        <div className="sf-llm-report-section">
+                          <span>참고 안내</span>
+                          <p>{llmReportBody.disclaimer}</p>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </>
             )}
           </Card>
         </section>
