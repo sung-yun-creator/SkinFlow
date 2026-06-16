@@ -112,6 +112,14 @@ function getDisplayValue(value, emptyText = "미설정") {
   return value;
 }
 
+function hasText(value) {
+  return typeof value === "string" && value.trim() !== "";
+}
+
+function isCompletedStatus(status) {
+  return String(status || "").toLowerCase() === "completed";
+}
+
 function MyPage() {
   const [mypage, setMypage] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -151,9 +159,9 @@ function MyPage() {
   }, []);
 
   const profile = mypage?.profile ?? {
-    name: "사용자",
+    name: null,
     email: null,
-    skinType: "미설정",
+    skinType: null,
     createdAt: null,
   };
 
@@ -162,30 +170,36 @@ function MyPage() {
     latestTotalScore: null,
     mainConcern: null,
     latestAnalyzedAt: null,
+    latestStatus: null,
   };
 
+  const hasMypageData = Boolean(mypage) && !mypageError;
+  const latestStatus = stats.latestStatus ?? stats.latest_status ?? stats.analysisStatus ?? stats.analysis_status;
+  const hasCompletedLatest = isCompletedStatus(latestStatus);
   const recentActivity = Array.isArray(mypage?.recentActivity)
-    ? mypage.recentActivity.slice(0, 3)
+    ? mypage.recentActivity
+        .filter((activity) => hasText(activity?.title) || hasText(activity?.description) || activity?.occurredAt)
+        .slice(0, 3)
     : [];
-  const profileName = getDisplayValue(profile.name, "사용자");
+  const profileName = getDisplayValue(profile.name, "계정 정보 없음");
   const profileEmail = getDisplayValue(profile.email, "로그인 정보 확인 필요");
 
   const profileStats = useMemo(
     () => [
       {
         label: "총 분석",
-        value: `${stats.analysisCount ?? 0}회`,
+        value: hasMypageData ? `${stats.analysisCount ?? 0}회` : "정보 없음",
       },
       {
         label: "최근 점수",
-        value: formatScore(stats.latestTotalScore),
+        value: hasCompletedLatest ? formatScore(stats.latestTotalScore) : "분석 완료 후 표시",
       },
       {
         label: "관심 지표",
         value: getDisplayValue(stats.mainConcern, "분석 후 표시"),
       },
     ],
-    [stats.analysisCount, stats.latestTotalScore, stats.mainConcern]
+    [hasCompletedLatest, hasMypageData, stats.analysisCount, stats.latestTotalScore, stats.mainConcern]
   );
 
   const skinProfileItems = useMemo(
