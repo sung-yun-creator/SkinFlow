@@ -7,7 +7,7 @@ function mergeDuplicateProducts(products) {
     const productMap = new Map();
 
     products.forEach((product) => {
-        const key = `${product.brandName}::${product.productName}`;
+        const key = `${product.sourceIngredient}::${product.brandName}::${product.productName}`;
 
         if (!productMap.has(key)) {
             productMap.set(key, {
@@ -50,9 +50,10 @@ async function upsertProduct(connection, product) {
             FROM t_product
             WHERE brand_name = ?
                 AND product_name = ?
+                AND product_url = ?
             LIMIT 1
         `,
-        [product.brandName, product.productName],
+        [product.brandName, product.productName, product.productUrl],
     );
 
     if (rows[0]) {
@@ -124,13 +125,25 @@ async function deactivateLegacyGlobalProducts(connection) {
     );
 }
 
+async function deactivateCurrentOliveYoungProducts(connection) {
+    await connection.query(
+        `
+            UPDATE t_product
+            SET
+                is_active = 0,
+                updated_at = NOW()
+            WHERE product_url LIKE 'https://www.oliveyoung.co.kr/store/search/getSearchMain.do?query=%'
+        `,
+    );
+}
+
 async function replaceProductIngredients(connection, productId, ingredientIdsByName, product) {
     await connection.query(
         'DELETE FROM t_product_ingredient WHERE product_id = ?',
         [productId],
     );
 
-    for (const ingredientName of product.ingredients) {
+    for (const [index, ingredientName] of product.ingredients.entries()) {
         const ingredientId = ingredientIdsByName.get(ingredientName);
 
         if (!ingredientId) {
@@ -144,9 +157,9 @@ async function replaceProductIngredients(connection, productId, ingredientIdsByN
                     ingredient_id,
                     ingredient_pct
                 )
-                VALUES (?, ?, NULL)
+                VALUES (?, ?, ?)
             `,
-            [productId, ingredientId],
+            [productId, ingredientId, index === 0 ? 100 : 10],
         );
     }
 }
@@ -172,6 +185,7 @@ async function seed({ dryRun = false } = {}) {
         await connection.beginTransaction();
 
         await deactivateLegacyGlobalProducts(connection);
+        await deactivateCurrentOliveYoungProducts(connection);
 
         const ingredientNames = [...new Set(products.flatMap((product) => product.ingredients))];
         const ingredientIdsByName = await findIngredientIds(connection, ingredientNames);
