@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  
   AlertCircle,
   ExternalLink,
   FlaskConical,
@@ -67,6 +68,7 @@ function RecommendationSectionState({ type, message }) {
 }
 
 function RecommendationPage() {
+  const [showQuickQuestions, setShowQuickQuestions] = useState(true);
   const [message, setMessage] = useState("");
   const [chatMessages, setChatMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -172,7 +174,7 @@ const isSkinRelatedQuestion = (text) => {
   const [productSummary, setProductSummary] = useState(null);
   const [ingredientError, setIngredientError] = useState("");
   const [productError, setProductError] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+
 
   const loadRecommendations = useCallback(async () => {
     setIsLoading(true);
@@ -687,6 +689,7 @@ const isSkinRelatedQuestion = (text) => {
           padding: 12px 14px;
           border-radius: 18px;
           font-size: 14px;
+        }
         .sf-product-link {
           display: inline-flex;
           align-items: center;
@@ -770,30 +773,38 @@ const isSkinRelatedQuestion = (text) => {
         }
 
         .sf-chat-input-row {
-          display: flex;
-          gap: 8px;
-          padding: 14px;
-          border-top: 1px solid #e2e8f0;
-          background: #ffffff;
+        display: flex;
+        gap: 8px;
+        padding: 14px;
+        border-top: 1px solid #e2e8f0;
+        background: #ffffff;
         }
 
-        .sf-chat-input-row input {
-          flex: 1;
-          padding: 12px 13px;
-          border: 1px solid #cbd5e1;
-          border-radius: 14px;
-          outline: none;
-        }
+         .sf-chat-input-row input {
+         flex: 1;
+         padding: 12px 13px;
+         border: 1px solid #cbd5e1;
+         border-radius: 14px;
+         outline: none;
+       }
 
-        .sf-chat-input-row button {
-          padding: 0 16px;
-          border: none;
-          border-radius: 14px;
-          background: #167d7f;
-          color: white;
-          font-weight: 800;
-          cursor: pointer;
-        }
+      .sf-chat-input-row button {
+      padding: 0 16px;
+      border: none;
+      border-radius: 14px;
+      background: #167d7f;
+      color: white;
+      font-weight: 800;
+      cursor: pointer;
+      }
+      .sf-chat-quick-toggle {
+      margin: 10px 18px;
+      border: none;
+      background: transparent;
+      color: #167d7f;
+      font-weight: 700;
+      cursor: pointer;
+      }
 
         @media (max-width: 1020px) {
           .sf-recommend-hero,
@@ -1047,27 +1058,41 @@ const isSkinRelatedQuestion = (text) => {
               </button>
             </div>
 
-            <div className="sf-chat-quick">
-              {[
-                 "운동 후 스킨케어 루틴 알려줘",
-                 "건성 피부 관리법 알려줘",
-                 "지성 피부 관리법 알려줘",
-                 "민감성 피부 관리법 알려줘",
-                 "색소침착 관리 방법 알려줘",
-                 "모공 관리법 알려줘",
-                 "주름 관리법 알려줘",
-                 "선크림 사용법 알려줘",
-                 "여드름 관리법 알려줘",
-              ].map((question) => (
-                <button
-                  key={question}
-                  type="button"
-                  onClick={() => handleSendChat(question)}
-                >
-                  {question}
-                </button>
-              ))}
-            </div>
+           {showQuickQuestions && (
+           <div className="sf-chat-quick">
+           {[
+           "운동 후 스킨케어 루틴 알려줘",
+           "건성 피부 관리법 알려줘",
+           "지성 피부 관리법 알려줘",
+           "민감성 피부 관리법 알려줘",
+           "색소침착 관리 방법 알려줘",
+           "모공 관리법 알려줘",
+           "주름 관리법 알려줘",
+           "선크림 사용법 알려줘",
+           "여드름 관리법 알려줘",
+           ].map((question) => (
+           <button
+           key={question}
+          type="button"
+            onClick={() => {
+           handleSendChat(question);
+           setShowQuickQuestions(false);
+          }}
+          >
+        {question}
+      </button>
+    ))}
+  </div>
+)}
+{!showQuickQuestions && (
+  <button
+    type="button"
+    className="sf-chat-quick-toggle"
+    onClick={() => setShowQuickQuestions(true)}
+  >
+    추천 질문 펼치기
+  </button>
+)}
 
             <div className="sf-chat-body">
               {chatMessages.length === 0 && (
