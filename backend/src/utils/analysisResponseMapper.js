@@ -31,7 +31,8 @@ function toAnalysis(record, { metrics } = {}) {
         analysisId: record.skin_analysis_id,
         analyzedAt: record.analyzed_at || record.created_at || null,
         totalScore: toNumber(record.total_skin_score),
-        status: record.grade_name || record.analysis_status || null,
+        status: record.analysis_status || null,
+        gradeName: record.grade_name || null,
         statusDescription: record.grade_description || null,
         summary: record.summary_text || null,
     };

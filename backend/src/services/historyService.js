@@ -23,7 +23,8 @@ function toSummary(summary) {
         analysisCount: Number(summary.analysis_count || 0),
         latestTotalScore,
         latestAnalyzedAt: summary.latest_analyzed_at || null,
-        latestStatus: summary.latest_grade_name || summary.latest_status || null,
+        latestStatus: summary.latest_status || null,
+        latestGradeName: summary.latest_grade_name || null,
         scoreDiff,
     };
 }
