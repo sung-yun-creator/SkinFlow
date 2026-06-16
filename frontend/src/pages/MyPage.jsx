@@ -21,6 +21,7 @@ import Button from "../components/common/Button";
 import Card from "../components/common/Card";
 import Badge from "../components/common/Badge";
 import { getMyPage } from "../api/mypageApi";
+import { shouldShowAnalysisScore } from "../utils/analysisStatus";
 
 const quickActions = [
   {
@@ -115,10 +116,6 @@ function hasText(value) {
   return typeof value === "string" && value.trim() !== "";
 }
 
-function isCompletedStatus(status) {
-  return String(status || "").toLowerCase() === "completed";
-}
-
 function MyPage() {
   const [mypage, setMypage] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -174,7 +171,12 @@ function MyPage() {
 
   const hasMypageData = Boolean(mypage) && !mypageError;
   const latestStatus = stats.latestStatus ?? stats.latest_status ?? stats.analysisStatus ?? stats.analysis_status;
-  const hasCompletedLatest = isCompletedStatus(latestStatus);
+  const latestScore = stats.latestTotalScore ?? stats.latest_total_score;
+  const hasLatestScore = shouldShowAnalysisScore({
+    score: latestScore,
+    status: latestStatus,
+    saved: stats.saved,
+  });
   const recentActivity = Array.isArray(mypage?.recentActivity)
     ? mypage.recentActivity
         .filter((activity) => hasText(activity?.title) || hasText(activity?.description) || activity?.occurredAt)
@@ -191,14 +193,14 @@ function MyPage() {
       },
       {
         label: "최근 점수",
-        value: hasCompletedLatest ? formatScore(stats.latestTotalScore) : "분석 완료 후 표시",
+        value: hasLatestScore ? formatScore(latestScore) : "분석 완료 후 표시",
       },
       {
         label: "관심 지표",
         value: getDisplayValue(stats.mainConcern, "분석 후 표시"),
       },
     ],
-    [hasCompletedLatest, hasMypageData, stats.analysisCount, stats.latestTotalScore, stats.mainConcern]
+    [hasLatestScore, hasMypageData, latestScore, stats.analysisCount, stats.mainConcern]
   );
 
   const skinProfileItems = useMemo(

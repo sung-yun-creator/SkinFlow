@@ -13,6 +13,7 @@ import Button from "../components/common/Button";
 import Card from "../components/common/Card";
 import Badge from "../components/common/Badge";
 import { getDashboard } from "../api/dashboardApi";
+import { shouldShowAnalysisScore, toAnalysisScoreNumber } from "../utils/analysisStatus";
 
 const quickActions = [
   {
@@ -62,16 +63,6 @@ function formatDate(dateValue) {
     month: "short",
     day: "numeric",
   });
-}
-
-function formatScore(score) {
-  if (score === null || score === undefined || score === "") return null;
-
-  const numberScore = Number(score);
-
-  if (Number.isNaN(numberScore)) return null;
-
-  return Math.round(numberScore);
 }
 
 function getStatusLabel(status) {
@@ -228,9 +219,7 @@ function DashboardPage() {
     latestAnalysis?.status ||
     summary.latestStatus ||
     summary.latest_status;
-  const isLatestAnalysisCompleted = String(latestStatus || "").toLowerCase() === "completed";
-
-  const latestScore = formatScore(
+  const latestScore = toAnalysisScoreNumber(
     latestAnalysis?.totalScore ??
       latestAnalysis?.totalSkinScore ??
       latestAnalysis?.total_score ??
@@ -243,9 +232,12 @@ function DashboardPage() {
     summary.analysisCount || summary.analysis_count || profile.analysisCount || 0
   );
 
-  const hasLatestAnalysisScore =
-    Boolean(latestAnalysis) && isLatestAnalysisCompleted && latestScore !== null;
-  const hasLatestAnalysis = Boolean(latestAnalysis) && hasLatestAnalysisScore;
+  const hasLatestAnalysisScore = shouldShowAnalysisScore({
+    score: latestScore,
+    status: latestStatus,
+    saved: latestAnalysis?.saved ?? summary.saved,
+  });
+  const hasLatestAnalysis = hasLatestAnalysisScore;
   const metrics = useMemo(
     () => normalizeMetrics(latestAnalysis, hasLatestAnalysisScore),
     [hasLatestAnalysisScore, latestAnalysis],
