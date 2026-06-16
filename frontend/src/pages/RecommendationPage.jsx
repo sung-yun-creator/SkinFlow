@@ -46,6 +46,21 @@ function formatScore(value) {
   return `${Math.round(numericValue)}점`;
 }
 
+function hasMatchScore(value) {
+  if (value === null || value === undefined) return false;
+  if (typeof value === "string" && value.trim() === "") return false;
+
+  return Number.isFinite(Number(value));
+}
+
+function formatMatchScore(value) {
+  if (!hasMatchScore(value)) {
+    return "분석 후 표시";
+  }
+
+  return `${Math.round(Number(value))}점`;
+}
+
 function getFocusMetricName(...summaries) {
   const focusMetric = summaries.find((summary) => summary?.focusMetric?.name)?.focusMetric;
 
@@ -553,7 +568,7 @@ function RecommendationPage() {
           flex-direction: column;
           align-items: flex-end;
           justify-content: center;
-          min-width: 54px;
+          min-width: 72px;
           padding: 8px 0;
           color: #167d7f;
           text-align: right;
@@ -561,6 +576,13 @@ function RecommendationPage() {
           font-weight: 950;
           line-height: 1.05;
           letter-spacing: -0.04em;
+        }
+
+        .sf-match-score.is-pending {
+          color: #64748b;
+          font-size: 12px;
+          line-height: 1.25;
+          letter-spacing: 0;
         }
 
         .sf-match-score span {
@@ -809,9 +831,9 @@ function RecommendationPage() {
                       </div>
                     </div>
 
-                    <div className="sf-match-score">
+                    <div className={`sf-match-score ${hasMatchScore(item.match) ? "" : "is-pending"}`}>
                       <span>매칭</span>
-                      {item.match}점
+                      {formatMatchScore(item.match)}
                     </div>
                   </article>
                 ))}
@@ -876,9 +898,9 @@ function RecommendationPage() {
                       )}
                     </div>
 
-                    <div className="sf-match-score">
+                    <div className={`sf-match-score ${hasMatchScore(item.match) ? "" : "is-pending"}`}>
                       <span>매칭</span>
-                      {item.match}점
+                      {formatMatchScore(item.match)}
                     </div>
                   </article>
                 ))}
