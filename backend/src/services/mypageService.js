@@ -42,7 +42,8 @@ function toMypageResponse(user, analysisSummary, mainConcern, recentActivity) {
         stats: {
             analysisCount: analysisSummary ? Number(analysisSummary.analysis_count) : 0,
             latestTotalScore,
-            latestStatus: analysisSummary?.latest_grade_name || analysisSummary?.latest_status || null,
+            latestStatus: analysisSummary?.latest_status || null,
+            latestGradeName: analysisSummary?.latest_grade_name || null,
             latestAnalyzedAt: analysisSummary?.latest_analyzed_at || null,
             mainConcern: mainConcern?.metric_name || null,
             mainConcernScore: mainConcern ? toNumber(mainConcern.metric_score) : null,
