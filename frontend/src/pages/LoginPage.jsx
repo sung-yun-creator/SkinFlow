@@ -117,7 +117,7 @@ function LoginPage() {
                 <input
                   type="email"
                   name="email"
-                  placeholder="skinflow@example.com"
+                  placeholder="이메일을 입력하세요"
                   value={form.email}
                   onChange={handleChange}
                 />
@@ -141,16 +141,19 @@ function LoginPage() {
 
             {loginError && <p className="form-error-text">{loginError}</p>}
 
-            <div className="auth-form-options">
-              <label className="check-row">
-                <input type="checkbox" />
-                <span>로그인 상태 유지</span>
-              </label>
-
-              <button type="button" className="text-button">
-                비밀번호 찾기
-              </button>
-            </div>
+            <p
+              className="auth-helper-text"
+              style={{
+                margin: "-2px 0 4px",
+                color: "#64748b",
+                fontSize: 12,
+                fontWeight: 700,
+                lineHeight: 1.55,
+                wordBreak: "keep-all",
+              }}
+            >
+              계정 정보가 기억나지 않으면 팀 관리자에게 문의해주세요.
+            </p>
 
             <button className="auth-submit-button" type="submit" disabled={isLoading}>
               {isLoading ? "로그인 중..." : "로그인하기"}

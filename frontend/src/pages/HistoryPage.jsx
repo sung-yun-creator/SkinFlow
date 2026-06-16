@@ -54,29 +54,25 @@ function formatDate(dateValue, emptyText = "아직 없음") {
 }
 
 function formatScore(score, emptyText = "분석 전") {
-  if (score === null || score === undefined || score === "") return emptyText;
+  const numericScore = getScoreNumber(score);
 
-  const numericScore = Number(score);
+  if (numericScore === null) return emptyText;
 
-  if (Number.isNaN(numericScore)) return emptyText;
-
-  return `${Math.round(numericScore)}점`;
+  return `${numericScore}점`;
 }
 
 function getScoreNumber(score) {
-  if (score === null || score === undefined || score === "") return 0;
+  if (score === null || score === undefined || score === "") return null;
 
   const numericScore = Number(score);
 
-  if (Number.isNaN(numericScore)) return 0;
+  if (Number.isNaN(numericScore)) return null;
 
   return Math.max(0, Math.min(100, Math.round(numericScore)));
 }
 
 function hasScoreValue(score) {
-  if (score === null || score === undefined || score === "") return false;
-
-  return !Number.isNaN(Number(score));
+  return getScoreNumber(score) !== null;
 }
 
 function formatDiff(scoreDiff) {
@@ -103,9 +99,9 @@ function getStatusLabel(status) {
     normal: "보통",
     caution: "주의",
     medium: "주의",
-    risk: "위험",
-    high: "위험",
-    danger: "위험",
+    risk: "관리 필요",
+    high: "관리 필요",
+    danger: "관리 필요",
     severe: "집중 관리",
     pending: "분석 대기",
     processing: "분석 중",
@@ -262,10 +258,14 @@ function HistoryPage() {
     return source.map((record, index) => ({
       label: formatDate(getRecordDate(record), `${index + 1}회차`),
       score: getScoreNumber(getRecordScore(record)),
+      hasScore: hasScoreValue(getRecordScore(record)),
     }));
   }, [records]);
 
-  const maxTrendScore = Math.max(...trendItems.map((item) => item.score), 100);
+  const maxTrendScore = Math.max(
+    ...trendItems.filter((item) => item.hasScore).map((item) => item.score),
+    100
+  );
 
   async function handleDetailClick(analysisId) {
     if (!analysisId) {
@@ -946,13 +946,17 @@ function HistoryPage() {
                   <div className="sf-trend-row" key={`${item.label}-${index}`}>
                     <span>{item.label}</span>
                     <div className="sf-trend-bar">
-                      <span
-                        style={{
-                          width: `${Math.max(6, (item.score / maxTrendScore) * 100)}%`,
-                        }}
-                      />
+                      {item.hasScore && (
+                        <span
+                          style={{
+                            width: `${Math.max(6, (item.score / maxTrendScore) * 100)}%`,
+                          }}
+                        />
+                      )}
                     </div>
-                    <div className="sf-trend-score">{item.score}점</div>
+                    <div className="sf-trend-score">
+                      {item.hasScore ? `${item.score}점` : "점수 없음"}
+                    </div>
                   </div>
                 ))
               ) : (
