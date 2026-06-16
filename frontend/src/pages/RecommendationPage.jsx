@@ -52,6 +52,59 @@ function getFocusMetricName(...summaries) {
   return focusMetric?.name || "분석 대기";
 }
 
+function getRecommendationSourceState(summary, itemCount = 0) {
+  if (!summary && itemCount === 0) {
+    return {
+      tone: "empty",
+      label: "추천 데이터 없음",
+      message: "분석 후 추천 데이터가 표시됩니다.",
+    };
+  }
+
+  const sourceText = String(
+    summary?.source ??
+      summary?.ingredientSource ??
+      summary?.productSource ??
+      "",
+  ).toLowerCase();
+  const isFallback = Boolean(summary?.isFallback || summary?.fallback || summary?.fromDefault);
+  const hasItems = itemCount > 0;
+
+  if (!hasItems || ["empty", "none", "null"].includes(sourceText)) {
+    return {
+      tone: "empty",
+      label: "추천 데이터 없음",
+      message: summary?.message || "분석 후 추천 데이터가 표시됩니다.",
+    };
+  }
+
+  if (
+    isFallback ||
+    !sourceText ||
+    ["default", "fallback", "reference", "static", "seed", "unknown"].includes(sourceText)
+  ) {
+    return {
+      tone: "reference",
+      label: "기본 추천 기준",
+      message: summary?.message || "분석 전 참고 정보입니다. 최신 분석 후 개인 관리 방향에 맞춰 확인해 주세요.",
+    };
+  }
+
+  if (["latest", "analysis", "personalized", "result", "completed"].includes(sourceText)) {
+    return {
+      tone: "personalized",
+      label: "최근 분석 결과 기반 추천",
+      message: summary?.message || "최근 분석 결과를 바탕으로 참고할 수 있는 추천입니다.",
+    };
+  }
+
+  return {
+    tone: "reference",
+    label: "연동 전 참고 정보",
+    message: summary?.message || "추천 기준을 확인 중입니다. 개인 맞춤 결과로 확정하지 말고 참고 정보로 활용해 주세요.",
+  };
+}
+
 function RecommendationSectionState({ type, message }) {
   const isLoading = type === "loading";
   const isError = type === "error";
@@ -111,6 +164,25 @@ function RecommendationPage() {
   }, [loadRecommendations]);
 
   const summary = productSummary || ingredientSummary;
+  const ingredientSourceState = useMemo(
+    () => getRecommendationSourceState(ingredientSummary, ingredients.length),
+    [ingredientSummary, ingredients.length],
+  );
+  const productSourceState = useMemo(
+    () => getRecommendationSourceState(productSummary, products.length),
+    [productSummary, products.length],
+  );
+  const sourceState = useMemo(() => {
+    if (ingredientSourceState.tone === "personalized" || productSourceState.tone === "personalized") {
+      return ingredientSourceState.tone === "personalized" ? ingredientSourceState : productSourceState;
+    }
+
+    if (ingredients.length || products.length) {
+      return ingredientSourceState.tone !== "empty" ? ingredientSourceState : productSourceState;
+    }
+
+    return ingredientSourceState;
+  }, [ingredientSourceState, ingredients.length, productSourceState, products.length]);
 
   const summaryItems = useMemo(
     () => [
@@ -140,13 +212,17 @@ function RecommendationPage() {
     }
 
     if (!ingredients.length && !products.length) {
-      return summary?.message || "최근 분석 결과 기반 추천 데이터가 아직 없습니다.";
+      return sourceState.message;
     }
 
-    return `최근 분석 결과 기준 ${formatScore(summary?.totalScore)} 상태에서 참고할 수 있는 성분과 제품 추천입니다.`;
-  }, [ingredientError, ingredients.length, isLoading, productError, products.length, summary]);
+    if (sourceState.tone === "personalized") {
+      return `최근 분석 결과 기준 ${formatScore(summary?.totalScore)} 상태에서 참고할 수 있는 성분과 제품 추천입니다.`;
+    }
 
-  const statusLabel = isLoading ? "불러오는 중" : ingredientError && productError ? "연결 확인" : "API 연동";
+    return sourceState.message;
+  }, [ingredientError, ingredients.length, isLoading, productError, products.length, sourceState, summary]);
+
+  const statusLabel = isLoading ? "불러오는 중" : ingredientError && productError ? "연결 확인" : sourceState.label;
 
   return (
     <PageLayout>
@@ -253,6 +329,29 @@ function RecommendationPage() {
           font-size: 12px;
           font-weight: 950;
           white-space: nowrap;
+        }
+
+        .sf-source-pill {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 7px 10px;
+          border-radius: 999px;
+          color: #167d7f;
+          background: rgba(22, 125, 127, 0.09);
+          font-size: 11px;
+          font-weight: 950;
+          white-space: nowrap;
+        }
+
+        .sf-source-pill.is-reference {
+          color: #0f766e;
+          background: rgba(20, 184, 166, 0.1);
+        }
+
+        .sf-source-pill.is-empty {
+          color: #64748b;
+          background: rgba(100, 116, 139, 0.1);
         }
 
         .sf-recommend-summary-grid {
@@ -679,6 +778,9 @@ function RecommendationPage() {
                   <h2>기능성 성분 추천</h2>
                 </div>
               </div>
+              <span className={`sf-source-pill is-${ingredientSourceState.tone}`}>
+                {ingredientSourceState.label}
+              </span>
             </div>
 
             {isLoading ? (
@@ -726,6 +828,9 @@ function RecommendationPage() {
                   <h2>화장품 제품 추천</h2>
                 </div>
               </div>
+              <span className={`sf-source-pill is-${productSourceState.tone}`}>
+                {productSourceState.label}
+              </span>
             </div>
 
             {isLoading ? (
