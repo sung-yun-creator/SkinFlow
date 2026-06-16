@@ -185,7 +185,16 @@ function buildProductRecommendations(productRows, ingredientRecommendations) {
 
     return groupProducts(productRows)
         .map((product) => {
-            const matchedIngredients = product.ingredients
+            const ingredientRanks = product.ingredients
+                .map((ingredient) => toNumber(ingredient.ingredient_pct))
+                .filter((rank) => rank !== null);
+            const primaryIngredientRank = ingredientRanks.length > 0
+                ? Math.max(...ingredientRanks)
+                : null;
+            const matchableIngredients = primaryIngredientRank === null
+                ? product.ingredients
+                : product.ingredients.filter((ingredient) => toNumber(ingredient.ingredient_pct) === primaryIngredientRank);
+            const matchedIngredients = matchableIngredients
                 .map((ingredient) => {
                     const recommendation = recommendedIngredients.get(ingredient.ingredient_id);
 
