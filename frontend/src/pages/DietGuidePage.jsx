@@ -1,79 +1,83 @@
+import { useEffect, useState } from "react";
 import {
   ArrowRight,
   CheckCircle2,
-  Droplets,
   Leaf,
-  Moon,
   ShieldCheck,
   Sparkles,
-  Sun,
   Utensils,
 } from "lucide-react";
 import PageLayout from "../components/layout/PageLayout";
 import Button from "../components/common/Button";
+import { getDietGuideRecommendations } from "../api/recommendationApi";
 
-const guideItems = [
-  {
-    icon: Droplets,
-    title: "수분 섭취",
-    description: "피부 컨디션 유지를 위해 하루 동안 물을 나누어 마시는 습관을 참고합니다.",
-    tag: "기본 권장",
-    priority: "우선 참고",
-  },
-  {
-    icon: Leaf,
-    title: "항산화 식품",
-    description: "채소, 과일 등 항산화 식품을 식단에 균형 있게 포함하는 방향을 살펴봅니다.",
-    tag: "선택 권장",
-    priority: "균형 참고",
-  },
-  {
-    icon: Utensils,
-    title: "당 섭취 조절",
-    description: "단 음료와 고당 간식 빈도를 줄이는 생활 루틴을 피부 관리와 함께 참고합니다.",
-    tag: "생활 루틴",
-    priority: "루틴 참고",
-  },
-];
+const sourceLabelMap = {
+  latest_analysis: "최근 분석 이력과 연결된 참고 가이드",
+  default: "기본 참고 가이드",
+};
 
-const routineItems = [
-  {
-    icon: Sun,
-    time: "아침",
-    text: "수분 섭취와 자외선 차단을 먼저 챙겨보세요.",
-  },
-  {
-    icon: Utensils,
-    time: "점심",
-    text: "채소와 단백질이 포함된 식사를 선택해보세요.",
-  },
-  {
-    icon: Moon,
-    time: "저녁",
-    text: "야식과 과한 당 섭취를 줄이고 휴식을 준비하세요.",
-  },
-];
+function getSourceLabel(source) {
+  return sourceLabelMap[source] ?? "식습관 참고 가이드";
+}
 
-const checkItems = [
-  {
-    title: "물 충분히 마시기",
-    category: "기본 권장",
-  },
-  {
-    title: "채소 또는 과일 챙기기",
-    category: "선택 권장",
-  },
-  {
-    title: "단 음료 줄이기",
-    category: "생활 루틴",
-  },
-  {
-    title: "늦은 야식 피하기",
-    category: "생활 루틴",
-  },
-];
+function hasText(value) {
+  return typeof value === "string" && value.trim() !== "";
+}
 
 function DietGuidePage() {
+  const [dietGuide, setDietGuide] = useState({
+    source: "unknown",
+    summary: {},
+    guides: [],
+    routines: [],
+    checks: [],
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadDietGuides() {
+      try {
+        setIsLoading(true);
+        setErrorMessage("");
+
+        const data = await getDietGuideRecommendations();
+
+        if (isMounted) {
+          setDietGuide(data);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setErrorMessage("식습관 가이드를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
+          setDietGuide({
+            source: "unknown",
+            summary: {},
+            guides: [],
+            routines: [],
+            checks: [],
+          });
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadDietGuides();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const { source, summary, guides, routines, checks } = dietGuide;
+  const sourceLabel = getSourceLabel(source);
+  const isEmpty = !isLoading && !errorMessage && guides.length === 0 && routines.length === 0 && checks.length === 0;
+  const guideCount = summary?.guideCount ?? guides.length;
+
   return (
     <PageLayout>
       <style>{`
@@ -126,7 +130,7 @@ function DietGuidePage() {
           color: #0f172a;
           font-size: clamp(34px, 4.2vw, 52px);
           line-height: 1.04;
-          letter-spacing: -0.072em;
+          letter-spacing: 0;
         }
 
         .sf-gradient-text {
@@ -208,7 +212,7 @@ function DietGuidePage() {
           color: #0f172a;
           font-size: 23px;
           line-height: 1.15;
-          letter-spacing: -0.05em;
+          letter-spacing: 0;
         }
 
         .sf-diet-score-box {
@@ -230,14 +234,7 @@ function DietGuidePage() {
           display: block;
           color: #0f172a;
           font-size: 27px;
-          letter-spacing: -0.06em;
-        }
-
-        .sf-diet-score-head span {
-          color: #167d7f;
-          font-size: 27px;
-          font-weight: 950;
-          letter-spacing: -0.045em;
+          letter-spacing: 0;
         }
 
         .sf-diet-notice {
@@ -254,6 +251,24 @@ function DietGuidePage() {
           flex: 0 0 auto;
           color: #167d7f;
           margin-top: 1px;
+        }
+
+        .sf-state-message {
+          padding: 28px 18px;
+          border-radius: 22px;
+          color: #64748b;
+          background: #f8fafc;
+          border: 1px solid rgba(226, 232, 240, 0.9);
+          font-size: 14px;
+          line-height: 1.6;
+          text-align: center;
+          word-break: keep-all;
+        }
+
+        .sf-state-message.is-error {
+          color: #be123c;
+          background: rgba(244, 63, 94, 0.06);
+          border-color: rgba(244, 63, 94, 0.16);
         }
 
         .sf-diet-main-grid {
@@ -327,15 +342,21 @@ function DietGuidePage() {
           margin: 0 0 8px;
           color: #0f172a;
           font-size: 17px;
-          letter-spacing: -0.045em;
+          letter-spacing: 0;
         }
 
-        .sf-guide-card p {
+        .sf-guide-card p,
+        .sf-guide-reason {
           margin: 0;
           color: #64748b;
           font-size: 12px;
           line-height: 1.56;
           word-break: keep-all;
+        }
+
+        .sf-guide-reason {
+          margin-top: 10px;
+          color: #475569;
         }
 
         .sf-guide-card footer {
@@ -403,7 +424,7 @@ function DietGuidePage() {
           display: block;
           color: #0f172a;
           font-size: 14px;
-          letter-spacing: -0.035em;
+          letter-spacing: 0;
         }
 
         .sf-routine-item > div > span,
@@ -430,11 +451,6 @@ function DietGuidePage() {
           font-size: 11px;
           font-weight: 950;
           white-space: nowrap;
-        }
-
-        .sf-check-state.is-muted {
-          color: #64748b;
-          background: rgba(100, 116, 139, 0.1);
         }
 
         .sf-diet-bottom {
@@ -504,15 +520,14 @@ function DietGuidePage() {
               </span>
 
               <h1>
-                피부 분석 후 이어지는
+                피부 분석 흐름과 연결 된
                 <br />
                 <span className="sf-gradient-text">식습관 가이드</span>
               </h1>
 
               <p>
-                피부 분석, 성분 추천, 제품 추천 흐름 다음에 참고할 수 있는
-                피부 관리 참고 정보입니다. 개인 맞춤 식습관 기능이 연동되기 전까지는
-                일반적인 관리 방향을 기본 가이드로 제공합니다.
+                SkinFlow의 피부 상태 참고 정보와 함께 확인할 수 있는 식습관 관리 방향입니다.
+                화면에는 서버에서 전달된 가이드만 표시됩니다.
               </p>
             </div>
 
@@ -532,121 +547,131 @@ function DietGuidePage() {
                 <CheckCircle2 size={21} />
               </span>
               <div>
-                <span className="sf-diet-label">가이드 제공 상태</span>
-                <h2>기본 가이드 모드</h2>
+                <span className="sf-diet-label">가이드 출처</span>
+                <h2>{sourceLabel}</h2>
               </div>
             </div>
 
             <div className="sf-diet-score-box">
               <div className="sf-diet-score-head">
                 <div>
-                  <span className="sf-diet-label">개인화 연동 전</span>
-                  <strong>피부 관리 참고 정보</strong>
+                  <span className="sf-diet-label">표시 가능한 가이드</span>
+                  <strong>{guideCount}개</strong>
                 </div>
-                <span className="sf-diet-chip">기본 제공</span>
+                <span className="sf-diet-chip">{sourceLabel}</span>
               </div>
             </div>
 
             <div className="sf-diet-notice">
               <ShieldCheck size={17} />
               <span>
-                현재 식습관 가이드는 개인 맞춤 식습관 기능 연동 전 제공되는 기본 참고 가이드입니다.
+                식습관 가이드는 피부 상태를 이해하기 위한 참고 정보이며, 의료적 판단이 아닌
+                관리 방향 확인용으로 제공됩니다.
               </span>
             </div>
           </div>
         </section>
 
-        <section className="sf-diet-main-grid">
-          <div className="sf-diet-card sf-diet-section-card">
-            <div className="sf-diet-section-title">
-              <div>
-                <span className="sf-diet-label">Care Guide</span>
-                <h2>기본 식습관 참고 항목</h2>
-              </div>
-              <span className="sf-diet-chip">기본 가이드</span>
-            </div>
+        {isLoading && <div className="sf-state-message">식습관 가이드를 불러오는 중입니다.</div>}
 
-            <div className="sf-guide-grid">
-              {guideItems.map((item) => {
-                const Icon = item.icon;
+        {!isLoading && errorMessage && <div className="sf-state-message is-error">{errorMessage}</div>}
 
-                return (
-                  <article className="sf-guide-card" key={item.title}>
-                    <div className="sf-guide-card-top">
-                      <span className="sf-icon-tile" aria-hidden="true">
-                        <Icon size={21} />
-                      </span>
-                      <span className="sf-guide-tag">{item.tag}</span>
-                    </div>
+        {isEmpty && <div className="sf-state-message">표시할 식습관 가이드가 없습니다.</div>}
 
-                    <h3>{item.title}</h3>
-                    <p>{item.description}</p>
-
-                    <footer>
-                      <span className="sf-guide-tag">{item.priority}</span>
-                    </footer>
-                  </article>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="sf-diet-card sf-diet-side-card">
-            <div className="sf-diet-side-title">
-              <div>
-                <span className="sf-diet-label">Daily Routine</span>
-                <h2>하루 관리 루틴</h2>
-              </div>
-              <Sparkles size={24} color="#167d7f" />
-            </div>
-
-            <div className="sf-side-stack">
-              {routineItems.map((item) => {
-                const Icon = item.icon;
-
-                return (
-                  <div className="sf-routine-item" key={item.time}>
-                    <span className="sf-icon-tile" aria-hidden="true">
-                      <Icon size={18} />
-                    </span>
+        {!isLoading && !errorMessage && !isEmpty && (
+          <>
+            <section className="sf-diet-main-grid">
+              {guides.length > 0 && (
+                <div className="sf-diet-card sf-diet-section-card">
+                  <div className="sf-diet-section-title">
                     <div>
-                      <strong>{item.time}</strong>
-                      <span>{item.text}</span>
+                      <span className="sf-diet-label">Care Guide</span>
+                      <h2>식습관 참고 가이드</h2>
                     </div>
-                    <span className="sf-check-state">기본 권장</span>
+                    <span className="sf-diet-chip">{sourceLabel}</span>
                   </div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
 
-        <section className="sf-diet-bottom">
-          <div className="sf-diet-card sf-diet-section-card">
-            <div className="sf-diet-section-title">
-              <div>
-                <span className="sf-diet-label">Reference List</span>
-                <h2>기본 권장 루틴</h2>
-              </div>
-              <span className="sf-diet-chip">참고 정보</span>
-            </div>
+                  <div className="sf-guide-grid">
+                    {guides.map((item, index) => (
+                      <article className="sf-guide-card" key={item.id ?? `guide-${index}`}>
+                        <div className="sf-guide-card-top">
+                          <span className="sf-icon-tile" aria-hidden="true">
+                            <Leaf size={21} />
+                          </span>
+                          {hasText(item.tag) && <span className="sf-guide-tag">{item.tag}</span>}
+                        </div>
 
-            <div className="sf-side-stack">
-              {checkItems.map((item) => (
-                <div className="sf-check-item" key={item.title}>
-                  <span className="sf-icon-tile" aria-hidden="true">
-                    <CheckCircle2 size={18} />
-                  </span>
-                  <div>
-                    <strong>{item.title}</strong>
-                    <span>개인 기록이 아닌 기본 피부 관리 참고 항목입니다.</span>
+                        {hasText(item.title) && <h3>{item.title}</h3>}
+                        {hasText(item.description) && <p>{item.description}</p>}
+                        {hasText(item.reason) && <p className="sf-guide-reason">{item.reason}</p>}
+
+                        {hasText(item.priority) && (
+                          <footer>
+                            <span className="sf-guide-tag">{item.priority}</span>
+                          </footer>
+                        )}
+                      </article>
+                    ))}
                   </div>
-                  <span className="sf-check-state">{item.category}</span>
                 </div>
-              ))}
-            </div>
-          </div>
-        </section>
+              )}
+
+              {routines.length > 0 && (
+                <div className="sf-diet-card sf-diet-side-card">
+                  <div className="sf-diet-side-title">
+                    <div>
+                      <span className="sf-diet-label">Daily Routine</span>
+                      <h2>식습관 루틴</h2>
+                    </div>
+                    <Sparkles size={24} color="#167d7f" />
+                  </div>
+
+                  <div className="sf-side-stack">
+                    {routines.map((item, index) => (
+                      <div className="sf-routine-item" key={`${item.time}-${index}`}>
+                        <span className="sf-icon-tile" aria-hidden="true">
+                          <Utensils size={18} />
+                        </span>
+                        <div>
+                          {hasText(item.time) && <strong>{item.time}</strong>}
+                          {hasText(item.text) && <span>{item.text}</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </section>
+
+            {checks.length > 0 && (
+              <section className="sf-diet-bottom">
+                <div className="sf-diet-card sf-diet-section-card">
+                  <div className="sf-diet-section-title">
+                    <div>
+                      <span className="sf-diet-label">Reference List</span>
+                      <h2>식습관 체크 항목</h2>
+                    </div>
+                    <span className="sf-diet-chip">참고 정보</span>
+                  </div>
+
+                  <div className="sf-side-stack">
+                    {checks.map((item, index) => (
+                      <div className="sf-check-item" key={`${item.title}-${index}`}>
+                        <span className="sf-icon-tile" aria-hidden="true">
+                          <CheckCircle2 size={18} />
+                        </span>
+                        <div>
+                          {hasText(item.title) && <strong>{item.title}</strong>}
+                        </div>
+                        {hasText(item.category) && <span className="sf-check-state">{item.category}</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </section>
+            )}
+          </>
+        )}
       </div>
     </PageLayout>
   );
