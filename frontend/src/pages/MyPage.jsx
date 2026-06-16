@@ -699,8 +699,8 @@ function MyPage() {
                 <span className="sf-gradient-text">한눈에 확인하세요</span>
               </h1>
               <p>
-                회원 정보, 피부 타입, 최근 분석 상태와 추천 흐름을 한 화면에서 확인하고
-                필요한 화면으로 바로 이동할 수 있습니다.
+                계정 정보, 최근 분석 상태, 추천 흐름을 한 화면에서 확인하고
+                필요한 관리 화면으로 바로 이동합니다.
               </p>
 
               {mypageError && (
@@ -751,7 +751,7 @@ function MyPage() {
               </span>
               <p>
                 {stats.mainConcern
-                  ? `최근 분석 기준으로 ${stats.mainConcern} 관리 흐름을 확인할 수 있습니다.`
+                  ? `최근 분석 기준으로 ${stats.mainConcern} 관리 방향을 확인할 수 있습니다.`
                   : "첫 분석을 진행하면 관심 지표와 맞춤 추천 흐름이 표시됩니다."}
               </p>
             </div>
@@ -908,7 +908,7 @@ function MyPage() {
                   <div>
                     <strong>아직 표시할 활동이 없습니다.</strong>
                     <span>
-                      피부 분석을 시작하면 분석 결과와 추천 내용을 이곳에서 확인할 수 있습니다.
+                      피부 분석을 시작하면 결과와 추천 흐름이 이곳에 표시됩니다.
                     </span>
                   </div>
                   <span className="sf-status-badge is-muted">대기</span>

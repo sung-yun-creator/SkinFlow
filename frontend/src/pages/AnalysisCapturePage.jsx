@@ -79,8 +79,8 @@ function getProgressFromRoiResult(roiResult) {
   if (!status || status === "ok") {
     return {
       status: "roi_complete",
-      label: "ROI 확인 완료",
-      description: "얼굴 관심 영역을 확인했습니다. 결과 UI 미리보기로 이어집니다.",
+      label: "얼굴 영역 확인 완료",
+      description: "분석에 필요한 얼굴 관심 영역을 확인했습니다.",
       progress: 45,
     };
   }
@@ -88,7 +88,7 @@ function getProgressFromRoiResult(roiResult) {
   if (status === "model_missing") {
     return {
       status: "model_missing",
-      label: "ROI 모델 확인 필요",
+      label: "얼굴 영역 모델 확인 필요",
       description: "AI 서버 모델 파일 확인이 필요합니다. 요청 흐름은 전달되었습니다.",
       progress: 20,
     };
@@ -105,8 +105,8 @@ function getProgressFromRoiResult(roiResult) {
 
   return {
     status: "analysis_waiting",
-    label: "ROI 확인 필요",
-    description: "얼굴 관심 영역 확인 결과를 검토해야 합니다.",
+    label: "얼굴 영역 확인 필요",
+    description: "얼굴 관심 영역 확인 결과를 다시 검토해야 합니다.",
     progress: 20,
   };
 }
@@ -150,8 +150,8 @@ const flowSteps = [
     description: "스마트폰 사진을 업로드하거나 웹캠으로 얼굴 이미지를 촬영합니다.",
   },
   {
-    title: "ROI 확인",
-    description: "AI 분석에 필요한 얼굴 관심 영역을 확인합니다.",
+    title: "얼굴 영역 확인",
+    description: "분석에 필요한 얼굴 관심 영역을 확인합니다.",
   },
   {
     title: "결과 연결",
@@ -415,7 +415,7 @@ function AnalysisCapturePage() {
       saveAnalysisProgress({
         status: "skin_analysis_processing",
         label: "피부 지표 분석 요청 중",
-        description: "색소침착·주름 분석 결과 저장 API에 이미지를 전달하고 있습니다.",
+        description: "색소침착·주름 분석을 위해 이미지를 전달하고 있습니다.",
         progress: 65,
       });
 
@@ -1261,9 +1261,8 @@ function AnalysisCapturePage() {
               </h1>
 
               <p>
-                스마트폰 이미지 업로드를 기본으로 제공하고, 웹캠 촬영 이미지를 같은
-                분석 요청 흐름에 연결합니다. ROI 확인 단계를 거쳐 색소침착과 주름 중심의
-                결과 화면으로 이어집니다.
+                스마트폰 이미지 업로드와 웹캠 촬영을 같은 분석 흐름으로 연결합니다.
+                얼굴 영역 확인 후 색소침착과 주름 중심의 결과 화면으로 이어집니다.
               </p>
 
               <div className="sf-capture-methods" aria-label="입력 방식 선택">
@@ -1383,7 +1382,7 @@ function AnalysisCapturePage() {
                     </span>
                     <div>
                       <h3>얼굴 이미지 업로드</h3>
-                      <p>JPG 또는 PNG 파일을 선택하면 ROI 분석 요청을 진행할 수 있습니다.</p>
+                      <p>JPG 또는 PNG 파일을 선택하면 얼굴 영역 확인을 시작합니다.</p>
                     </div>
                   </div>
                 )}
@@ -1449,7 +1448,7 @@ function AnalysisCapturePage() {
               <Button full onClick={handleStartAnalysis} disabled={isSubmitting}>
                 {isSubmitting ? (
                   <>
-                    <span className="sf-action-label">ROI 분석 요청 중</span>
+                    <span className="sf-action-label">얼굴 영역 확인 중</span>
                     <Loader2 size={18} />
                   </>
                 ) : (

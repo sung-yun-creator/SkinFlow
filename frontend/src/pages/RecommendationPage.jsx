@@ -91,7 +91,7 @@ function getRecommendationSourceState(summary, itemCount = 0) {
     return {
       tone: "empty",
       label: "추천 데이터 없음",
-      message: "분석 후 추천 데이터가 표시됩니다.",
+      message: "분석 후 추천 정보가 표시됩니다.",
     };
   }
 
@@ -112,15 +112,15 @@ function getRecommendationSourceState(summary, itemCount = 0) {
     return {
       tone: "empty",
       label: "추천 데이터 없음",
-      message: summary?.message || "분석 후 추천 데이터가 표시됩니다.",
+      message: summary?.message || "분석 후 추천 정보가 표시됩니다.",
     };
   }
 
   if (!isCompleted || isSavedFalse) {
     return {
       tone: "reference",
-      label: "분석 완료 전 참고 정보",
-      message: summary?.message || "분석이 완료되지 않아 개인 맞춤 결과로 표시하지 않습니다. 완료 후 추천을 다시 확인해 주세요.",
+      label: "분석 전 참고",
+      message: summary?.message || "분석 완료 전에는 참고 정보로만 확인해 주세요.",
     };
   }
 
@@ -131,23 +131,23 @@ function getRecommendationSourceState(summary, itemCount = 0) {
   ) {
     return {
       tone: "reference",
-      label: "기본 참고 추천",
-      message: summary?.message || "기본 참고 추천입니다. 최신 분석 후 개인 관리 방향에 맞춰 확인해 주세요.",
+      label: "기본 참고",
+      message: summary?.message || "기본 참고 정보입니다. 최신 분석 후 관리 방향과 함께 확인해 주세요.",
     };
   }
 
   if (isCompleted && ["latest", "latest_analysis", "analysis", "personalized", "result", "completed"].includes(sourceText)) {
     return {
       tone: "personalized",
-      label: "최근 분석 결과 기반 추천",
+      label: "최근 분석 기반",
       message: summary?.message || "최근 분석 결과를 바탕으로 참고할 수 있는 추천입니다.",
     };
   }
 
   return {
     tone: "reference",
-    label: "연동 전 참고 정보",
-    message: summary?.message || "추천 기준을 확인 중입니다. 개인 맞춤 결과로 확정하지 말고 참고 정보로 활용해 주세요.",
+    label: "기준 확인 중",
+    message: summary?.message || "추천 기준을 확인 중입니다. 참고 정보로 활용해 주세요.",
   };
 }
 
@@ -258,7 +258,7 @@ function RecommendationPage() {
     }
 
     if (ingredientError && productError) {
-      return "추천 API 연결 상태를 확인해 주세요. 로그인 토큰 또는 백엔드 서버 상태가 필요합니다.";
+      return "추천 정보를 불러오지 못했습니다. 로그인 상태와 서버 실행 여부를 확인해 주세요.";
     }
 
     if (!ingredients.length && !products.length) {
@@ -272,7 +272,7 @@ function RecommendationPage() {
 
       return scoreText === "점수 없음"
         ? "최근 분석 결과를 기준으로 참고할 수 있는 성분과 제품 추천입니다."
-        : `최근 분석 결과 기준 ${scoreText} 상태에서 참고할 수 있는 성분과 제품 추천입니다.`;
+        : `최근 분석 결과 ${scoreText} 기준으로 참고할 수 있는 성분과 제품 추천입니다.`;
     }
 
     return sourceState.message;
@@ -392,12 +392,15 @@ function RecommendationPage() {
           align-items: center;
           justify-content: center;
           padding: 7px 10px;
+          max-width: 100%;
           border-radius: 999px;
           color: #167d7f;
           background: rgba(22, 125, 127, 0.09);
           font-size: 11px;
           font-weight: 950;
           white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
 
         .sf-source-pill.is-reference {
@@ -780,7 +783,7 @@ function RecommendationPage() {
       <div className="sf-recommend-page">
         <section className="sf-recommend-hero">
           <Card className="sf-recommend-hero-card">
-            <Badge>AI Recommendation</Badge>
+            <Badge>Recommendation</Badge>
             <h1>
               분석 결과에 맞춘
               <br />
@@ -788,7 +791,7 @@ function RecommendationPage() {
             </h1>
             <p>
               색소침착과 주름 중심의 분석 결과를 바탕으로 기능성 성분,
-              화장품 제품, 식습관 가이드까지 다음 관리 행동을 짧게 정리합니다.
+              화장품 제품, 식습관 가이드까지 다음 관리 방향을 짧게 정리합니다.
             </p>
 
             <div className="sf-recommend-actions">
