@@ -12,10 +12,10 @@ import Button from "../components/common/Button";
 import { getDietGuideRecommendations } from "../api/recommendationApi";
 
 const sourceLabelMap = {
-  latest_analysis: "최근 분석 기반",
+  latest_analysis: "최근 분석 결과 기반 가이드",
   analysis_unsaved: "분석 저장 전 참고",
-  default: "기본 참고",
-  fallback: "기본 참고",
+  default: "기본 참고 가이드",
+  fallback: "기본 참고 가이드",
 };
 
 function normalizeSourceValue(value) {

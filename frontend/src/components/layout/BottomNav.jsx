@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Camera, Home, Sparkles, User, Utensils } from "lucide-react";
+import { Camera, History, Home, Sparkles, User } from "lucide-react";
 
 const navItems = [
   {
@@ -18,9 +18,9 @@ const navItems = [
     icon: Sparkles,
   },
   {
-    to: "/diet-guide",
-    label: "식습관",
-    icon: Utensils,
+    to: "/history",
+    label: "이력",
+    icon: History,
   },
   {
     to: "/mypage",

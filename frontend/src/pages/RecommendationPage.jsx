@@ -149,7 +149,7 @@ function getRecommendationSourceState(summary, itemCount = 0) {
   if (isCompleted && ["latest", "latest_analysis", "analysis", "personalized", "result", "completed"].includes(sourceText)) {
     return {
       tone: "personalized",
-      label: "최근 분석 기반",
+      label: "최근 분석 결과 기반 추천",
       message: summary?.message || "최근 분석 결과를 바탕으로 참고할 수 있는 추천입니다.",
     };
   }
@@ -1025,7 +1025,7 @@ function RecommendationPage() {
                             target="_blank"
                             rel="noreferrer"
                           >
-                            올리브영에서 보기 <ExternalLink size={13} />
+                            성분 검색 결과 보기 <ExternalLink size={13} />
                           </a>
                         )}
                       </div>
