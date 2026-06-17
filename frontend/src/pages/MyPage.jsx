@@ -112,6 +112,19 @@ function getDisplayValue(value, emptyText = "미설정") {
   return value;
 }
 
+function getSkinTypeLabel(value) {
+  const skinTypeMap = {
+    sensitive: "민감성",
+    oily: "지성",
+    dry: "건성",
+    combination: "복합성",
+    normal: "중성",
+  };
+  const normalizedValue = String(value || "").trim().toLowerCase();
+
+  return skinTypeMap[normalizedValue] || getDisplayValue(value);
+}
+
 function hasText(value) {
   return typeof value === "string" && value.trim() !== "";
 }
@@ -208,7 +221,7 @@ function MyPage() {
       {
         icon: Droplets,
         label: "피부 타입",
-        value: getDisplayValue(profile.skinType),
+        value: getSkinTypeLabel(profile.skinType),
         description: "회원가입 시 선택한 피부 타입 정보입니다.",
       },
       {

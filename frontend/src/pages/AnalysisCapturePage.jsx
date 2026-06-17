@@ -566,6 +566,11 @@ function AnalysisCapturePage() {
             font-size: clamp(32px, 4.2vw, 48px);
             line-height: 1.08;
             letter-spacing: -0.07em;
+            word-break: keep-all;
+          }
+
+          .sf-capture-intro h1 .sf-gradient-text {
+            white-space: nowrap;
           }
 
           .sf-capture-intro p {

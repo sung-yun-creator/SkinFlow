@@ -639,6 +639,9 @@ input {
   font-size: 30px;
   line-height: 1.2;
   letter-spacing: -0.045em;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  text-wrap: balance;
 }
 
 .auth-card-header p {

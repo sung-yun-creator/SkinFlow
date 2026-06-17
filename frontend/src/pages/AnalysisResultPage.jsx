@@ -255,6 +255,7 @@ function AnalysisResultPage() {
           .sf-result-page {
             display: grid;
             gap: 18px;
+            padding-top: 16px;
           }
 
           .sf-result-hero {

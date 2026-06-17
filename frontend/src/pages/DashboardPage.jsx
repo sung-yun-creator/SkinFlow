@@ -452,7 +452,7 @@ function DashboardPage() {
 
           .dashboard-metric-compact {
             display: grid;
-            grid-template-columns: 74px 1fr 58px;
+            grid-template-columns: 74px minmax(0, 1fr) minmax(82px, auto);
             gap: 10px;
             align-items: center;
           }
@@ -467,6 +467,7 @@ function DashboardPage() {
             font-size: 12px;
             font-weight: 900;
             text-align: right;
+            white-space: nowrap;
           }
 
           .dashboard-bar {

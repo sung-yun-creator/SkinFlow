@@ -335,6 +335,7 @@ function LandingPage() {
             display: block;
             color: #64748b;
             font-weight: 850;
+            word-break: keep-all;
           }
 
           .sf-report-top h2 {
@@ -472,6 +473,7 @@ function LandingPage() {
             color: #64748b;
             font-size: 12px;
             font-weight: 900;
+            word-break: keep-all;
           }
 
           .sf-report-metric strong {
@@ -480,6 +482,8 @@ function LandingPage() {
             color: #0f172a;
             font-size: 23px;
             letter-spacing: -0.05em;
+            word-break: keep-all;
+            overflow-wrap: normal;
           }
 
           .sf-report-comment {

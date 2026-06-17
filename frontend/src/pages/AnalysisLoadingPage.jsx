@@ -225,7 +225,7 @@ function AnalysisLoadingPage() {
             grid-template-columns: minmax(0, 0.96fr) minmax(420px, 1.04fr);
             gap: 18px;
             align-items: start;
-            padding: 10px 0 24px;
+            padding: 24px 0 24px;
           }
 
           .sf-loading-card {
