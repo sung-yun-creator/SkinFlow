@@ -69,6 +69,29 @@ function hasText(value) {
   return typeof value === "string" && value.trim() !== "";
 }
 
+function getIngredientDisplayName(item) {
+  const displayName = item?.name ?? item?.ingredientName ?? item?.title ?? "";
+
+  return typeof displayName === "string" ? displayName : String(displayName);
+}
+
+function getUniqueDisplayIngredients(items) {
+  if (!Array.isArray(items)) return [];
+
+  const seenNames = new Set();
+
+  return items.filter((item) => {
+    const displayName = getIngredientDisplayName(item).trim();
+    const normalizedName = displayName.toLowerCase();
+
+    if (!normalizedName) return true;
+    if (seenNames.has(normalizedName)) return false;
+
+    seenNames.add(normalizedName);
+    return true;
+  });
+}
+
 function getVisibleMatchedIngredients(item) {
   return Array.isArray(item?.matchedIngredients)
     ? item.matchedIngredients.filter((ingredient) => hasText(ingredient?.name)).slice(0, 3)
@@ -224,9 +247,10 @@ function RecommendationPage() {
   }, [loadRecommendations]);
 
   const summary = productSummary || ingredientSummary;
+  const visibleIngredients = useMemo(() => getUniqueDisplayIngredients(ingredients), [ingredients]);
   const ingredientSourceState = useMemo(
-    () => getRecommendationSourceState(ingredientSummary, ingredients.length),
-    [ingredientSummary, ingredients.length],
+    () => getRecommendationSourceState(ingredientSummary, visibleIngredients.length),
+    [ingredientSummary, visibleIngredients.length],
   );
   const productSourceState = useMemo(
     () => getRecommendationSourceState(productSummary, products.length),
@@ -237,12 +261,12 @@ function RecommendationPage() {
       return ingredientSourceState.tone === "personalized" ? ingredientSourceState : productSourceState;
     }
 
-    if (ingredients.length || products.length) {
+    if (visibleIngredients.length || products.length) {
       return ingredientSourceState.tone !== "empty" ? ingredientSourceState : productSourceState;
     }
 
     return ingredientSourceState;
-  }, [ingredientSourceState, ingredients.length, productSourceState, products.length]);
+  }, [ingredientSourceState, productSourceState, products.length, visibleIngredients.length]);
 
   const summaryItems = useMemo(
     () => [
@@ -252,14 +276,14 @@ function RecommendationPage() {
       },
       {
         label: "추천 성분",
-        value: formatCount(ingredientSummary?.recommendationCount ?? ingredients.length),
+        value: formatCount(visibleIngredients.length),
       },
       {
         label: "추천 제품",
         value: formatCount(productSummary?.recommendationCount ?? products.length),
       },
     ],
-    [ingredientSummary, ingredients.length, productSummary, products.length],
+    [productSummary, products.length, visibleIngredients.length],
   );
 
   const summaryNote = useMemo(() => {
@@ -271,7 +295,7 @@ function RecommendationPage() {
       return "추천 정보를 불러오지 못했습니다. 로그인 상태와 서버 실행 여부를 확인해 주세요.";
     }
 
-    if (!ingredients.length && !products.length) {
+    if (!visibleIngredients.length && !products.length) {
       return sourceState.message;
     }
 
@@ -286,7 +310,7 @@ function RecommendationPage() {
     }
 
     return sourceState.message;
-  }, [ingredientError, ingredients.length, isLoading, productError, products.length, sourceState, summary]);
+  }, [ingredientError, isLoading, productError, products.length, sourceState, summary, visibleIngredients.length]);
 
   const statusLabel = isLoading ? "불러오는 중" : ingredientError && productError ? "연결 확인" : sourceState.label;
 
@@ -908,21 +932,22 @@ function RecommendationPage() {
               <RecommendationSectionState type="loading" message="기능성 성분 추천을 불러오는 중입니다." />
             ) : ingredientError ? (
               <RecommendationSectionState type="error" message={ingredientError} />
-            ) : ingredients.length === 0 ? (
+            ) : visibleIngredients.length === 0 ? (
               <RecommendationSectionState type="empty" message="표시할 성분 추천 데이터가 없습니다." />
             ) : (
               <div className="sf-recommend-list">
-                {ingredients.map((item) => {
+                {visibleIngredients.map((item) => {
                   const matchScore = getRecommendationMatchScore(item);
+                  const ingredientName = getIngredientDisplayName(item);
 
                   return (
-                    <article className="sf-ingredient-card" key={item.id || item.name}>
+                    <article className="sf-ingredient-card" key={item.id || ingredientName}>
                       <span className="sf-icon-tile" aria-hidden="true">
                         <FlaskConical size={22} />
                       </span>
 
                       <div className="sf-ingredient-main">
-                        <h3>{item.name}</h3>
+                        <h3>{ingredientName}</h3>
                         <p>{item.description}</p>
                         <div className="sf-tag-row">
                           {item.tags.map((tag) => (

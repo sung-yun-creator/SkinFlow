@@ -70,7 +70,7 @@ const settingItems = [
 
 const privacyItems = [
   "업로드 이미지는 피부 분석 흐름을 위한 참고 정보로 사용됩니다.",
-  "분석 결과와 추천 정보는 분석 이력 화면에서 다시 확인할 수 있습니다.",
+  "날짜별 상세 분석 기록은 분석 이력 화면에서 다시 확인할 수 있습니다.",
   "SkinFlow는 의료적 판단이 아닌 피부 관리 참고 정보를 제공합니다.",
 ];
 
@@ -712,7 +712,7 @@ function MyPage() {
                 <span className="sf-gradient-text">한눈에 확인하세요</span>
               </h1>
               <p>
-                계정 정보, 최근 분석 상태, 추천 흐름을 한 화면에서 확인하고
+                계정 정보, 최근 분석 요약, 추천 흐름을 한 화면에서 확인하고
                 필요한 관리 화면으로 바로 이동합니다.
               </p>
 
@@ -888,8 +888,8 @@ function MyPage() {
           <Card className="sf-mypage-panel">
             <div className="sf-panel-title-row">
               <div>
-                <span className="sf-card-label">최근 활동</span>
-                <h2>최근 활동</h2>
+                <span className="sf-card-label">최근 활동 요약</span>
+                <h2>최근 분석 요약</h2>
               </div>
               <span className="sf-panel-icon" aria-hidden="true">
                 <Clock3 size={20} />
@@ -921,7 +921,7 @@ function MyPage() {
                   <div>
                     <strong>아직 표시할 활동이 없습니다.</strong>
                     <span>
-                      피부 분석을 시작하면 결과와 추천 흐름이 이곳에 표시됩니다.
+                      피부 분석을 시작하면 최근 결과와 추천 흐름 요약이 이곳에 표시됩니다.
                     </span>
                   </div>
                   <span className="sf-status-badge is-muted">대기</span>

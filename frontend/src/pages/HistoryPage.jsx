@@ -317,8 +317,8 @@ function HistoryPage() {
   }, [records, searchText]);
   const hasSearchKeyword = searchText.trim() !== "";
   const shouldLimitRecords = !hasSearchKeyword && !showAllRecords;
-  const displayedRecords = shouldLimitRecords ? filteredRecords.slice(0, 5) : filteredRecords;
-  const canToggleRecordLimit = !hasSearchKeyword && filteredRecords.length > 5;
+  const displayedRecords = shouldLimitRecords ? filteredRecords.slice(0, 3) : filteredRecords;
+  const canToggleRecordLimit = !hasSearchKeyword && filteredRecords.length > 3;
 
   const trendItems = useMemo(() => {
     const source = records.slice(-4);
@@ -637,18 +637,18 @@ function HistoryPage() {
           display: grid;
           grid-template-columns: minmax(300px, 0.74fr) minmax(0, 1.26fr);
           gap: 18px;
-          align-items: start;
+          align-items: stretch;
         }
 
         .sf-history-card {
           display: flex;
           flex-direction: column;
+          height: 100%;
           min-height: auto;
           padding: 24px;
         }
 
         .sf-history-trend-card {
-          align-self: start;
           padding-bottom: 22px;
         }
 
@@ -657,9 +657,11 @@ function HistoryPage() {
         }
 
         .sf-trend-chart {
-          margin-top: 16px;
+          flex: 1;
+          margin: 16px 0;
           display: grid;
-          gap: 11px;
+          grid-template-rows: repeat(4, minmax(44px, 1fr));
+          gap: 10px;
         }
 
         .sf-trend-row {
@@ -667,6 +669,8 @@ function HistoryPage() {
           grid-template-columns: 84px 1fr 48px;
           align-items: center;
           gap: 12px;
+          min-height: 44px;
+          padding: 0 2px;
         }
 
         .sf-trend-row > span {
@@ -729,14 +733,14 @@ function HistoryPage() {
 
         .sf-record-list {
           display: grid;
-          gap: 10px;
+          gap: 12px;
         }
 
         .sf-record-toggle-row {
           display: flex;
           justify-content: center;
-          margin-top: 14px;
-          padding-top: 14px;
+          margin-top: 18px;
+          padding-top: 16px;
           border-top: 1px solid rgba(226, 232, 240, 0.86);
         }
 
@@ -764,13 +768,23 @@ function HistoryPage() {
 
         .sf-record-card {
           display: grid;
-          grid-template-columns: 48px minmax(0, 1fr) auto;
-          align-items: center;
+          grid-template-columns: 44px minmax(0, 1fr) 104px;
+          align-items: stretch;
           gap: 14px;
-          padding: 14px 15px;
+          min-height: 94px;
+          padding: 14px 16px;
           border-radius: 20px;
           background: #f8fafc;
           border: 1px solid rgba(226, 232, 240, 0.9);
+        }
+
+        .sf-record-card > .sf-icon-tile {
+          align-self: center;
+        }
+
+        .sf-record-content {
+          align-self: center;
+          min-width: 0;
         }
 
         .sf-record-content small {
@@ -786,6 +800,9 @@ function HistoryPage() {
           color: #0f172a;
           font-size: 15px;
           letter-spacing: -0.035em;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
 
         .sf-record-content p {
@@ -797,9 +814,13 @@ function HistoryPage() {
         }
 
         .sf-record-side {
-          display: grid;
+          width: 104px;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-end;
           justify-items: end;
-          gap: 8px;
+          justify-content: center;
+          gap: 9px;
         }
 
         .sf-score-badge,
@@ -829,7 +850,9 @@ function HistoryPage() {
 
         .sf-record-actions {
           display: flex;
+          justify-content: flex-end;
           gap: 8px;
+          width: 100%;
         }
 
         .sf-text-button {
@@ -1018,6 +1041,15 @@ function HistoryPage() {
             grid-template-columns: 1fr;
           }
 
+          .sf-history-card {
+            height: auto;
+          }
+
+          .sf-trend-chart {
+            flex: initial;
+            grid-template-rows: none;
+          }
+
           .sf-score-preview {
             min-height: auto;
           }
@@ -1055,11 +1087,18 @@ function HistoryPage() {
 
           .sf-record-card {
             grid-template-columns: 48px 1fr;
+            min-height: auto;
           }
 
           .sf-record-side {
             grid-column: 2;
+            width: 100%;
+            align-items: flex-start;
             justify-items: start;
+          }
+
+          .sf-record-actions {
+            justify-content: flex-start;
           }
 
           .sf-trend-row {
@@ -1083,8 +1122,8 @@ function HistoryPage() {
               </h1>
 
               <p>
-                분석 이력을 통해 종합 점수, 색소침착, 주름 지표를 다시 확인하고
-                추천과 관리 가이드로 이어지는 흐름을 확인합니다.
+                날짜별 분석 기록에서 종합 점수, 색소침착, 주름 지표와
+                연결된 추천 흐름을 상세하게 다시 확인할 수 있습니다.
               </p>
 
               <div className="sf-history-actions">
@@ -1115,8 +1154,8 @@ function HistoryPage() {
           <Card className="sf-history-summary-card">
             <div className="sf-card-title-row">
               <div>
-                <small>이력 요약</small>
-                <h2>분석 이력 요약</h2>
+                <small>상세 이력 요약</small>
+                <h2>지난 분석 상세 이력</h2>
               </div>
               <span className="sf-icon-tile" aria-hidden="true">
                 <Trophy size={21} />
