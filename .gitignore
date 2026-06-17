@@ -11,3 +11,4 @@ ai-server/models/*.task
 ai-server/models/*.pth
 ai-server/models/*.pt
 !ai-server/models/README.md
+backend/uploads/

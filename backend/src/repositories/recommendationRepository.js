@@ -154,6 +154,29 @@ async function findDietGuidesByAnalysisId(analysisId) {
     return rows;
 }
 
+async function createAnalysisRecommendation(connection, {
+    analysisId,
+    type,
+    title,
+    content,
+}) {
+    const [result] = await connection.query(
+        `
+            INSERT INTO t_analysis_recommendation (
+                skin_analysis_id,
+                recommendation_type,
+                recommendation_title,
+                recommendation_content,
+                created_at
+            )
+            VALUES (?, ?, ?, ?, NOW())
+        `,
+        [analysisId, type, title, content],
+    );
+
+    return result.insertId;
+}
+
 async function createDietGuidesForAnalysis(analysisId, guides) {
     const connection = await pool.getConnection();
 
@@ -214,6 +237,83 @@ async function createDietGuidesForAnalysis(analysisId, guides) {
     }
 }
 
+async function findIngredientRecommendationsByAnalysisId(analysisId) {
+    if (!analysisId) {
+        return [];
+    }
+
+    const [rows] = await pool.query(
+        `
+            SELECT
+                ri.analysis_recommendation_id,
+                ri.ingredient_id,
+                ri.match_score,
+                i.ingredient_name,
+                i.ingredient_type,
+                i.description
+            FROM t_recommendation_ingredient ri
+            INNER JOIN t_analysis_recommendation ar
+                ON ar.analysis_recommendation_id = ri.analysis_recommendation_id
+            LEFT JOIN t_ingredient i
+                ON i.ingredient_id = ri.ingredient_id
+            WHERE ar.skin_analysis_id = ?
+                AND ar.recommendation_type = 'ingredient'
+            ORDER BY ri.match_score DESC, ri.ingredient_id ASC
+        `,
+        [analysisId],
+    );
+
+    return rows;
+}
+
+async function createIngredientRecommendationsForAnalysis(analysisId, ingredients) {
+    const storableIngredients = ingredients.filter((ingredient) => ingredient.id);
+
+    if (storableIngredients.length === 0) {
+        return [];
+    }
+
+    const connection = await pool.getConnection();
+
+    try {
+        await connection.beginTransaction();
+
+        const recommendationId = await createAnalysisRecommendation(connection, {
+            analysisId,
+            type: 'ingredient',
+            title: '추천 성분',
+            content: '피부 분석 결과를 기준으로 추천된 성분입니다.',
+        });
+
+        await connection.query(
+            `
+                INSERT INTO t_recommendation_ingredient (
+                    analysis_recommendation_id,
+                    ingredient_id,
+                    match_score
+                )
+                VALUES ?
+            `,
+            [
+                storableIngredients.map((ingredient) => [
+                    recommendationId,
+                    ingredient.id,
+                    ingredient.match,
+                ]),
+            ],
+        );
+
+        await connection.commit();
+
+        return findIngredientRecommendationsByAnalysisId(analysisId);
+    } catch (error) {
+        await connection.rollback();
+        throw error;
+    } finally {
+        connection.release();
+    }
+}
+
 async function findActiveProductsWithIngredients() {
     const [rows] = await pool.query(
         `
@@ -244,11 +344,108 @@ async function findActiveProductsWithIngredients() {
     return rows;
 }
 
+async function findProductRecommendationsByAnalysisId(analysisId) {
+    if (!analysisId) {
+        return [];
+    }
+
+    const [rows] = await pool.query(
+        `
+            SELECT
+                rp.analysis_recommendation_id,
+                rp.product_id,
+                rp.match_score,
+                rp.rank_no,
+                p.brand_name,
+                p.product_name,
+                p.product_type,
+                p.price_amount,
+                p.product_url,
+                p.description AS product_description,
+                p.product_img,
+                pi.ingredient_id,
+                pi.ingredient_pct,
+                i.ingredient_name,
+                i.ingredient_type,
+                i.description AS ingredient_description
+            FROM t_recommendation_product rp
+            INNER JOIN t_analysis_recommendation ar
+                ON ar.analysis_recommendation_id = rp.analysis_recommendation_id
+            INNER JOIN t_product p
+                ON p.product_id = rp.product_id
+            LEFT JOIN t_product_ingredient pi
+                ON pi.product_id = p.product_id
+            LEFT JOIN t_ingredient i
+                ON i.ingredient_id = pi.ingredient_id
+            WHERE ar.skin_analysis_id = ?
+                AND ar.recommendation_type = 'product'
+            ORDER BY rp.rank_no ASC, rp.match_score DESC, rp.product_id ASC, pi.ingredient_pct DESC, pi.ingredient_id ASC
+        `,
+        [analysisId],
+    );
+
+    return rows;
+}
+
+async function createProductRecommendationsForAnalysis(analysisId, products) {
+    const storableProducts = products.filter((product) => product.id);
+
+    if (storableProducts.length === 0) {
+        return [];
+    }
+
+    const connection = await pool.getConnection();
+
+    try {
+        await connection.beginTransaction();
+
+        const recommendationId = await createAnalysisRecommendation(connection, {
+            analysisId,
+            type: 'product',
+            title: '추천 제품',
+            content: '피부 분석 결과와 추천 성분을 기준으로 추천된 제품입니다.',
+        });
+
+        await connection.query(
+            `
+                INSERT INTO t_recommendation_product (
+                    analysis_recommendation_id,
+                    product_id,
+                    match_score,
+                    rank_no
+                )
+                VALUES ?
+            `,
+            [
+                storableProducts.map((product) => [
+                    recommendationId,
+                    product.id,
+                    product.match,
+                    product.rank,
+                ]),
+            ],
+        );
+
+        await connection.commit();
+
+        return findProductRecommendationsByAnalysisId(analysisId);
+    } catch (error) {
+        await connection.rollback();
+        throw error;
+    } finally {
+        connection.release();
+    }
+}
+
 module.exports = {
     createDietGuidesForAnalysis,
+    createIngredientRecommendationsForAnalysis,
+    createProductRecommendationsForAnalysis,
     findActiveProductsWithIngredients,
     findAnalysisWithMetricsByUserIdAndAnalysisId,
     findDietGuidesByAnalysisId,
+    findIngredientRecommendationsByAnalysisId,
     findIngredients,
     findLatestAnalysisWithMetricsByUserId,
+    findProductRecommendationsByAnalysisId,
 };
