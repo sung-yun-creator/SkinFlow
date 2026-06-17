@@ -130,16 +130,20 @@ function createCapturedImageFile(blob) {
 
 const uploadGuideItems = [
   {
-    title: "정면 얼굴",
-    description: "얼굴이 중앙에 오고 이마와 양볼이 잘 보이는 사진을 권장합니다.",
+    title: "정면 얼굴이 잘 보이는 사진",
+    description: "얼굴이 중앙에 오고 이마와 양볼이 함께 보이도록 맞춰주세요.",
   },
   {
-    title: "밝은 조명",
-    description: "강한 역광이나 너무 어두운 환경은 피해주세요.",
+    title: "밝은 환경",
+    description: "강한 역광이나 너무 어두운 조명은 피해주세요.",
   },
   {
-    title: "가림 요소 제거",
-    description: "마스크, 손, 머리카락 등 얼굴을 가리는 요소를 줄여주세요.",
+    title: "앞머리·마스크 줄이기",
+    description: "이마와 볼을 가리는 앞머리, 마스크, 손은 잠시 치워주세요.",
+  },
+  {
+    title: "얼굴 그림자 줄이기",
+    description: "한쪽 얼굴만 어둡게 보이면 밝은 방향으로 위치를 조정해주세요.",
   },
 ];
 
@@ -1063,8 +1067,8 @@ function AnalysisCapturePage() {
 
           .sf-capture-bottom {
             display: grid;
-            grid-template-columns: minmax(0, 0.9fr) minmax(420px, 1.1fr);
-            gap: 16px;
+            grid-template-columns: minmax(0, 0.72fr) minmax(420px, 1.28fr);
+            gap: 14px;
             align-items: stretch !important;
           }
 
@@ -1091,7 +1095,7 @@ function AnalysisCapturePage() {
             display: flex;
             flex-direction: column;
             min-height: 100%;
-            padding: 18px;
+            padding: 16px;
             align-self: stretch !important;
           }
 
@@ -1183,6 +1187,7 @@ function AnalysisCapturePage() {
 
           .sf-guide-list {
             display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 8px;
             flex: 1;
           }
@@ -1192,7 +1197,7 @@ function AnalysisCapturePage() {
             grid-template-columns: 30px 1fr;
             gap: 10px;
             align-items: center;
-            min-height: 54px;
+            min-height: 58px;
             padding: 9px 10px;
             border-radius: 14px;
             border: 1px solid rgba(226, 232, 240, 0.95);
@@ -1285,7 +1290,8 @@ function AnalysisCapturePage() {
 
             .sf-capture-methods,
             .sf-upload-meta,
-            .sf-flow-grid {
+            .sf-flow-grid,
+            .sf-guide-list {
               grid-template-columns: 1fr;
             }
 
@@ -1542,9 +1548,9 @@ function AnalysisCapturePage() {
             <div className="sf-bottom-title-row">
               <div>
                 <span className="sf-card-label">분석 흐름</span>
-                <h2>3단계로 진행됩니다</h2>
+                <h2>입력 후 진행 흐름</h2>
               </div>
-              <Badge>짧은 흐름</Badge>
+              <Badge>진행 순서</Badge>
             </div>
 
             <div className="sf-flow-grid">
@@ -1570,10 +1576,10 @@ function AnalysisCapturePage() {
           <Card className="sf-capture-guide-card">
             <div className="sf-bottom-title-row">
               <div>
-                <span className="sf-card-label">이용 전 확인사항</span>
-                <h2>사진 품질 체크</h2>
+                <span className="sf-card-label">촬영 전 확인사항</span>
+                <h2>분석 전 체크</h2>
               </div>
-              <Badge>정보</Badge>
+              <Badge>확인</Badge>
             </div>
 
             <div className="sf-guide-list">

@@ -577,7 +577,7 @@ function DietGuidePage() {
 
         .sf-diet-section-card,
         .sf-diet-side-card {
-          padding: 24px;
+          padding: 20px;
         }
 
         .sf-diet-section-title,
@@ -596,9 +596,9 @@ function DietGuidePage() {
         }
 
         .sf-guide-card {
-          min-height: 176px;
-          padding: 17px;
-          border-radius: 22px;
+          min-height: 148px;
+          padding: 15px;
+          border-radius: 18px;
           background:
             radial-gradient(circle at 100% 0%, rgba(22, 125, 127, 0.06), transparent 34%),
             #f8fafc;
@@ -617,13 +617,13 @@ function DietGuidePage() {
           align-items: flex-start;
           justify-content: space-between;
           gap: 12px;
-          margin-bottom: 16px;
+          margin-bottom: 12px;
         }
 
         .sf-guide-card h3 {
           margin: 0 0 8px;
           color: #0f172a;
-          font-size: 17px;
+          font-size: 15px;
           letter-spacing: 0;
         }
 
@@ -671,7 +671,7 @@ function DietGuidePage() {
           grid-template-columns: 44px 1fr;
           align-items: center;
           gap: 12px;
-          padding: 13px;
+          padding: 12px;
           border-radius: 18px;
           background: #f8fafc;
           border: 1px solid rgba(226, 232, 240, 0.88);

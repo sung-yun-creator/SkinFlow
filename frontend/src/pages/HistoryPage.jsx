@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   CalendarDays,
-  CheckCircle2,
   Clock,
   History,
   LineChart,
@@ -996,47 +995,33 @@ function HistoryPage() {
         }
 
         .sf-history-bottom {
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 18px;
-        }
-
-        .sf-guide-list {
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 12px;
-          margin-top: 18px;
-        }
-
-        .sf-guide-card {
-          min-height: 132px;
-          padding: 16px;
-          border-radius: 20px;
-          background: #f8fafc;
-          border: 1px solid rgba(226, 232, 240, 0.9);
-        }
-
-        .sf-guide-card strong {
           display: block;
-          margin-top: 12px;
-          color: #0f172a;
-          font-size: 14px;
-          letter-spacing: -0.035em;
         }
 
-        .sf-guide-card p {
+        .sf-history-tip {
+          display: flex;
+          align-items: center;
+          gap: 10px;
           margin: 6px 0 0;
-          color: #64748b;
+          padding: 13px 15px;
+          border-radius: 18px;
+          color: #475569;
+          background: rgba(248, 250, 252, 0.92);
+          border: 1px solid rgba(226, 232, 240, 0.9);
           font-size: 12px;
-          line-height: 1.48;
+          font-weight: 800;
+          line-height: 1.5;
           word-break: keep-all;
         }
 
+        .sf-history-tip svg {
+          flex: 0 0 auto;
+          color: #167d7f;
+        }
 
         @media (max-width: 980px) {
           .sf-history-hero,
           .sf-history-grid,
-          .sf-history-bottom,
           .sf-history-main-card {
             grid-template-columns: 1fr;
           }
@@ -1465,43 +1450,13 @@ function HistoryPage() {
         </section>
 
         <section className="sf-history-bottom">
-          <Card className="sf-history-card">
-            <div className="sf-card-title-row">
-              <div>
-                <small>이력 활용 안내</small>
-                <h2>이력 관리 안내</h2>
-              </div>
-              <span className="sf-icon-tile" aria-hidden="true">
-                <CheckCircle2 size={21} />
-              </span>
-            </div>
-
-            <div className="sf-guide-list">
-              <div className="sf-guide-card">
-                <span className="sf-icon-tile" aria-hidden="true">
-                  <Clock size={21} />
-                </span>
-                <strong>동일한 조건</strong>
-                <p>비슷한 시간대와 조명에서 분석하면 비교가 더 안정적입니다.</p>
-              </div>
-
-              <div className="sf-guide-card">
-                <span className="sf-icon-tile" aria-hidden="true">
-                  <LineChart size={21} />
-                </span>
-                <strong>변화 흐름</strong>
-                <p>점수 하나보다 장기적인 흐름을 함께 확인하는 것이 좋습니다.</p>
-              </div>
-
-              <div className="sf-guide-card">
-                <span className="sf-icon-tile" aria-hidden="true">
-                  <Sparkles size={21} />
-                </span>
-                <strong>추천 연결</strong>
-                <p>이력은 성분, 제품, 식습관 가이드를 다시 확인하는 기준입니다.</p>
-              </div>
-            </div>
-          </Card>
+          <p className="sf-history-tip">
+            <Clock size={16} />
+            <span>
+              같은 촬영 조건에서 분석하면 점수 흐름을 더 안정적으로 비교할 수 있으며,
+              상세 보기를 통해 과거 분석 결과와 추천 내용을 다시 확인할 수 있습니다.
+            </span>
+          </p>
         </section>
       </div>
     </PageLayout>

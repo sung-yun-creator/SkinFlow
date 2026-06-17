@@ -69,9 +69,9 @@ const settingItems = [
 ];
 
 const privacyItems = [
-  "업로드 이미지는 피부 분석 흐름을 위한 참고 정보로 사용됩니다.",
-  "날짜별 상세 분석 기록은 분석 이력 화면에서 다시 확인할 수 있습니다.",
-  "SkinFlow는 의료적 판단이 아닌 피부 관리 참고 정보를 제공합니다.",
+  "업로드 이미지는 피부 분석 흐름에 필요한 정보로만 사용됩니다.",
+  "분석 결과는 본인 계정에서 다시 확인할 수 있습니다.",
+  "SkinFlow는 의료 판단이 아닌 피부 관리 참고 정보를 제공합니다.",
 ];
 
 function formatDate(dateValue, emptyText = "아직 없음") {
@@ -625,6 +625,38 @@ function MyPage() {
           line-height: 1.6;
         }
 
+        .sf-data-guide-panel {
+          background:
+            radial-gradient(circle at 100% 0%, rgba(22, 125, 127, 0.045), transparent 30%),
+            #f8fafc;
+        }
+
+        .sf-data-guide-panel .sf-info-list {
+          gap: 8px;
+        }
+
+        .sf-data-guide-panel .sf-privacy-item {
+          min-height: 58px;
+          padding: 11px 12px;
+          background: rgba(255, 255, 255, 0.86);
+        }
+
+        .sf-data-guide-panel .sf-icon-tile {
+          width: 34px;
+          height: 34px;
+          min-width: 34px;
+          min-height: 34px;
+          border-radius: 12px;
+          box-shadow: none;
+        }
+
+        .sf-data-guide-panel .sf-icon-tile svg {
+          width: 17px;
+          height: 17px;
+          min-width: 17px;
+          min-height: 17px;
+        }
+
         .sf-mypage-error {
           display: grid;
           grid-template-columns: 42px 1fr;
@@ -889,7 +921,7 @@ function MyPage() {
             <div className="sf-panel-title-row">
               <div>
                 <span className="sf-card-label">최근 활동 요약</span>
-                <h2>최근 분석 요약</h2>
+                <h2>최근 활동 요약</h2>
               </div>
               <span className="sf-panel-icon" aria-hidden="true">
                 <Clock3 size={20} />
@@ -930,11 +962,11 @@ function MyPage() {
             </div>
           </Card>
 
-          <Card className="sf-mypage-panel">
+          <Card className="sf-mypage-panel sf-data-guide-panel">
             <div className="sf-panel-title-row">
               <div>
-                <span className="sf-card-label">개인정보 안내</span>
-                <h2>개인정보 안내</h2>
+                <span className="sf-card-label">데이터 관리</span>
+                <h2>내 데이터 관리 안내</h2>
               </div>
               <span className="sf-panel-icon" aria-hidden="true">
                 <ShieldCheck size={20} />
@@ -948,7 +980,7 @@ function MyPage() {
                     {index === 2 ? <AlertCircle size={20} /> : <CheckCircle2 size={20} />}
                   </span>
                   <div>
-                    <strong>{index === 2 ? "참고 정보 안내" : `안내 ${index + 1}`}</strong>
+                    <strong>{index === 2 ? "참고 정보 제공" : index === 1 ? "계정 내 확인" : "이미지 사용 범위"}</strong>
                     <span>{item}</span>
                   </div>
                   <span className={`sf-status-badge ${index === 2 ? "is-muted" : ""}`}>
