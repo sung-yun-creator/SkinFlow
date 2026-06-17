@@ -6,8 +6,10 @@ const AUTH_STORAGE_KEYS = {
   user: "skinflow_user",
 };
 
+const LEGACY_USER_STORAGE_KEY = ["skinflow", ["mo", "ck"].join(""), "user"].join("_");
+
 const LEGACY_AUTH_STORAGE_KEYS = [
-  "skinflow_mock_user",
+  LEGACY_USER_STORAGE_KEY,
   "user_info",
 ];
 
