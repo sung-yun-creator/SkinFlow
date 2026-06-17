@@ -2,6 +2,7 @@ const DEFAULT_AI_SERVER_URL = 'http://localhost:8000';
 const DEFAULT_AI_SERVER_TIMEOUT_MS = 30000;
 const analysisRepository = require('../repositories/analysisRepository');
 const { findGradeByScore } = require('../constants/analysisReference');
+const { deleteStoredImage, savePrivacyImage } = require('./analysisImageStorageService');
 
 function getAiServerUrl() {
     return (process.env.AI_SERVER_URL || DEFAULT_AI_SERVER_URL).replace(/\/$/, '');
@@ -192,6 +193,19 @@ function findMetricSource(result, code) {
     return firstDefined(result[code], result[`${code}_score`], result[`${code}Score`], null);
 }
 
+function toSafeRawResult(aiResult) {
+    if (!aiResult?.privacy_image) {
+        return aiResult;
+    }
+
+    const { data_base64, ...privacyImage } = aiResult.privacy_image;
+
+    return {
+        ...aiResult,
+        privacy_image: privacyImage,
+    };
+}
+
 function normalizeAnalysisResult(aiResult) {
     const prediction = aiResult?.prediction || {};
     const predictionResult = prediction.result || aiResult?.result || null;
@@ -204,7 +218,7 @@ function normalizeAnalysisResult(aiResult) {
             status: predictionStatus,
             message: prediction.message || 'AI 모델 분석 결과가 아직 준비되지 않았습니다.',
             roi: aiResult?.roi || null,
-            raw: aiResult,
+            raw: toSafeRawResult(aiResult),
         };
     }
 
@@ -220,7 +234,7 @@ function normalizeAnalysisResult(aiResult) {
             status: 'invalid_result',
             message: 'AI 분석 결과에서 저장 가능한 피부 지표를 찾지 못했습니다.',
             roi: aiResult?.roi || null,
-            raw: aiResult,
+            raw: toSafeRawResult(aiResult),
         };
     }
 
@@ -250,7 +264,7 @@ function normalizeAnalysisResult(aiResult) {
         ),
         metrics,
         roi: aiResult?.roi || null,
-        raw: aiResult,
+        raw: toSafeRawResult(aiResult),
     };
 }
 
@@ -269,13 +283,20 @@ async function analyzeAndSaveSkin(userId, file) {
         };
     }
 
-    const savedAnalysis = await analysisRepository.createAnalysisWithMetrics(userId, normalized);
+    const storedImage = await savePrivacyImage(aiResult?.privacy_image);
 
-    return {
-        saved: true,
-        ...savedAnalysis,
-        roi: normalized.roi,
-    };
+    try {
+        const savedAnalysis = await analysisRepository.createAnalysisWithMetrics(userId, normalized, storedImage);
+
+        return {
+            saved: true,
+            ...savedAnalysis,
+            roi: normalized.roi,
+        };
+    } catch (error) {
+        await deleteStoredImage(storedImage).catch(() => {});
+        throw error;
+    }
 }
 
 module.exports = {
