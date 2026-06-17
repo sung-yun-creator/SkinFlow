@@ -19,10 +19,12 @@ const quickActions = [
   {
     icon: Camera,
     title: "피부 분석",
-    description: "사진 업로드로 색소침착·주름 분석을 시작합니다.",
+    description: "처음이라면 사진 업로드로 피부 분석부터 시작하세요.",
     to: "/analysis/capture",
     variant: "primary",
     step: "01",
+    stepLabel: "먼저 시작",
+    cta: "분석 시작",
   },
   {
     icon: Sparkles,
@@ -31,14 +33,16 @@ const quickActions = [
     to: "/recommendations",
     variant: "secondary",
     step: "02",
+    cta: "추천 확인",
   },
   {
     icon: Leaf,
-    title: "식습관",
+    title: "식습관 가이드",
     description: "오늘 참고할 수 있는 관리 가이드를 확인합니다.",
     to: "/diet-guide",
     variant: "secondary",
     step: "03",
+    cta: "가이드 보기",
   },
   {
     icon: History,
@@ -47,6 +51,7 @@ const quickActions = [
     to: "/history",
     variant: "secondary",
     step: "04",
+    cta: "이력 보기",
   },
 ];
 
@@ -212,7 +217,6 @@ function DashboardPage() {
   const summary = dashboard?.summary || {};
   const latestAnalysis = dashboard?.latestAnalysis || null;
   const mainConcern = dashboard?.mainConcern || null;
-  const nextAction = dashboard?.nextAction || {};
   const latestStatus =
     latestAnalysis?.analysis_status ||
     latestAnalysis?.analysisStatus ||
@@ -248,8 +252,6 @@ function DashboardPage() {
     latestAnalysis?.analyzedAt || latestAnalysis?.analyzed_at || summary.latestAnalyzedAt
   );
 
-  const nextActionPath = nextAction.path || nextAction.to || "/analysis/capture";
-  const nextActionLabel = nextAction.label || "피부 분석 시작하기";
   const userName = profile.name || profile.userName || profile.nickname || "사용자";
 
   return (
@@ -288,6 +290,22 @@ function DashboardPage() {
               #ffffff;
           }
 
+          .dashboard-start-pill {
+            display: inline-flex;
+            align-items: center;
+            width: fit-content;
+            gap: 7px;
+            margin-bottom: 2px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            color: #167d7f;
+            background: rgba(22, 125, 127, 0.09);
+            border: 1px solid rgba(22, 125, 127, 0.16);
+            font-size: 12px;
+            font-weight: 950;
+            line-height: 1;
+          }
+
           .dashboard-welcome-copy h1 {
             max-width: 620px;
             margin: 16px 0 12px;
@@ -318,6 +336,19 @@ function DashboardPage() {
             flex-wrap: wrap;
             gap: 10px;
             margin-top: 24px;
+          }
+
+          .dashboard-primary-cta .sf-button {
+            min-height: 54px;
+            padding-inline: 22px;
+            border: 1px solid rgba(22, 125, 127, 0.22);
+            box-shadow: 0 18px 38px rgba(22, 125, 127, 0.22);
+          }
+
+          .dashboard-secondary-cta .sf-button {
+            color: #475569;
+            background: rgba(255, 255, 255, 0.72);
+            box-shadow: none;
           }
 
           .dashboard-kpi-row {
@@ -522,9 +553,37 @@ function DashboardPage() {
           }
 
           .dashboard-action-card.is-primary-action {
+            border-color: rgba(22, 125, 127, 0.34);
             background:
-              radial-gradient(circle at 84% 16%, rgba(22, 125, 127, 0.1), transparent 28%),
-              rgba(255, 255, 255, 0.98);
+              radial-gradient(circle at 84% 16%, rgba(22, 125, 127, 0.16), transparent 30%),
+              linear-gradient(135deg, #ffffff 0%, #f0fdfa 100%);
+            box-shadow: 0 24px 62px rgba(22, 125, 127, 0.14);
+          }
+
+          .dashboard-action-card.is-primary-action::after {
+            background: radial-gradient(circle, rgba(22, 125, 127, 0.16), transparent 68%);
+          }
+
+          .dashboard-action-card.is-primary-action .dashboard-icon-tile {
+            color: #ffffff;
+            background: linear-gradient(135deg, #167d7f, #22c5c8);
+            border-color: rgba(22, 125, 127, 0.26);
+            box-shadow: 0 18px 36px rgba(22, 125, 127, 0.22);
+          }
+
+          .dashboard-action-card.is-primary-action .dashboard-action-index {
+            color: #ffffff;
+            background: #167d7f;
+          }
+
+          .dashboard-action-card.is-primary-action .sf-button {
+            box-shadow: 0 14px 30px rgba(22, 125, 127, 0.18);
+          }
+
+          .dashboard-action-card:not(.is-primary-action) .sf-button {
+            color: #475569;
+            background: rgba(255, 255, 255, 0.98);
+            box-shadow: none;
           }
 
           .dashboard-action-head {
@@ -535,7 +594,10 @@ function DashboardPage() {
           }
 
           .dashboard-action-index {
-            color: #cbd5e1;
+            color: #94a3b8;
+            padding: 6px 9px;
+            border-radius: 999px;
+            background: #f1f5f9;
             font-size: 12px;
             font-weight: 950;
             line-height: 1;
@@ -660,23 +722,31 @@ function DashboardPage() {
         <div className="dashboard-app-hero">
           <Card className="dashboard-welcome-card">
             <div className="dashboard-welcome-copy">
-              <Badge>SkinFlow Home</Badge>
+              <Badge>홈</Badge>
+              <span className="dashboard-start-pill">
+                <Camera size={14} />
+                처음 사용자 추천 흐름
+              </span>
               <h1>
-                {userName}님의 피부 관리,
+                처음이라면 피부 분석부터
                 <br />
-                <span className="dashboard-gradient-text">SkinFlow에서 시작하세요</span>
+                <span className="dashboard-gradient-text">시작하세요</span>
               </h1>
               <p>
-                분석 시작부터 추천, 식습관 가이드, 이력 관리까지 핵심 흐름을 바로 확인합니다.
+                {userName}님의 첫 화면에서는 분석 시작, 결과 확인, 추천 확인, 이력 관리 순서로 이어지는 핵심 흐름을 바로 확인합니다.
               </p>
 
               <div className="dashboard-welcome-actions">
-                <Button to={nextActionPath} size="lg">
-                  {nextActionLabel} <ArrowRight size={18} />
-                </Button>
-                <Button to="/recommendations" variant="secondary" size="lg">
-                  추천 보기
-                </Button>
+                <span className="dashboard-primary-cta">
+                  <Button to="/analysis/capture" size="lg">
+                    피부 분석 시작 <ArrowRight size={18} />
+                  </Button>
+                </span>
+                <span className="dashboard-secondary-cta">
+                  <Button to="/recommendations" variant="secondary" size="lg">
+                    추천은 분석 후 확인
+                  </Button>
+                </span>
               </div>
 
               {dashboardError && (
@@ -771,13 +841,13 @@ function DashboardPage() {
                     <span className="dashboard-icon-tile" aria-hidden="true">
                       <Icon />
                     </span>
-                    <span className="dashboard-action-index">{item.step}</span>
+                    <span className="dashboard-action-index">{item.stepLabel || item.step}</span>
                   </div>
                   <h3>{item.title}</h3>
                   <p>{item.description}</p>
                 </div>
                 <Button to={item.to} variant={item.variant} size="sm">
-                  이동하기 <ArrowRight size={15} />
+                  {item.cta} <ArrowRight size={15} />
                 </Button>
               </Card>
             );

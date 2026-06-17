@@ -201,7 +201,7 @@ function AnalysisResultPage() {
       : emptyResultMessages.empty;
 
   const heroBadge = hasDisplayableMetrics
-    ? "Analysis Result"
+    ? "분석 결과"
     : isPending
       ? "AI 모델 연결 대기"
       : "분석 결과 없음";

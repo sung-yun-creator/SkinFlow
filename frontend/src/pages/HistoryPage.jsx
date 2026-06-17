@@ -244,6 +244,7 @@ function HistoryPage() {
   const [isLlmReportLoading, setIsLlmReportLoading] = useState(false);
   const [llmReportError, setLlmReportError] = useState("");
   const [searchText, setSearchText] = useState("");
+  const [showAllRecords, setShowAllRecords] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -314,6 +315,10 @@ function HistoryPage() {
       );
     });
   }, [records, searchText]);
+  const hasSearchKeyword = searchText.trim() !== "";
+  const shouldLimitRecords = !hasSearchKeyword && !showAllRecords;
+  const displayedRecords = shouldLimitRecords ? filteredRecords.slice(0, 5) : filteredRecords;
+  const canToggleRecordLimit = !hasSearchKeyword && filteredRecords.length > 5;
 
   const trendItems = useMemo(() => {
     const source = records.slice(-4);
@@ -630,22 +635,31 @@ function HistoryPage() {
 
         .sf-history-grid {
           display: grid;
-          grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+          grid-template-columns: minmax(300px, 0.74fr) minmax(0, 1.26fr);
           gap: 18px;
-          align-items: stretch;
+          align-items: start;
         }
 
         .sf-history-card {
           display: flex;
           flex-direction: column;
-          min-height: 100%;
+          min-height: auto;
           padding: 24px;
         }
 
+        .sf-history-trend-card {
+          align-self: start;
+          padding-bottom: 22px;
+        }
+
+        .sf-history-record-card {
+          padding-bottom: 22px;
+        }
+
         .sf-trend-chart {
-          margin-top: 18px;
+          margin-top: 16px;
           display: grid;
-          gap: 12px;
+          gap: 11px;
         }
 
         .sf-trend-row {
@@ -715,8 +729,37 @@ function HistoryPage() {
 
         .sf-record-list {
           display: grid;
-          gap: 12px;
-          flex: 1;
+          gap: 10px;
+        }
+
+        .sf-record-toggle-row {
+          display: flex;
+          justify-content: center;
+          margin-top: 14px;
+          padding-top: 14px;
+          border-top: 1px solid rgba(226, 232, 240, 0.86);
+        }
+
+        .sf-record-toggle-button {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 40px;
+          padding: 0 16px;
+          border: 1px solid rgba(22, 125, 127, 0.18);
+          border-radius: 999px;
+          color: #167d7f;
+          background: rgba(22, 125, 127, 0.07);
+          cursor: pointer;
+          font-size: 13px;
+          font-weight: 950;
+          transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+        }
+
+        .sf-record-toggle-button:hover {
+          transform: translateY(-1px);
+          border-color: rgba(22, 125, 127, 0.3);
+          background: rgba(22, 125, 127, 0.1);
         }
 
         .sf-record-card {
@@ -724,7 +767,7 @@ function HistoryPage() {
           grid-template-columns: 48px minmax(0, 1fr) auto;
           align-items: center;
           gap: 14px;
-          padding: 16px;
+          padding: 14px 15px;
           border-radius: 20px;
           background: #f8fafc;
           border: 1px solid rgba(226, 232, 240, 0.9);
@@ -820,6 +863,10 @@ function HistoryPage() {
         .sf-empty-card {
           min-height: 238px;
           align-content: center;
+        }
+
+        .sf-history-trend-card .sf-empty-card {
+          min-height: 176px;
         }
 
         .sf-empty-card p,
@@ -1026,7 +1073,7 @@ function HistoryPage() {
           <div className="sf-history-main-card">
             <div>
               <span className="sf-history-eyebrow">
-                <History size={15} /> Analysis History
+                <History size={15} /> 분석 이력
               </span>
 
               <h1>
@@ -1068,7 +1115,7 @@ function HistoryPage() {
           <Card className="sf-history-summary-card">
             <div className="sf-card-title-row">
               <div>
-                <small>History Summary</small>
+                <small>이력 요약</small>
                 <h2>분석 이력 요약</h2>
               </div>
               <span className="sf-icon-tile" aria-hidden="true">
@@ -1110,10 +1157,10 @@ function HistoryPage() {
         </section>
 
         <section className="sf-history-grid">
-          <Card className="sf-history-card">
+          <Card className="sf-history-card sf-history-trend-card">
             <div className="sf-card-title-row">
               <div>
-                <small>Trend</small>
+                <small>점수 흐름</small>
                 <h2>종합 점수 변화</h2>
               </div>
               <Badge>{hasRecords ? "기록 있음" : "분석 전"}</Badge>
@@ -1157,11 +1204,11 @@ function HistoryPage() {
             </p>
           </Card>
 
-          <Card className="sf-history-card">
+          <Card className="sf-history-card sf-history-record-card">
             <div className="sf-record-toolbar">
               <div className="sf-card-title-row" style={{ marginBottom: 0 }}>
                 <div>
-                  <small>Records</small>
+                  <small>분석 기록</small>
                   <h2>날짜별 분석 기록</h2>
                 </div>
               </div>
@@ -1179,7 +1226,7 @@ function HistoryPage() {
 
             <div className="sf-record-list">
               {filteredRecords.length > 0 ? (
-                filteredRecords.map((record, index) => {
+                displayedRecords.map((record, index) => {
                   const recordId = getRecordId(record);
                   const recordScore = getRecordScore(record);
                   const recordStatus = getRecordStatus(record);
@@ -1237,6 +1284,18 @@ function HistoryPage() {
               )}
             </div>
 
+            {canToggleRecordLimit && (
+              <div className="sf-record-toggle-row">
+                <button
+                  type="button"
+                  className="sf-record-toggle-button"
+                  onClick={() => setShowAllRecords((current) => !current)}
+                >
+                  {showAllRecords ? "최근 기록만 보기" : "전체 이력 보기"}
+                </button>
+              </div>
+            )}
+
             {detailError && <p className="sf-error-line" style={{ marginTop: 12 }}>{detailError}</p>}
 
             {selectedDetail && (
@@ -1284,7 +1343,7 @@ function HistoryPage() {
                 <div className="sf-llm-report-card">
                   <div className="sf-llm-report-head">
                     <div>
-                      <small>AI Summary Report</small>
+                      <small>AI 요약 리포트</small>
                       <h3>AI 요약 리포트</h3>
                     </div>
                     <span className="sf-status-badge">
@@ -1370,7 +1429,7 @@ function HistoryPage() {
           <Card className="sf-history-card">
             <div className="sf-card-title-row">
               <div>
-                <small>Guide</small>
+                <small>이력 활용 안내</small>
                 <h2>이력 관리 안내</h2>
               </div>
               <span className="sf-icon-tile" aria-hidden="true">

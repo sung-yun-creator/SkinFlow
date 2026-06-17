@@ -118,6 +118,7 @@ function DietGuidePage() {
   const sourceLabel = guideSourceState.label;
   const isEmpty = !isLoading && !errorMessage && guides.length === 0 && routines.length === 0 && checks.length === 0;
   const guideCount = summary?.guideCount ?? guides.length;
+  const visibleChecks = checks.slice(0, 3);
 
   return (
     <PageLayout>
@@ -423,6 +424,19 @@ function DietGuidePage() {
           gap: 12px;
         }
 
+        .sf-check-card {
+          padding: 18px 20px;
+        }
+
+        .sf-check-card .sf-diet-section-title {
+          margin-bottom: 12px;
+        }
+
+        .sf-check-list {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 10px;
+        }
+
         .sf-routine-item,
         .sf-check-item {
           display: grid;
@@ -433,6 +447,11 @@ function DietGuidePage() {
           border-radius: 18px;
           background: #f8fafc;
           border: 1px solid rgba(226, 232, 240, 0.88);
+        }
+
+        .sf-check-item {
+          grid-template-columns: 38px minmax(0, 1fr);
+          padding: 11px 12px;
         }
 
         .sf-routine-item .sf-icon-tile,
@@ -447,6 +466,14 @@ function DietGuidePage() {
           place-items: center;
           line-height: 0;
           align-self: center;
+        }
+
+        .sf-check-item .sf-icon-tile {
+          width: 36px;
+          height: 36px;
+          min-width: 36px;
+          min-height: 36px;
+          border-radius: 13px;
         }
 
         .sf-routine-item .sf-icon-tile svg,
@@ -466,6 +493,11 @@ function DietGuidePage() {
           color: #0f172a;
           font-size: 14px;
           letter-spacing: 0;
+        }
+
+        .sf-check-item strong {
+          font-size: 13px;
+          line-height: 1.35;
         }
 
         .sf-routine-item > div > span,
@@ -509,6 +541,10 @@ function DietGuidePage() {
           }
 
           .sf-guide-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .sf-check-list {
             grid-template-columns: 1fr;
           }
         }
@@ -557,7 +593,7 @@ function DietGuidePage() {
           <div className="sf-diet-card sf-diet-copy">
             <div>
               <span className="sf-diet-kicker">
-                <Leaf size={15} /> Diet Guide
+                <Leaf size={15} /> 식습관 가이드
               </span>
 
               <h1>
@@ -623,7 +659,7 @@ function DietGuidePage() {
                 <div className="sf-diet-card sf-diet-section-card">
                   <div className="sf-diet-section-title">
                     <div>
-                      <span className="sf-diet-label">Care Guide</span>
+                      <span className="sf-diet-label">식습관 가이드</span>
                       <h2>식습관 참고 가이드</h2>
                     </div>
                     <span className="sf-diet-chip">{sourceLabel}</span>
@@ -658,7 +694,7 @@ function DietGuidePage() {
                 <div className="sf-diet-card sf-diet-side-card">
                   <div className="sf-diet-side-title">
                     <div>
-                      <span className="sf-diet-label">Daily Routine</span>
+                      <span className="sf-diet-label">식습관 루틴</span>
                       <h2>식습관 루틴</h2>
                     </div>
                     <Sparkles size={24} color="#167d7f" />
@@ -681,19 +717,19 @@ function DietGuidePage() {
               )}
             </section>
 
-            {checks.length > 0 && (
+            {visibleChecks.length > 0 && (
               <section className="sf-diet-bottom">
-                <div className="sf-diet-card sf-diet-section-card">
+                <div className="sf-diet-card sf-diet-section-card sf-check-card">
                   <div className="sf-diet-section-title">
                     <div>
-                      <span className="sf-diet-label">Reference List</span>
-                      <h2>식습관 체크 항목</h2>
+                      <span className="sf-diet-label">오늘 실천 체크</span>
+                      <h2>오늘 실천 체크</h2>
                     </div>
-                    <span className="sf-diet-chip">참고 정보</span>
+                    <span className="sf-diet-chip">최대 3개</span>
                   </div>
 
-                  <div className="sf-side-stack">
-                    {checks.map((item, index) => (
+                  <div className="sf-side-stack sf-check-list">
+                    {visibleChecks.map((item, index) => (
                       <div className="sf-check-item" key={`${item.title}-${index}`}>
                         <span className="sf-icon-tile" aria-hidden="true">
                           <CheckCircle2 size={18} />

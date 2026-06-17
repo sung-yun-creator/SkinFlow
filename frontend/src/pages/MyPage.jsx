@@ -705,7 +705,7 @@ function MyPage() {
         <section className="sf-mypage-hero">
           <Card className="sf-mypage-main-card">
             <div>
-              <Badge>My Page</Badge>
+              <Badge>내 정보</Badge>
               <h1>
                 내 피부 관리,
                 <br />
@@ -743,7 +743,7 @@ function MyPage() {
               </span>
 
               <div>
-                <span className="sf-card-label">Profile</span>
+                <span className="sf-card-label">프로필</span>
                 <h2>{isLoading ? "계정 정보 확인 중" : `${profileName}님`}</h2>
                 <p>{isLoading ? "로그인 정보 확인 중" : profileEmail}</p>
               </div>
@@ -818,7 +818,7 @@ function MyPage() {
           <Card className="sf-mypage-panel">
             <div className="sf-panel-title-row">
               <div>
-                <span className="sf-card-label">Account</span>
+                <span className="sf-card-label">기본 정보</span>
                 <h2>기본 정보</h2>
               </div>
               <span className="sf-panel-icon" aria-hidden="true">
@@ -849,7 +849,7 @@ function MyPage() {
           <Card className="sf-mypage-panel">
             <div className="sf-panel-title-row">
               <div>
-                <span className="sf-card-label">Analysis Setting</span>
+                <span className="sf-card-label">분석 설정</span>
                 <h2>분석 설정</h2>
               </div>
               <span className="sf-panel-icon" aria-hidden="true">
@@ -888,7 +888,7 @@ function MyPage() {
           <Card className="sf-mypage-panel">
             <div className="sf-panel-title-row">
               <div>
-                <span className="sf-card-label">Recent Activity</span>
+                <span className="sf-card-label">최근 활동</span>
                 <h2>최근 활동</h2>
               </div>
               <span className="sf-panel-icon" aria-hidden="true">
@@ -933,7 +933,7 @@ function MyPage() {
           <Card className="sf-mypage-panel">
             <div className="sf-panel-title-row">
               <div>
-                <span className="sf-card-label">Privacy</span>
+                <span className="sf-card-label">개인정보 안내</span>
                 <h2>개인정보 안내</h2>
               </div>
               <span className="sf-panel-icon" aria-hidden="true">

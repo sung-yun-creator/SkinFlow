@@ -1152,7 +1152,7 @@ function LandingPage() {
 
         <section className="sf-section" id="recommend">
           <div className="sf-section-head">
-            <small>Recommend Preview</small>
+            <small>추천 미리보기</small>
             <h2>분석 후 추천까지 한 흐름으로 확인합니다</h2>
             <p>
               색소침착과 주름 분석 결과를 바탕으로 성분, 제품, 이력 관리 흐름을
@@ -1179,7 +1179,7 @@ function LandingPage() {
 
         <section className="sf-section" id="process">
           <div className="sf-section-head">
-            <small>Process</small>
+            <small>분석 흐름</small>
             <h2>피부 분석은 5단계로 진행됩니다</h2>
           </div>
 

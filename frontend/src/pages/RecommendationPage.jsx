@@ -500,6 +500,14 @@ function RecommendationPage() {
           align-items: flex-start;
         }
 
+        .sf-panel-note {
+          margin: 5px 0 0;
+          color: #64748b;
+          font-size: 12px;
+          line-height: 1.45;
+          word-break: keep-all;
+        }
+
         .sf-panel-accent {
           width: 4px;
           height: 22px;
@@ -566,24 +574,6 @@ function RecommendationPage() {
           flex: 0 0 auto;
           transform: none;
           stroke-width: 2.05;
-        }
-
-        .sf-product-thumb {
-          width: 50px;
-          height: 50px;
-          min-width: 50px;
-          min-height: 50px;
-          overflow: hidden;
-          border: 1px solid rgba(226, 232, 240, 0.9);
-          border-radius: 17px;
-          background: #f8fafc;
-        }
-
-        .sf-product-thumb img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          display: block;
         }
 
         .sf-ingredient-main,
@@ -727,6 +717,15 @@ function RecommendationPage() {
           text-decoration: underline;
         }
 
+        .sf-product-link-note {
+          margin-top: 5px;
+          color: #94a3b8;
+          font-size: 11px;
+          font-weight: 800;
+          line-height: 1.45;
+          word-break: keep-all;
+        }
+
         .sf-section-state {
           display: grid;
           justify-items: center;
@@ -827,8 +826,7 @@ function RecommendationPage() {
             padding-top: 2px;
           }
 
-          .sf-icon-tile,
-          .sf-product-thumb {
+          .sf-icon-tile {
             width: 48px;
             height: 48px;
             min-width: 48px;
@@ -840,7 +838,7 @@ function RecommendationPage() {
       <div className="sf-recommend-page">
         <section className="sf-recommend-hero">
           <Card className="sf-recommend-hero-card">
-            <Badge>Recommendation</Badge>
+            <Badge>추천</Badge>
             <h1>
               분석 결과에 맞춘
               <br />
@@ -897,7 +895,7 @@ function RecommendationPage() {
               <div className="sf-panel-heading">
                 <span className="sf-panel-accent" />
                 <div>
-                  <span className="sf-recommend-label">Functional Ingredients</span>
+                  <span className="sf-recommend-label">기능성 성분</span>
                   <h2>기능성 성분 추천</h2>
                 </div>
               </div>
@@ -951,8 +949,9 @@ function RecommendationPage() {
               <div className="sf-panel-heading">
                 <span className="sf-panel-accent is-product" />
                 <div>
-                  <span className="sf-recommend-label">Cosmetic Products</span>
+                  <span className="sf-recommend-label">화장품 제품</span>
                   <h2>화장품 제품 추천</h2>
+                  <p className="sf-panel-note">제품 상세 정보가 아닌 대표 성분 기준의 참고 검색 연결입니다.</p>
                 </div>
               </div>
               <span className={`sf-source-pill is-${productSourceState.tone}`}>
@@ -974,15 +973,9 @@ function RecommendationPage() {
 
                   return (
                     <article className="sf-product-card" key={item.id || item.name}>
-                      {item.imageUrl ? (
-                        <span className="sf-product-thumb" aria-hidden="true">
-                          <img src={item.imageUrl} alt="" />
-                        </span>
-                      ) : (
-                        <span className="sf-icon-tile" aria-hidden="true">
-                          <PackageCheck size={22} />
-                        </span>
-                      )}
+                      <span className="sf-icon-tile" aria-hidden="true">
+                        <PackageCheck size={22} />
+                      </span>
 
                       <div className="sf-product-main">
                         <span className="sf-product-brand">{item.brand}</span>
@@ -1019,14 +1012,17 @@ function RecommendationPage() {
                           ))}
                         </div>
                         {item.productUrl && (
-                          <a
-                            className="sf-product-link"
-                            href={item.productUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            성분 검색 결과 보기 <ExternalLink size={13} />
-                          </a>
+                          <>
+                            <a
+                              className="sf-product-link"
+                              href={item.productUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              대표 성분 검색 결과 보기 <ExternalLink size={13} />
+                            </a>
+                            <p className="sf-product-link-note">대표 성분 기준으로 연결됩니다.</p>
+                          </>
                         )}
                       </div>
 
