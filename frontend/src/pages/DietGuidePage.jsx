@@ -378,7 +378,7 @@ function DietGuidePage() {
 
         .sf-check-focus-card {
           position: relative;
-          padding: 28px;
+          padding: 30px;
           background:
             radial-gradient(circle at 0% 0%, rgba(20, 184, 166, 0.11), transparent 32%),
             radial-gradient(circle at 100% 18%, rgba(22, 125, 127, 0.055), transparent 28%),
@@ -419,10 +419,10 @@ function DietGuidePage() {
 
         .sf-check-subtitle {
           max-width: 760px;
-          margin: 10px 0 0;
+          margin: 11px 0 0;
           color: #64748b;
           font-size: 14px;
-          line-height: 1.65;
+          line-height: 1.7;
           word-break: keep-all;
         }
 
@@ -441,12 +441,12 @@ function DietGuidePage() {
         }
 
         .sf-check-save-note {
-          max-width: 210px;
+          max-width: 230px;
           margin: 0;
           color: #64748b;
           font-size: 11px;
           font-weight: 800;
-          line-height: 1.5;
+          line-height: 1.55;
           text-align: right;
           word-break: keep-all;
         }
@@ -456,11 +456,12 @@ function DietGuidePage() {
           align-items: center;
           justify-content: center;
           min-width: 54px;
-          padding: 8px 11px;
+          padding: 7px 10px;
           border-radius: 999px;
           color: #167d7f;
-          background: rgba(22, 125, 127, 0.1);
-          font-size: 12px;
+          background: rgba(22, 125, 127, 0.075);
+          border: 1px solid rgba(22, 125, 127, 0.1);
+          font-size: 11px;
           font-weight: 950;
           line-height: 1;
           white-space: nowrap;
@@ -468,7 +469,7 @@ function DietGuidePage() {
 
         .sf-check-list {
           display: grid;
-          gap: 12px;
+          gap: 14px;
         }
 
         .sf-check-item {
@@ -478,11 +479,11 @@ function DietGuidePage() {
           text-align: left;
           cursor: pointer;
           display: grid;
-          grid-template-columns: 42px minmax(0, 1fr) auto;
+          grid-template-columns: 44px minmax(0, 1fr) auto;
           align-items: center;
-          gap: 14px;
-          min-height: 78px;
-          padding: 16px 18px;
+          gap: 16px;
+          min-height: 88px;
+          padding: 18px 20px;
           border-radius: 22px;
           background: rgba(255, 255, 255, 0.92);
           border: 1px solid rgba(203, 213, 225, 0.78);
@@ -503,10 +504,10 @@ function DietGuidePage() {
         }
 
         .sf-check-item .sf-icon-tile {
-          width: 38px;
-          height: 38px;
-          min-width: 38px;
-          min-height: 38px;
+          width: 42px;
+          height: 42px;
+          min-width: 42px;
+          min-height: 42px;
           border-radius: 999px;
           color: #167d7f;
           background: rgba(22, 125, 127, 0.1);
@@ -514,9 +515,11 @@ function DietGuidePage() {
         }
 
         .sf-check-item.is-checked {
-          background: rgba(22, 125, 127, 0.08);
-          border-color: rgba(22, 125, 127, 0.3);
-          box-shadow: 0 18px 38px rgba(22, 125, 127, 0.08);
+          background:
+            linear-gradient(135deg, rgba(22, 125, 127, 0.11), rgba(255, 255, 255, 0.94) 62%),
+            #f0fdfa;
+          border-color: rgba(22, 125, 127, 0.34);
+          box-shadow: 0 18px 38px rgba(22, 125, 127, 0.095);
         }
 
         .sf-check-item.is-checked .sf-icon-tile {
@@ -531,8 +534,8 @@ function DietGuidePage() {
         .sf-check-item strong {
           display: block;
           color: #0f172a;
-          font-size: 15px;
-          line-height: 1.35;
+          font-size: 15.5px;
+          line-height: 1.38;
           letter-spacing: 0;
         }
 
@@ -542,19 +545,23 @@ function DietGuidePage() {
 
         .sf-check-copy span {
           display: block;
-          margin-top: 5px;
+          margin-top: 7px;
           color: #64748b;
           font-size: 12px;
-          line-height: 1.5;
+          line-height: 1.6;
           word-break: keep-all;
+        }
+
+        .sf-check-item.is-checked .sf-check-copy span {
+          color: #475569;
         }
 
         .sf-check-state {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          min-width: 62px;
-          padding: 7px 10px;
+          min-width: 66px;
+          padding: 8px 11px;
           border-radius: 999px;
           color: #167d7f;
           background: rgba(22, 125, 127, 0.1);
@@ -596,8 +603,8 @@ function DietGuidePage() {
         }
 
         .sf-guide-card {
-          min-height: 148px;
-          padding: 15px;
+          min-height: 144px;
+          padding: 17px;
           border-radius: 18px;
           background:
             radial-gradient(circle at 100% 0%, rgba(22, 125, 127, 0.06), transparent 34%),
@@ -617,13 +624,14 @@ function DietGuidePage() {
           align-items: flex-start;
           justify-content: space-between;
           gap: 12px;
-          margin-bottom: 12px;
+          margin-bottom: 13px;
         }
 
         .sf-guide-card h3 {
-          margin: 0 0 8px;
+          margin: 0 0 9px;
           color: #0f172a;
           font-size: 15px;
+          line-height: 1.35;
           letter-spacing: 0;
         }
 
@@ -632,12 +640,14 @@ function DietGuidePage() {
           margin: 0;
           color: #64748b;
           font-size: 12px;
-          line-height: 1.56;
+          line-height: 1.65;
           word-break: keep-all;
         }
 
         .sf-guide-reason {
-          margin-top: 10px;
+          margin-top: 12px;
+          padding-top: 10px;
+          border-top: 1px solid rgba(226, 232, 240, 0.82);
           color: #475569;
         }
 
@@ -666,14 +676,41 @@ function DietGuidePage() {
           gap: 12px;
         }
 
+        .sf-diet-side-card {
+          background:
+            radial-gradient(circle at 100% 0%, rgba(22, 125, 127, 0.035), transparent 30%),
+            rgba(255, 255, 255, 0.96);
+        }
+
+        .sf-side-title-icon {
+          width: 38px;
+          height: 38px;
+          min-width: 38px;
+          min-height: 38px;
+          border-radius: 14px;
+          display: grid;
+          place-items: center;
+          overflow: hidden;
+          color: #167d7f;
+          background: rgba(22, 125, 127, 0.08);
+          border: 1px solid rgba(22, 125, 127, 0.1);
+        }
+
+        .sf-side-title-icon svg {
+          display: block;
+          width: 18px;
+          height: 18px;
+          flex: 0 0 18px;
+        }
+
         .sf-routine-item {
           display: grid;
           grid-template-columns: 44px 1fr;
           align-items: center;
           gap: 12px;
-          padding: 12px;
+          padding: 12px 13px;
           border-radius: 18px;
-          background: #f8fafc;
+          background: rgba(248, 250, 252, 0.86);
           border: 1px solid rgba(226, 232, 240, 0.88);
         }
 
@@ -768,8 +805,10 @@ function DietGuidePage() {
           }
 
           .sf-check-item {
-            grid-template-columns: 38px minmax(0, 1fr);
+            grid-template-columns: 42px minmax(0, 1fr);
             align-items: flex-start;
+            gap: 13px;
+            padding: 16px;
           }
 
           .sf-check-state {
@@ -793,14 +832,14 @@ function DietGuidePage() {
               </span>
 
               <h1>
-                피부 분석 결과와 연결된
+                분석 결과 기반
                 <br />
                 <span className="sf-gradient-text">오늘의 식습관 체크</span>
               </h1>
 
               <p>
-                최근 피부 분석 흐름을 바탕으로 오늘 실천하기 좋은 식습관 항목을 정리했습니다.
-                색소침착과 주름 관리 방향을 함께 고려해 일상에서 바로 확인할 수 있도록 구성했습니다.
+                최근 피부 분석 흐름을 바탕으로 식습관 항목을 추천합니다.
+                색소침착과 주름 관리 방향을 함께 고려해 오늘 실천할 수 있는 항목을 확인해 보세요.
               </p>
             </div>
 
@@ -885,7 +924,9 @@ function DietGuidePage() {
                     <strong>
                       {checkedVisibleCount} / {visibleActionItems.length}
                     </strong>
-                    <p className="sf-check-save-note">체크 상태는 저장되지 않는 화면 확인용 표시입니다.</p>
+                    <p className="sf-check-save-note">
+                      체크한 항목은 현재 화면에서만 표시됩니다. 오늘 확인한 항목을 가볍게 체크해 보세요.
+                    </p>
                     <span className="sf-diet-chip">{sourceLabel}</span>
                   </div>
                 </div>
@@ -965,7 +1006,9 @@ function DietGuidePage() {
                       <span className="sf-diet-label">루틴 제안</span>
                       <h2>하루 식습관 루틴</h2>
                     </div>
-                    <Sparkles size={24} color="#167d7f" />
+                    <span className="sf-side-title-icon" aria-hidden="true">
+                      <Sparkles size={18} />
+                    </span>
                   </div>
 
                   <div className="sf-side-stack">

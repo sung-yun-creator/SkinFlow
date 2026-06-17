@@ -1,18 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
-  ArrowRight,
-  Bell,
   CalendarDays,
   Camera,
-  CheckCircle2,
   ChevronRight,
   Clock3,
   Droplets,
   History,
   Image,
   Mail,
-  ShieldCheck,
   Sparkles,
   UserRound,
 } from "lucide-react";
@@ -23,27 +19,18 @@ import Badge from "../components/common/Badge";
 import { getMyPage } from "../api/mypageApi";
 import { shouldShowAnalysisScore } from "../utils/analysisStatus";
 
-const quickActions = [
-  {
-    icon: Camera,
-    title: "새 분석 시작",
-    description: "스마트폰 사진으로 피부 분석을 진행합니다.",
-    to: "/analysis/capture",
-    label: "분석",
-  },
+const nextCareActions = [
   {
     icon: Sparkles,
     title: "맞춤 추천 보기",
-    description: "성분, 제품, 식습관 가이드를 확인합니다.",
     to: "/recommendations",
-    label: "추천",
+    label: "맞춤 추천 보기",
   },
   {
-    icon: History,
-    title: "분석 이력 확인",
-    description: "이전 기록과 피부 변화 흐름을 확인합니다.",
-    to: "/history",
-    label: "이력",
+    icon: Droplets,
+    title: "식습관 가이드",
+    to: "/diet-guide",
+    label: "식습관 가이드",
   },
 ];
 
@@ -61,17 +48,11 @@ const settingItems = [
     status: "권장",
   },
   {
-    icon: Bell,
-    title: "분석 이력 안내",
-    description: "분석 후 변화 흐름과 추천 정보를 다시 확인합니다.",
-    status: "준비",
+    icon: Sparkles,
+    title: "분석 결과 안내",
+    description: "색소침착과 주름 지표 중심의 참고 정보를 확인합니다.",
+    status: "안내",
   },
-];
-
-const privacyItems = [
-  "업로드 이미지는 피부 분석 흐름에 필요한 정보로만 사용됩니다.",
-  "분석 결과는 본인 계정에서 다시 확인할 수 있습니다.",
-  "SkinFlow는 의료 판단이 아닌 피부 관리 참고 정보를 제공합니다.",
 ];
 
 function formatDate(dateValue, emptyText = "아직 없음") {
@@ -294,42 +275,67 @@ function MyPage() {
           word-break: keep-all;
         }
 
-        .sf-mypage-actions {
+        .sf-mypage-role-strip {
           display: flex;
           flex-wrap: wrap;
-          gap: 10px;
+          gap: 8px;
           margin-top: 24px;
+        }
+
+        .sf-mypage-role-strip span {
+          display: inline-flex;
+          align-items: center;
+          min-height: 32px;
+          padding: 0 12px;
+          border-radius: 999px;
+          color: #167d7f;
+          background: rgba(22, 125, 127, 0.08);
+          border: 1px solid rgba(22, 125, 127, 0.12);
+          font-size: 12px;
+          font-weight: 950;
+          white-space: nowrap;
         }
 
         .sf-mypage-profile-card {
           padding: 24px;
         }
 
-        .sf-profile-head {
+        .sf-mypage-profile-head {
           display: grid;
           grid-template-columns: 58px 1fr;
           gap: 14px;
           align-items: center;
         }
 
-        .sf-profile-avatar {
+        .sf-mypage-profile-avatar {
+          position: relative;
           width: 58px;
           height: 58px;
+          min-width: 58px;
+          min-height: 58px;
           border-radius: 20px;
-          display: grid;
-          place-items: center;
+          display: block;
+          flex: 0 0 58px;
+          overflow: hidden;
+          box-sizing: border-box;
           color: #ffffff;
           background: linear-gradient(135deg, #167d7f, #22c5c8);
           box-shadow: 0 16px 30px rgba(22, 125, 127, 0.18);
           line-height: 0;
         }
 
-        .sf-profile-avatar svg {
+        .sf-mypage-profile-avatar svg {
+          position: absolute;
+          top: 50%;
+          left: 50%;
           display: block;
-          width: 28px;
-          height: 28px;
+          width: 24px;
+          height: 24px;
           margin: 0;
-          flex: 0 0 auto;
+          transform: translate(-50%, -50%);
+          transform-origin: center;
+          pointer-events: none;
+          stroke-width: 2.1;
         }
 
         .sf-card-label {
@@ -340,28 +346,28 @@ function MyPage() {
           letter-spacing: -0.01em;
         }
 
-        .sf-profile-head h2 {
+        .sf-mypage-profile-head h2 {
           margin: 4px 0 2px;
           color: #0f172a;
           font-size: 22px;
           letter-spacing: -0.05em;
         }
 
-        .sf-profile-head p {
+        .sf-mypage-profile-head p {
           margin: 0;
           color: #64748b;
           font-size: 13px;
           word-break: break-all;
         }
 
-        .sf-profile-stats {
+        .sf-mypage-profile-stats {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
           gap: 10px;
           margin-top: 20px;
         }
 
-        .sf-profile-stat {
+        .sf-mypage-profile-stat {
           min-height: 74px;
           padding: 14px;
           border-radius: 18px;
@@ -369,14 +375,14 @@ function MyPage() {
           border: 1px solid rgba(226, 232, 240, 0.9);
         }
 
-        .sf-profile-stat span {
+        .sf-mypage-profile-stat span {
           display: block;
           color: #64748b;
           font-size: 11px;
           font-weight: 900;
         }
 
-        .sf-profile-stat strong {
+        .sf-mypage-profile-stat strong {
           display: block;
           margin-top: 8px;
           color: #0f172a;
@@ -384,7 +390,7 @@ function MyPage() {
           letter-spacing: -0.04em;
         }
 
-        .sf-profile-note {
+        .sf-mypage-profile-note {
           display: grid;
           grid-template-columns: 42px 1fr;
           align-items: center;
@@ -396,7 +402,7 @@ function MyPage() {
           background: rgba(22, 125, 127, 0.08);
         }
 
-        .sf-profile-note p {
+        .sf-mypage-profile-note p {
           margin: 0;
           color: #334155;
           font-size: 12px;
@@ -405,13 +411,15 @@ function MyPage() {
         }
 
         .sf-icon-tile {
+          position: relative;
           width: 42px;
           height: 42px;
           min-width: 42px;
           min-height: 42px;
           border-radius: 15px;
-          display: grid;
-          place-items: center;
+          display: block;
+          flex: 0 0 42px;
+          overflow: hidden;
           line-height: 0;
           color: #167d7f;
           background: linear-gradient(135deg, #f2fbfb 0%, #ffffff 52%, #ecfeff 100%);
@@ -422,69 +430,101 @@ function MyPage() {
         .sf-icon-tile svg,
         .sf-panel-icon svg,
         .sf-small-icon svg {
+          position: absolute;
+          top: 50%;
+          left: 50%;
           display: block;
           width: 20px;
           height: 20px;
-          min-width: 20px;
-          min-height: 20px;
           margin: 0;
-          flex: 0 0 auto;
+          transform: translate(-50%, -50%);
+          transform-origin: center;
+          pointer-events: none;
           stroke-width: 2.1;
         }
 
-        .sf-mypage-quick-grid,
+        .sf-next-action-card,
         .sf-skin-profile-grid {
           display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
           gap: 14px;
         }
 
-        .sf-quick-card,
+        .sf-skin-profile-grid {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .sf-next-action-card {
+          grid-template-columns: minmax(0, 1fr) auto;
+          align-items: center;
+          padding: 20px;
+          border-radius: 24px;
+          border: 1px solid rgba(226, 232, 240, 0.9);
+          background:
+            radial-gradient(circle at 100% 0%, rgba(22, 125, 127, 0.06), transparent 32%),
+            #ffffff;
+          box-shadow: 0 18px 42px rgba(15, 23, 42, 0.055);
+        }
+
+        .sf-next-action-copy {
+          display: grid;
+          grid-template-columns: 42px 1fr;
+          align-items: center;
+          gap: 12px;
+          min-width: 0;
+        }
+
+        .sf-next-action-copy h2 {
+          margin: 0 0 5px;
+          color: #0f172a;
+          font-size: 21px;
+          letter-spacing: -0.05em;
+        }
+
+        .sf-next-action-copy p {
+          margin: 0;
+          color: #64748b;
+          font-size: 13px;
+          line-height: 1.6;
+          word-break: keep-all;
+        }
+
+        .sf-next-action-buttons {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+          gap: 8px;
+        }
+
         .sf-skin-profile-card,
         .sf-setting-item,
-        .sf-activity-item,
-        .sf-privacy-item {
+        .sf-activity-item {
           border: 1px solid rgba(226, 232, 240, 0.9);
           background:
             radial-gradient(circle at 100% 0%, rgba(22, 125, 127, 0.055), transparent 32%),
             #ffffff;
         }
 
-        .sf-quick-card,
         .sf-skin-profile-card {
-          min-height: 164px;
-          padding: 18px;
+          min-height: 118px;
+          padding: 16px;
           border-radius: 24px;
           transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
         }
 
-        .sf-quick-card:hover,
         .sf-skin-profile-card:hover {
           transform: translateY(-2px);
           border-color: rgba(22, 125, 127, 0.2);
           box-shadow: 0 18px 38px rgba(15, 23, 42, 0.075);
         }
 
-        .sf-quick-head,
         .sf-skin-head {
           display: flex;
-          align-items: flex-start;
+          align-items: center;
           justify-content: space-between;
           gap: 10px;
-          margin-bottom: 14px;
+          margin-bottom: 10px;
         }
 
-        .sf-quick-badge {
-          padding: 6px 9px;
-          border-radius: 999px;
-          color: #167d7f;
-          background: rgba(22, 125, 127, 0.09);
-          font-size: 11px;
-          font-weight: 950;
-          white-space: nowrap;
-        }
-
-        .sf-quick-card h3,
         .sf-skin-profile-card h3 {
           margin: 0 0 7px;
           color: #0f172a;
@@ -492,20 +532,19 @@ function MyPage() {
           letter-spacing: -0.04em;
         }
 
-        .sf-quick-card p,
         .sf-skin-profile-card p {
           margin: 0;
           color: #64748b;
           font-size: 12px;
-          line-height: 1.55;
+          line-height: 1.45;
           word-break: keep-all;
         }
 
         .sf-skin-profile-card strong {
           display: block;
-          margin: 7px 0 6px;
+          margin: 6px 0 5px;
           color: #0f172a;
-          font-size: 20px;
+          font-size: 18px;
           letter-spacing: -0.045em;
         }
 
@@ -540,11 +579,15 @@ function MyPage() {
         }
 
         .sf-panel-icon {
+          position: relative;
           width: 44px;
           height: 44px;
           border-radius: 16px;
-          display: grid;
-          place-items: center;
+          display: block;
+          overflow: hidden;
+          min-width: 44px;
+          min-height: 44px;
+          flex: 0 0 44px;
           line-height: 0;
           color: #167d7f;
           background: rgba(22, 125, 127, 0.08);
@@ -558,8 +601,7 @@ function MyPage() {
 
         .sf-info-row,
         .sf-setting-item,
-        .sf-activity-item,
-        .sf-privacy-item {
+        .sf-activity-item {
           display: grid;
           grid-template-columns: 42px 1fr auto;
           align-items: center;
@@ -581,8 +623,7 @@ function MyPage() {
 
         .sf-info-row span,
         .sf-setting-item > div > span,
-        .sf-activity-item > div > span,
-        .sf-privacy-item > div > span {
+        .sf-activity-item > div > span {
           display: block;
           margin-top: 3px;
           color: #64748b;
@@ -593,8 +634,7 @@ function MyPage() {
 
         .sf-info-row strong,
         .sf-setting-item strong,
-        .sf-activity-item strong,
-        .sf-privacy-item strong {
+        .sf-activity-item strong {
           color: #0f172a;
           font-size: 14px;
           letter-spacing: -0.025em;
@@ -625,38 +665,6 @@ function MyPage() {
           line-height: 1.6;
         }
 
-        .sf-data-guide-panel {
-          background:
-            radial-gradient(circle at 100% 0%, rgba(22, 125, 127, 0.045), transparent 30%),
-            #f8fafc;
-        }
-
-        .sf-data-guide-panel .sf-info-list {
-          gap: 8px;
-        }
-
-        .sf-data-guide-panel .sf-privacy-item {
-          min-height: 58px;
-          padding: 11px 12px;
-          background: rgba(255, 255, 255, 0.86);
-        }
-
-        .sf-data-guide-panel .sf-icon-tile {
-          width: 34px;
-          height: 34px;
-          min-width: 34px;
-          min-height: 34px;
-          border-radius: 12px;
-          box-shadow: none;
-        }
-
-        .sf-data-guide-panel .sf-icon-tile svg {
-          width: 17px;
-          height: 17px;
-          min-width: 17px;
-          min-height: 17px;
-        }
-
         .sf-mypage-error {
           display: grid;
           grid-template-columns: 42px 1fr;
@@ -665,9 +673,9 @@ function MyPage() {
           margin-top: 14px;
           padding: 13px;
           border-radius: 18px;
-          color: #be123c;
+          color: #0f766e;
           background: #ecfeff;
-          border: 1px solid #fecdd3;
+          border: 1px solid rgba(20, 184, 166, 0.24);
           font-size: 13px;
           font-weight: 800;
         }
@@ -682,15 +690,37 @@ function MyPage() {
           -webkit-text-fill-color: transparent;
         }
 
+        .sf-section-heading {
+          display: flex;
+          align-items: flex-end;
+          justify-content: space-between;
+          gap: 14px;
+          margin: 2px 0 -4px;
+        }
+
+        .sf-section-heading h2 {
+          margin: 4px 0 0;
+          color: #0f172a;
+          font-size: 22px;
+          letter-spacing: -0.05em;
+        }
+
         @media (max-width: 980px) {
           .sf-mypage-hero,
           .sf-mypage-grid {
             grid-template-columns: 1fr;
           }
 
-          .sf-mypage-quick-grid,
           .sf-skin-profile-grid {
             grid-template-columns: 1fr;
+          }
+
+          .sf-next-action-card {
+            grid-template-columns: 1fr;
+          }
+
+          .sf-next-action-buttons {
+            justify-content: flex-start;
           }
         }
 
@@ -705,18 +735,17 @@ function MyPage() {
             min-height: auto;
           }
 
-          .sf-mypage-actions .sf-button {
+          .sf-next-action-buttons .sf-button {
             width: 100%;
           }
 
-          .sf-profile-stats {
+          .sf-mypage-profile-stats {
             grid-template-columns: 1fr;
           }
 
           .sf-info-row,
           .sf-setting-item,
           .sf-activity-item,
-          .sf-privacy-item,
           .sf-logout-panel {
             grid-template-columns: 42px 1fr;
           }
@@ -744,8 +773,8 @@ function MyPage() {
                 <span className="sf-gradient-text">한눈에 확인하세요</span>
               </h1>
               <p>
-                계정 정보, 최근 분석 요약, 추천 흐름을 한 화면에서 확인하고
-                필요한 관리 화면으로 바로 이동합니다.
+                내 피부 관리 요약, 프로필, 다음 관리 행동을 한 화면에서 확인하고
+                이어서 필요한 추천과 가이드를 확인할 수 있습니다.
               </p>
 
               {mypageError && (
@@ -758,20 +787,17 @@ function MyPage() {
               )}
             </div>
 
-            <div className="sf-mypage-actions">
-              <Button to="/analysis/capture" size="lg">
-                새 분석 시작 <ArrowRight size={18} />
-              </Button>
-              <Button to="/history" variant="secondary" size="lg">
-                분석 이력 보기
-              </Button>
+            <div className="sf-mypage-role-strip" aria-label="마이페이지 주요 역할">
+              <span>내 피부 관리 요약</span>
+              <span>프로필 요약</span>
+              <span>최근 활동 요약</span>
             </div>
           </Card>
 
           <Card className="sf-mypage-profile-card">
-            <div className="sf-profile-head">
-              <span className="sf-profile-avatar" aria-hidden="true">
-                <UserRound size={28} />
+            <div className="sf-mypage-profile-head">
+              <span className="sf-mypage-profile-avatar" aria-hidden="true">
+                <UserRound size={24} />
               </span>
 
               <div>
@@ -781,16 +807,16 @@ function MyPage() {
               </div>
             </div>
 
-            <div className="sf-profile-stats">
+            <div className="sf-mypage-profile-stats">
               {profileStats.map((item) => (
-                <div className="sf-profile-stat" key={item.label}>
+                <div className="sf-mypage-profile-stat" key={item.label}>
                   <span>{item.label}</span>
                   <strong>{isLoading ? "확인 중" : item.value}</strong>
                 </div>
               ))}
             </div>
 
-            <div className="sf-profile-note">
+            <div className="sf-mypage-profile-note">
               <span className="sf-icon-tile" aria-hidden="true">
                 <Sparkles size={20} />
               </span>
@@ -803,29 +829,40 @@ function MyPage() {
           </Card>
         </section>
 
-        <section className="sf-mypage-quick-grid">
-          {quickActions.map((item) => {
-            const Icon = item.icon;
+        <Card className="sf-next-action-card">
+          <div className="sf-next-action-copy">
+            <span className="sf-icon-tile" aria-hidden="true">
+              <Sparkles size={20} />
+            </span>
+            <div>
+              <h2>다음 관리 행동</h2>
+              <p>
+                최근 분석 흐름을 바탕으로 추천 결과와 식습관 가이드를 이어서 확인할 수 있습니다.
+              </p>
+            </div>
+          </div>
 
-            return (
-              <Card className="sf-quick-card" key={item.title}>
-                <div className="sf-quick-head">
-                  <span className="sf-icon-tile" aria-hidden="true">
-                    <Icon size={20} />
-                  </span>
-                  <span className="sf-quick-badge">{item.label}</span>
-                </div>
+          <div className="sf-next-action-buttons">
+            {nextCareActions.map((item) => {
+              const Icon = item.icon;
 
-                <h3>{item.title}</h3>
-                <p>{item.description}</p>
-
-                <Button to={item.to} variant="ghost" size="sm">
-                  바로가기 <ChevronRight size={16} />
+              return (
+                <Button key={item.title} to={item.to} variant="secondary" size="sm">
+                  <Icon size={15} />
+                  {item.label}
+                  <ChevronRight size={15} />
                 </Button>
-              </Card>
-            );
-          })}
-        </section>
+              );
+            })}
+          </div>
+        </Card>
+
+        <div className="sf-section-heading">
+          <div>
+            <span className="sf-card-label">관리 기준 요약</span>
+            <h2>관리 기준 요약</h2>
+          </div>
+        </div>
 
         <section className="sf-skin-profile-grid">
           {skinProfileItems.map((item) => {
@@ -881,8 +918,8 @@ function MyPage() {
           <Card className="sf-mypage-panel">
             <div className="sf-panel-title-row">
               <div>
-                <span className="sf-card-label">분석 설정</span>
-                <h2>분석 설정</h2>
+                <span className="sf-card-label">분석 이용 안내</span>
+                <h2>분석 이용 안내</h2>
               </div>
               <span className="sf-panel-icon" aria-hidden="true">
                 <Camera size={20} />
@@ -902,11 +939,7 @@ function MyPage() {
                       <strong>{item.title}</strong>
                       <span>{item.description}</span>
                     </div>
-                    <span
-                      className={`sf-status-badge ${
-                        item.status === "준비" ? "is-muted" : ""
-                      }`}
-                    >
+                    <span className="sf-status-badge">
                       {item.status}
                     </span>
                   </div>
@@ -916,81 +949,50 @@ function MyPage() {
           </Card>
         </section>
 
-        <section className="sf-mypage-grid">
-          <Card className="sf-mypage-panel">
-            <div className="sf-panel-title-row">
-              <div>
-                <span className="sf-card-label">최근 활동 요약</span>
-                <h2>최근 활동 요약</h2>
-              </div>
-              <span className="sf-panel-icon" aria-hidden="true">
-                <Clock3 size={20} />
-              </span>
+        <Card className="sf-mypage-panel">
+          <div className="sf-panel-title-row">
+            <div>
+              <span className="sf-card-label">최근 활동 요약</span>
+              <h2>최근 활동 요약</h2>
             </div>
+            <span className="sf-panel-icon" aria-hidden="true">
+              <Clock3 size={20} />
+            </span>
+          </div>
 
-            <div className="sf-info-list">
-              {recentActivity.length > 0 ? (
-                recentActivity.map((activity, index) => (
-                  <div className="sf-activity-item" key={`${activity.title}-${index}`}>
-                    <span className="sf-icon-tile" aria-hidden="true">
-                      <CalendarDays size={20} />
-                    </span>
-                    <div>
-                      <strong>{activity.title || "활동 정보 확인 중"}</strong>
-                      <span>
-                        {activity.description || "상세 내용 확인 필요"} ·{" "}
-                        {formatDate(activity.occurredAt, "날짜 없음")}
-                      </span>
-                    </div>
-                    <span className="sf-status-badge">기록</span>
-                  </div>
-                ))
-              ) : (
-                <div className="sf-activity-item">
+          <div className="sf-info-list">
+            {recentActivity.length > 0 ? (
+              recentActivity.map((activity, index) => (
+                <div className="sf-activity-item" key={`${activity.title}-${index}`}>
                   <span className="sf-icon-tile" aria-hidden="true">
-                    <History size={20} />
+                    <CalendarDays size={20} />
                   </span>
                   <div>
-                    <strong>아직 표시할 활동이 없습니다.</strong>
+                    <strong>{activity.title || "활동 정보 확인 중"}</strong>
                     <span>
-                      피부 분석을 시작하면 최근 결과와 추천 흐름 요약이 이곳에 표시됩니다.
+                      {activity.description || "상세 내용 확인 필요"} ·{" "}
+                      {formatDate(activity.occurredAt, "날짜 없음")}
                     </span>
                   </div>
-                  <span className="sf-status-badge is-muted">대기</span>
+                  <span className="sf-status-badge">기록</span>
                 </div>
-              )}
-            </div>
-          </Card>
-
-          <Card className="sf-mypage-panel sf-data-guide-panel">
-            <div className="sf-panel-title-row">
-              <div>
-                <span className="sf-card-label">데이터 관리</span>
-                <h2>내 데이터 관리 안내</h2>
+              ))
+            ) : (
+              <div className="sf-activity-item">
+                <span className="sf-icon-tile" aria-hidden="true">
+                  <History size={20} />
+                </span>
+                <div>
+                  <strong>아직 표시할 활동이 없습니다.</strong>
+                  <span>
+                    피부 분석을 시작하면 최근 결과와 추천 흐름 요약이 이곳에 표시됩니다.
+                  </span>
+                </div>
+                <span className="sf-status-badge is-muted">대기</span>
               </div>
-              <span className="sf-panel-icon" aria-hidden="true">
-                <ShieldCheck size={20} />
-              </span>
-            </div>
-
-            <div className="sf-info-list">
-              {privacyItems.map((item, index) => (
-                <div className="sf-privacy-item" key={item}>
-                  <span className="sf-icon-tile" aria-hidden="true">
-                    {index === 2 ? <AlertCircle size={20} /> : <CheckCircle2 size={20} />}
-                  </span>
-                  <div>
-                    <strong>{index === 2 ? "참고 정보 제공" : index === 1 ? "계정 내 확인" : "이미지 사용 범위"}</strong>
-                    <span>{item}</span>
-                  </div>
-                  <span className={`sf-status-badge ${index === 2 ? "is-muted" : ""}`}>
-                    {index === 2 ? "확인" : "안내"}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </section>
+            )}
+          </div>
+        </Card>
       </div>
     </PageLayout>
   );
