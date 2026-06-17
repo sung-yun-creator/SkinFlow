@@ -8,6 +8,20 @@ function normalizeText(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function pickValue(...values) {
+  return values.find((value) => {
+    if (value === null || value === undefined) return false;
+    if (typeof value === "string") return value.trim() !== "";
+    if (Array.isArray(value)) return value.length > 0;
+
+    return true;
+  });
+}
+
+function pickText(...values) {
+  return normalizeText(pickValue(...values));
+}
+
 function normalizeMatch(value) {
   if (value === null || value === undefined) return null;
   if (typeof value === "string" && value.trim() === "") return null;
@@ -57,10 +71,45 @@ function normalizeSummary(response, defaultSource) {
   };
 }
 
+function normalizeTags(value) {
+  return toArray(value).map(normalizeText).filter(Boolean);
+}
+
+function normalizeMatchedIngredient(item) {
+  const name = pickText(item?.name, item?.ingredientName, item?.ingredient_name);
+
+  if (!name) {
+    return null;
+  }
+
+  return {
+    id: item?.id ?? item?.ingredientId ?? item?.ingredient_id ?? name,
+    name,
+    match: normalizeMatch(
+      pickValue(item?.match, item?.matchScore, item?.match_score, item?.score),
+    ),
+    reason: pickText(item?.reason, item?.recommendReason, item?.recommend_reason),
+    tags: normalizeTags(item?.tags),
+  };
+}
+
 function normalizeProduct(item) {
   const card = item?.card ?? {};
-  const brand = normalizeText(card?.brandName) || normalizeText(item?.brandName);
-  const name = normalizeText(card?.name) || normalizeText(item?.productName);
+  const brand = pickText(
+    card?.brandName,
+    card?.brand_name,
+    item?.brandName,
+    item?.brand_name,
+    item?.brand,
+  );
+  const name = pickText(
+    card?.productName,
+    card?.product_name,
+    card?.name,
+    item?.productName,
+    item?.product_name,
+    item?.name,
+  );
 
   if (!brand || !name) {
     return null;
@@ -70,12 +119,44 @@ function normalizeProduct(item) {
     id: item?.id ?? name,
     brand,
     name,
-    description: normalizeText(card?.description) || normalizeText(item?.description),
-    match: normalizeMatch(card?.match ?? item?.match),
-    tags: toArray(card?.tags ?? item?.tags).map(normalizeText).filter(Boolean),
-    productUrl: card?.productUrl ?? item?.productUrl ?? "",
-    imageUrl: card?.imageUrl ?? item?.imageUrl ?? "",
-    matchedIngredients: toArray(item?.matchedIngredients),
+    description: pickText(card?.description, item?.description),
+    match: normalizeMatch(
+      pickValue(
+        card?.match,
+        card?.matchScore,
+        card?.match_score,
+        card?.score,
+        item?.match,
+        item?.matchScore,
+        item?.match_score,
+        item?.score,
+      ),
+    ),
+    reason: pickText(
+      card?.recommendReason,
+      card?.recommend_reason,
+      card?.reason,
+      item?.recommendReason,
+      item?.recommend_reason,
+      item?.reason,
+    ),
+    tags: normalizeTags(pickValue(card?.tags, item?.tags)),
+    productUrl: pickText(card?.productUrl, card?.product_url, item?.productUrl, item?.product_url),
+    imageUrl: pickText(
+      card?.imageUrl,
+      card?.image_url,
+      card?.productImg,
+      card?.product_img,
+      item?.imageUrl,
+      item?.image_url,
+      item?.productImg,
+      item?.product_img,
+    ),
+    matchedIngredients: toArray(
+      pickValue(card?.matchedIngredients, card?.matched_ingredients, item?.matchedIngredients, item?.matched_ingredients),
+    )
+      .map(normalizeMatchedIngredient)
+      .filter(Boolean),
   };
 }
 

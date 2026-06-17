@@ -65,6 +65,16 @@ function getRecommendationMatchScore(item) {
   return item?.match_score ?? item?.matchScore ?? item?.match ?? item?.score;
 }
 
+function hasText(value) {
+  return typeof value === "string" && value.trim() !== "";
+}
+
+function getVisibleMatchedIngredients(item) {
+  return Array.isArray(item?.matchedIngredients)
+    ? item.matchedIngredients.filter((ingredient) => hasText(ingredient?.name)).slice(0, 3)
+    : [];
+}
+
 function getFocusMetricName(...summaries) {
   const focusMetric = summaries.find((summary) => summary?.focusMetric?.name)?.focusMetric;
 
@@ -607,6 +617,53 @@ function RecommendationPage() {
           font-weight: 900;
         }
 
+        .sf-product-detail {
+          display: grid;
+          gap: 7px;
+          margin-top: 10px;
+          padding-top: 10px;
+          border-top: 1px solid rgba(226, 232, 240, 0.82);
+        }
+
+        .sf-product-detail-label {
+          color: #94a3b8;
+          font-size: 11px;
+          font-weight: 950;
+        }
+
+        .sf-product-ingredient-row {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+        }
+
+        .sf-product-ingredient-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          max-width: 100%;
+          padding: 4px 8px;
+          border-radius: 999px;
+          color: #0f766e;
+          background: rgba(20, 184, 166, 0.1);
+          font-size: 11px;
+          font-weight: 900;
+          line-height: 1.25;
+        }
+
+        .sf-product-ingredient-score {
+          color: #64748b;
+          font-weight: 850;
+        }
+
+        .sf-product-reason {
+          color: #475569;
+          font-size: 12px;
+          font-weight: 750;
+          line-height: 1.45;
+          word-break: keep-all;
+        }
+
         .sf-match-score {
           display: inline-flex;
           flex-direction: column;
@@ -913,6 +970,7 @@ function RecommendationPage() {
               <div className="sf-recommend-list">
                 {products.map((item) => {
                   const matchScore = getRecommendationMatchScore(item);
+                  const matchedIngredients = getVisibleMatchedIngredients(item);
 
                   return (
                     <article className="sf-product-card" key={item.id || item.name}>
@@ -930,6 +988,29 @@ function RecommendationPage() {
                         <span className="sf-product-brand">{item.brand}</span>
                         <h3>{item.name}</h3>
                         <p>{item.description}</p>
+                        {matchedIngredients.length > 0 && (
+                          <div className="sf-product-detail">
+                            <span className="sf-product-detail-label">대표 성분</span>
+                            <div className="sf-product-ingredient-row">
+                              {matchedIngredients.map((ingredient) => (
+                                <span className="sf-product-ingredient-pill" key={ingredient.id || ingredient.name}>
+                                  {ingredient.name}
+                                  {hasMatchScore(ingredient.match) && (
+                                    <span className="sf-product-ingredient-score">
+                                      {formatMatchScore(ingredient.match)}
+                                    </span>
+                                  )}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {hasText(item.reason) && (
+                          <div className="sf-product-detail">
+                            <span className="sf-product-detail-label">추천 기준</span>
+                            <p className="sf-product-reason">{item.reason}</p>
+                          </div>
+                        )}
                         <div className="sf-tag-row">
                           {item.tags.map((tag) => (
                             <span className="sf-tag" key={tag}>
