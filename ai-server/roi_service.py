@@ -15,6 +15,34 @@ MAX_GLARE_RATIO = 0.12
 MIN_BLUR_VARIANCE = 35
 MIN_FACE_AREA_RATIO = 0.08
 FACE_EDGE_MARGIN = 0.02
+MAX_ROI_EXTRACTION_ATTEMPTS = 3
+
+
+def extract_roi_with_retry(image_bytes: bytes, max_attempts: int = MAX_ROI_EXTRACTION_ATTEMPTS) -> dict:
+    attempts = max(1, max_attempts)
+    last_result: dict | None = None
+
+    for attempt in range(1, attempts + 1):
+        try:
+            result = extract_roi(image_bytes)
+        except Exception as error:
+            result = {
+                "status": "roi_extraction_error",
+                "message": "ROI extraction failed while processing the image.",
+                "detail": str(error),
+                "retryable": True,
+            }
+
+        if result.get("status") == "ok":
+            return {
+                **result,
+                "attempts": attempt,
+                "max_attempts": attempts,
+            }
+
+        last_result = result
+
+    return _roi_retry_exhausted(last_result, attempts)
 
 
 def extract_roi(image_bytes: bytes) -> dict:
@@ -426,3 +454,18 @@ def _to_region(name: str, x: float, y: float, width: float, height: float, image
 
 def _clamp(value: float) -> float:
     return max(0.0, min(1.0, value))
+
+
+def _roi_retry_exhausted(result: dict | None, attempts: int) -> dict:
+    result = result or {
+        "status": "roi_extraction_failed",
+        "message": "ROI extraction did not return a result.",
+    }
+
+    return {
+        **result,
+        "message": "ROI를 추출하지 못했습니다. 얼굴이 잘 보이는 사진으로 다시 시도해 주세요.",
+        "attempts": attempts,
+        "max_attempts": attempts,
+        "retry_exhausted": True,
+    }

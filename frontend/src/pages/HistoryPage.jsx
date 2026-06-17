@@ -14,7 +14,8 @@ import PageLayout from "../components/layout/PageLayout";
 import Button from "../components/common/Button";
 import Card from "../components/common/Card";
 import Badge from "../components/common/Badge";
-import { getHistory, getHistoryDetail } from "../api/historyApi";
+import { getHistory, getHistoryDetail, getHistoryLlmReport } from "../api/historyApi";
+import { shouldShowAnalysisScore } from "../utils/analysisStatus";
 
 const defaultHistoryData = {
   summary: {
@@ -54,23 +55,25 @@ function formatDate(dateValue, emptyText = "아직 없음") {
 }
 
 function formatScore(score, emptyText = "분석 전") {
-  if (score === null || score === undefined || score === "") return emptyText;
+  const numericScore = getScoreNumber(score);
 
-  const numericScore = Number(score);
+  if (numericScore === null) return emptyText;
 
-  if (Number.isNaN(numericScore)) return emptyText;
-
-  return `${Math.round(numericScore)}점`;
+  return `${numericScore}점`;
 }
 
 function getScoreNumber(score) {
-  if (score === null || score === undefined || score === "") return 0;
+  if (score === null || score === undefined || score === "") return null;
 
   const numericScore = Number(score);
 
-  if (Number.isNaN(numericScore)) return 0;
+  if (Number.isNaN(numericScore)) return null;
 
   return Math.max(0, Math.min(100, Math.round(numericScore)));
+}
+
+function hasScoreValue(score) {
+  return getScoreNumber(score) !== null;
 }
 
 function formatDiff(scoreDiff) {
@@ -97,9 +100,9 @@ function getStatusLabel(status) {
     normal: "보통",
     caution: "주의",
     medium: "주의",
-    risk: "위험",
-    high: "위험",
-    danger: "위험",
+    risk: "관리 필요",
+    high: "관리 필요",
+    danger: "관리 필요",
     severe: "집중 관리",
     pending: "분석 대기",
     processing: "분석 중",
@@ -146,7 +149,7 @@ function getMetricScore(metrics, keyword) {
 
 function getRecommendationText(recommendations) {
   if (!Array.isArray(recommendations) || recommendations.length === 0) {
-    return "추천 요약 정보는 실제 추천 API 연동 후 표시됩니다.";
+    return "이 분석 이력에 연결된 추천 요약이 없습니다.";
   }
 
   const textList = recommendations
@@ -167,7 +170,38 @@ function getRecommendationText(recommendations) {
 
   return textList.length > 0
     ? textList.join(" · ")
-    : "추천 요약 정보는 실제 추천 API 연동 후 표시됩니다.";
+    : "이 분석 이력에 연결된 추천 요약이 없습니다.";
+}
+
+function hasText(value) {
+  return typeof value === "string" && value.trim() !== "";
+}
+
+function getLlmReportSourceLabel(source) {
+  const normalizedSource = String(source || "").trim().toLowerCase();
+  const sourceMap = {
+    generated: "새로 생성된 리포트",
+    database: "저장된 리포트",
+    copied: "저장된 리포트",
+  };
+
+  return sourceMap[normalizedSource] || "리포트 출처 확인 중";
+}
+
+function getLlmReportErrorMessage(error) {
+  if (error?.status === 404) {
+    return "연결된 분석 이력이 없어 리포트를 불러오지 못했습니다.";
+  }
+
+  if (error?.status === 503) {
+    return "리포트 생성 설정이 아직 준비되지 않았습니다.";
+  }
+
+  if (error?.status === 502) {
+    return "리포트 생성 응답을 확인하지 못했습니다.";
+  }
+
+  return "리포트를 불러오지 못했습니다. 기존 분석 상세 정보는 계속 확인할 수 있습니다.";
 }
 
 function getRecordId(record) {
@@ -176,6 +210,10 @@ function getRecordId(record) {
 
 function getRecordDate(record) {
   return record?.analyzedAt || record?.analyzed_at || record?.createdAt || record?.created_at;
+}
+
+function getRecordStatus(record) {
+  return record?.analysisStatus || record?.analysis_status || record?.status;
 }
 
 function getRecordScore(record) {
@@ -188,6 +226,9 @@ function HistoryPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [historyError, setHistoryError] = useState("");
   const [detailError, setDetailError] = useState("");
+  const [llmReport, setLlmReport] = useState(null);
+  const [isLlmReportLoading, setIsLlmReportLoading] = useState(false);
+  const [llmReportError, setLlmReportError] = useState("");
   const [searchText, setSearchText] = useState("");
 
   useEffect(() => {
@@ -227,9 +268,20 @@ function HistoryPage() {
   }, []);
 
   const summary = historyData.summary || defaultHistoryData.summary;
-  const records = Array.isArray(historyData.records) ? historyData.records : [];
-  const latestScore = getScoreNumber(summary.latestTotalScore);
+  const records = useMemo(
+    () => (Array.isArray(historyData.records) ? historyData.records : []),
+    [historyData.records]
+  );
+  const latestStatus = summary.latestStatus ?? summary.latest_status;
+  const latestRawScore = summary.latestTotalScore ?? summary.latest_total_score;
+  const latestScore = getScoreNumber(latestRawScore);
+  const hasLatestScore = shouldShowAnalysisScore({
+    score: latestRawScore,
+    status: latestStatus,
+    saved: summary.saved,
+  });
   const hasRecords = records.length > 0;
+  const canShowScoreDiff = hasLatestScore && summary.scoreDiff !== null && summary.scoreDiff !== undefined && summary.scoreDiff !== "";
 
   const filteredRecords = useMemo(() => {
     const keyword = searchText.trim().toLowerCase();
@@ -252,36 +304,84 @@ function HistoryPage() {
   const trendItems = useMemo(() => {
     const source = records.slice(-4);
 
-    if (source.length === 0) {
-      return [
-        { label: "1회차", score: 0 },
-        { label: "2회차", score: 0 },
-        { label: "3회차", score: 0 },
-        { label: "4회차", score: 0 },
-      ];
-    }
+    return source.map((record, index) => {
+      const recordScore = getRecordScore(record);
+      const canShowScore = shouldShowAnalysisScore({
+        score: recordScore,
+        status: getRecordStatus(record),
+        saved: record.saved,
+      });
 
-    return source.map((record, index) => ({
-      label: formatDate(getRecordDate(record), `${index + 1}회차`),
-      score: getScoreNumber(getRecordScore(record)),
-    }));
+      return {
+        label: formatDate(getRecordDate(record), `${index + 1}회차`),
+        score: canShowScore ? getScoreNumber(recordScore) : null,
+        hasScore: canShowScore && hasScoreValue(recordScore),
+      };
+    });
   }, [records]);
 
-  const maxTrendScore = Math.max(...trendItems.map((item) => item.score), 100);
+  const maxTrendScore = Math.max(
+    ...trendItems.filter((item) => item.hasScore).map((item) => item.score),
+    100
+  );
+  const selectedDetailStatus = getRecordStatus(selectedDetail);
+  const selectedDetailScore = getRecordScore(selectedDetail);
+  const canShowSelectedDetailScore =
+    Boolean(selectedDetail) &&
+    shouldShowAnalysisScore({
+      score: selectedDetailScore,
+      status: selectedDetailStatus,
+      saved: selectedDetail?.saved,
+    });
+  const llmReportBody = llmReport?.report || {};
+  const llmReportKeyPoints = Array.isArray(llmReportBody.keyPoints)
+    ? llmReportBody.keyPoints.filter(hasText)
+    : [];
+  const hasLlmReportContent =
+    hasText(llmReportBody.title) ||
+    hasText(llmReportBody.summary) ||
+    hasText(llmReportBody.skinStatus) ||
+    llmReportKeyPoints.length > 0 ||
+    hasText(llmReportBody.recommendationSummary) ||
+    hasText(llmReportBody.careGuide) ||
+    hasText(llmReportBody.disclaimer);
 
   async function handleDetailClick(analysisId) {
     if (!analysisId) {
       setDetailError("분석 ID가 없어 상세 정보를 불러올 수 없습니다.");
+      setLlmReport(null);
+      setLlmReportError("");
       return;
     }
 
     try {
       setDetailError("");
-      const detail = await getHistoryDetail(analysisId);
-      setSelectedDetail(detail);
-    } catch (error) {
-      console.error("분석 이력 상세 API 호출 실패:", error);
-      setDetailError("상세 분석 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
+      setLlmReport(null);
+      setLlmReportError("");
+      setIsLlmReportLoading(true);
+
+      const [detailResult, reportResult] = await Promise.allSettled([
+        getHistoryDetail(analysisId),
+        getHistoryLlmReport(analysisId),
+      ]);
+
+      if (detailResult.status === "fulfilled") {
+        setSelectedDetail(detailResult.value);
+      } else {
+        console.error("분석 이력 상세 API 호출 실패:", detailResult.reason);
+        setSelectedDetail(null);
+        setDetailError("상세 분석 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
+      }
+
+      if (reportResult.status === "fulfilled") {
+        setLlmReport(reportResult.value);
+      } else {
+        console.error("AI 요약 리포트 API 호출 실패:", reportResult.reason);
+        setLlmReport(null);
+        setLlmReportError(getLlmReportErrorMessage(reportResult.reason));
+      }
+    } finally {
+      setIsLlmReportLoading(false);
     }
   }
 
@@ -748,6 +848,68 @@ function HistoryPage() {
           font-size: 16px;
         }
 
+        .sf-llm-report-card {
+          display: grid;
+          gap: 14px;
+          margin-top: 14px;
+          padding: 18px;
+          border-radius: 20px;
+          background:
+            radial-gradient(circle at 100% 0%, rgba(22, 125, 127, 0.07), transparent 34%),
+            #ffffff;
+          border: 1px solid rgba(226, 232, 240, 0.94);
+          text-align: left;
+        }
+
+        .sf-llm-report-head {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 14px;
+        }
+
+        .sf-llm-report-head small,
+        .sf-llm-report-section span {
+          display: block;
+          color: #64748b;
+          font-size: 11px;
+          font-weight: 950;
+        }
+
+        .sf-llm-report-head h3,
+        .sf-llm-report-section strong {
+          margin: 5px 0 0;
+          color: #0f172a;
+          font-size: 16px;
+          line-height: 1.35;
+          letter-spacing: -0.02em;
+        }
+
+        .sf-llm-report-section {
+          display: grid;
+          gap: 6px;
+          padding: 13px;
+          border-radius: 16px;
+          background: #f8fafc;
+          border: 1px solid rgba(226, 232, 240, 0.88);
+        }
+
+        .sf-llm-report-section p,
+        .sf-llm-report-section li {
+          margin: 0;
+          color: #475569;
+          font-size: 13px;
+          line-height: 1.62;
+          word-break: keep-all;
+        }
+
+        .sf-llm-report-section ul {
+          display: grid;
+          gap: 7px;
+          margin: 0;
+          padding-left: 18px;
+        }
+
         .sf-history-bottom {
           display: grid;
           grid-template-columns: 1fr;
@@ -860,7 +1022,7 @@ function HistoryPage() {
 
               <p>
                 분석 이력을 통해 종합 점수, 색소침착, 주름 지표를 다시 확인하고
-                같은 흐름으로 추천과 관리 가이드를 이어볼 수 있습니다.
+                추천과 관리 가이드로 이어지는 흐름을 확인합니다.
               </p>
 
               <div className="sf-history-actions">
@@ -876,14 +1038,14 @@ function HistoryPage() {
             <div className="sf-score-preview">
               <div
                 className="sf-score-ring"
-                style={{ "--score": `${latestScore}%` }}
+                style={{ "--score": `${hasLatestScore ? latestScore : 0}%` }}
               >
-                <strong>{latestScore}</strong>
+                <strong>{hasLatestScore ? latestScore : "분석 전"}</strong>
               </div>
               <span>
-                {hasRecords
+                {hasLatestScore && hasRecords
                   ? `최근 분석일 ${formatDate(summary.latestAnalyzedAt)}`
-                  : "첫 분석 후 점수가 표시됩니다"}
+                  : "첫 분석 후 표시"}
               </span>
             </div>
           </div>
@@ -909,22 +1071,22 @@ function HistoryPage() {
               </div>
               <div className="sf-summary-item">
                 <span>최근 종합 점수</span>
-                <strong>{formatScore(summary.latestTotalScore)}</strong>
+                <strong>{hasLatestScore ? `${latestScore}점` : "분석 전"}</strong>
               </div>
               <div className="sf-summary-item">
                 <span>최근 상태</span>
-                <strong>{getStatusLabel(summary.latestStatus)}</strong>
+                <strong>{getStatusLabel(latestStatus)}</strong>
               </div>
               <div className="sf-summary-item">
                 <span>점수 변화</span>
-                <strong>{formatDiff(summary.scoreDiff)}</strong>
+                <strong>{canShowScoreDiff ? formatDiff(summary.scoreDiff) : "비교 전"}</strong>
               </div>
             </div>
 
             <p className="sf-notice-line">
               <LineChart size={16} />
               <span>
-                {summary.scoreDiff === null || summary.scoreDiff === undefined
+                {!canShowScoreDiff
                   ? "아직 비교할 분석 이력이 없습니다."
                   : `최근 분석 기준 점수 변화는 ${formatDiff(summary.scoreDiff)}입니다.`}
               </span>
@@ -943,21 +1105,33 @@ function HistoryPage() {
             </div>
 
             <div className="sf-trend-chart">
-              {trendItems.map((item, index) => (
-                <div className="sf-trend-row" key={`${item.label}-${index}`}>
-                  <span>{item.label}</span>
-                  <div className="sf-trend-bar">
-                    <span
-                      style={{
-                        width: `${hasRecords ? Math.max(6, (item.score / maxTrendScore) * 100) : 0}%`,
-                      }}
-                    />
+              {hasRecords ? (
+                trendItems.map((item, index) => (
+                  <div className="sf-trend-row" key={`${item.label}-${index}`}>
+                    <span>{item.label}</span>
+                    <div className="sf-trend-bar">
+                      {item.hasScore && (
+                        <span
+                          style={{
+                            width: `${Math.max(6, (item.score / maxTrendScore) * 100)}%`,
+                          }}
+                        />
+                      )}
+                    </div>
+                    <div className="sf-trend-score">
+                      {item.hasScore ? `${item.score}점` : "점수 없음"}
+                    </div>
                   </div>
-                  <div className="sf-trend-score">
-                    {hasRecords ? `${item.score}점` : "-"}
-                  </div>
+                ))
+              ) : (
+                <div className="sf-empty-card">
+                  <span className="sf-icon-tile" aria-hidden="true">
+                    <LineChart size={21} />
+                  </span>
+                  <strong>아직 비교할 분석 이력이 없습니다</strong>
+                  <p>첫 분석 후 변화 흐름이 표시됩니다.</p>
                 </div>
-              ))}
+              )}
             </div>
 
             <p className="sf-notice-line" style={{ marginTop: 16 }}>
@@ -993,6 +1167,12 @@ function HistoryPage() {
                 filteredRecords.map((record, index) => {
                   const recordId = getRecordId(record);
                   const recordScore = getRecordScore(record);
+                  const recordStatus = getRecordStatus(record);
+                  const canShowRecordScore = shouldShowAnalysisScore({
+                    score: recordScore,
+                    status: recordStatus,
+                    saved: record.saved,
+                  });
 
                   return (
                     <div className="sf-record-card" key={recordId || index}>
@@ -1004,13 +1184,17 @@ function HistoryPage() {
                         <small>{formatDate(getRecordDate(record))}</small>
                         <strong>{record.summary || "피부 분석 기록"}</strong>
                         <p>
-                          색소침착 {getMetricScore(record.metrics, "색소")} · 주름 {getMetricScore(record.metrics, "주름")}
+                          {canShowRecordScore
+                            ? `색소침착 ${getMetricScore(record.metrics, "색소")} · 주름 ${getMetricScore(record.metrics, "주름")}`
+                            : "분석 완료 후 세부 점수가 표시됩니다."}
                         </p>
                       </div>
 
                       <div className="sf-record-side">
-                        <span className="sf-score-badge">{formatScore(recordScore)}</span>
-                        <span className="sf-status-badge">{getStatusLabel(record.status)}</span>
+                        <span className="sf-score-badge">
+                          {canShowRecordScore ? formatScore(recordScore, "점수 없음") : "점수 없음"}
+                        </span>
+                        <span className="sf-status-badge">{getStatusLabel(recordStatus)}</span>
                         <div className="sf-record-actions">
                           <button
                             type="button"
@@ -1041,33 +1225,128 @@ function HistoryPage() {
             {detailError && <p className="sf-error-line" style={{ marginTop: 12 }}>{detailError}</p>}
 
             {selectedDetail && (
-              <div className="sf-detail-card">
-                <div className="sf-card-title-row">
-                  <div>
-                    <small>{formatDate(getRecordDate(selectedDetail))}</small>
-                    <h2>상세 분석 정보</h2>
+              <>
+                <div className="sf-detail-card">
+                  <div className="sf-card-title-row">
+                    <div>
+                      <small>{formatDate(getRecordDate(selectedDetail))}</small>
+                      <h2>상세 분석 정보</h2>
+                    </div>
+                    <span className="sf-status-badge">{getStatusLabel(selectedDetailStatus)}</span>
                   </div>
-                  <span className="sf-status-badge">{getStatusLabel(selectedDetail.status)}</span>
+
+                  <div className="sf-detail-metrics">
+                    <div>
+                      <span>종합 점수</span>
+                      <strong>
+                        {canShowSelectedDetailScore
+                          ? formatScore(getRecordScore(selectedDetail), "점수 없음")
+                          : "점수 없음"}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>색소침착</span>
+                      <strong>
+                        {canShowSelectedDetailScore
+                          ? getMetricScore(selectedDetail.metrics, "색소")
+                          : "점수 없음"}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>주름</span>
+                      <strong>
+                        {canShowSelectedDetailScore
+                          ? getMetricScore(selectedDetail.metrics, "주름")
+                          : "점수 없음"}
+                      </strong>
+                    </div>
+                  </div>
+
+                  <p>{selectedDetail.statusDescription || selectedDetail.summary || "상세 분석 설명이 없습니다."}</p>
+                  <p>{getRecommendationText(selectedDetail.recommendations)}</p>
                 </div>
 
-                <div className="sf-detail-metrics">
-                  <div>
-                    <span>종합 점수</span>
-                    <strong>{formatScore(getRecordScore(selectedDetail))}</strong>
+                <div className="sf-llm-report-card">
+                  <div className="sf-llm-report-head">
+                    <div>
+                      <small>AI Summary Report</small>
+                      <h3>AI 요약 리포트</h3>
+                    </div>
+                    <span className="sf-status-badge">
+                      {llmReport ? getLlmReportSourceLabel(llmReport.source) : "리포트 출처"}
+                    </span>
                   </div>
-                  <div>
-                    <span>색소침착</span>
-                    <strong>{getMetricScore(selectedDetail.metrics, "색소")}</strong>
-                  </div>
-                  <div>
-                    <span>주름</span>
-                    <strong>{getMetricScore(selectedDetail.metrics, "주름")}</strong>
-                  </div>
-                </div>
 
-                <p>{selectedDetail.statusDescription || selectedDetail.summary || "상세 분석 설명이 없습니다."}</p>
-                <p>{getRecommendationText(selectedDetail.recommendations)}</p>
-              </div>
+                  {isLlmReportLoading && (
+                    <p className="sf-notice-line">AI 요약 리포트를 불러오는 중입니다.</p>
+                  )}
+
+                  {!isLlmReportLoading && llmReportError && (
+                    <p className="sf-error-line">{llmReportError}</p>
+                  )}
+
+                  {!isLlmReportLoading && !llmReportError && llmReport && !hasLlmReportContent && (
+                    <p className="sf-notice-line">아직 표시할 AI 요약 리포트가 없습니다.</p>
+                  )}
+
+                  {!isLlmReportLoading && !llmReportError && hasLlmReportContent && (
+                    <>
+                      {hasText(llmReportBody.title) && (
+                        <div className="sf-llm-report-section">
+                          <span>리포트 제목</span>
+                          <strong>{llmReportBody.title}</strong>
+                        </div>
+                      )}
+
+                      {hasText(llmReportBody.summary) && (
+                        <div className="sf-llm-report-section">
+                          <span>전체 요약</span>
+                          <p>{llmReportBody.summary}</p>
+                        </div>
+                      )}
+
+                      {hasText(llmReportBody.skinStatus) && (
+                        <div className="sf-llm-report-section">
+                          <span>피부 상태 요약</span>
+                          <p>{llmReportBody.skinStatus}</p>
+                        </div>
+                      )}
+
+                      {llmReportKeyPoints.length > 0 && (
+                        <div className="sf-llm-report-section">
+                          <span>핵심 포인트</span>
+                          <ul>
+                            {llmReportKeyPoints.map((point, index) => (
+                              <li key={`${point}-${index}`}>{point}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {hasText(llmReportBody.recommendationSummary) && (
+                        <div className="sf-llm-report-section">
+                          <span>추천 요약</span>
+                          <p>{llmReportBody.recommendationSummary}</p>
+                        </div>
+                      )}
+
+                      {hasText(llmReportBody.careGuide) && (
+                        <div className="sf-llm-report-section">
+                          <span>관리 가이드</span>
+                          <p>{llmReportBody.careGuide}</p>
+                        </div>
+                      )}
+
+                      {hasText(llmReportBody.disclaimer) && (
+                        <div className="sf-llm-report-section">
+                          <span>참고 안내</span>
+                          <p>{llmReportBody.disclaimer}</p>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </>
             )}
           </Card>
         </section>

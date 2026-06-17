@@ -3,7 +3,7 @@ import http from "./http";
 const defaultMyPage = {
   profile: {
     name: "사용자",
-    email: "skinflow@example.com",
+    email: null,
     skinType: "미설정",
     createdAt: null,
   },

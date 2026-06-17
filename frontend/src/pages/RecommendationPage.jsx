@@ -41,16 +41,125 @@ function formatScore(value) {
   const numericValue = Number(value);
 
   if (!Number.isFinite(numericValue)) {
-    return "-";
+    return "점수 없음";
   }
 
   return `${Math.round(numericValue)}점`;
+}
+
+function hasMatchScore(value) {
+  if (value === null || value === undefined) return false;
+  if (typeof value === "string" && value.trim() === "") return false;
+
+  return Number.isFinite(Number(value));
+}
+
+function formatMatchScore(value) {
+  if (!hasMatchScore(value)) {
+    return "매칭 점수 없음";
+  }
+
+  return `${Math.round(Number(value))}점`;
+}
+
+function getRecommendationMatchScore(item) {
+  return item?.match_score ?? item?.matchScore ?? item?.match ?? item?.score;
+}
+
+function hasText(value) {
+  return typeof value === "string" && value.trim() !== "";
+}
+
+function getVisibleMatchedIngredients(item) {
+  return Array.isArray(item?.matchedIngredients)
+    ? item.matchedIngredients.filter((ingredient) => hasText(ingredient?.name)).slice(0, 3)
+    : [];
 }
 
 function getFocusMetricName(...summaries) {
   const focusMetric = summaries.find((summary) => summary?.focusMetric?.name)?.focusMetric;
 
   return focusMetric?.name || "분석 대기";
+}
+
+function getSummaryStatus(summary) {
+  return summary?.analysisStatus ?? summary?.analysis_status ?? summary?.latestStatus ?? summary?.latest_status ?? summary?.status;
+}
+
+function isCompletedStatus(status) {
+  return String(status || "").toLowerCase() === "completed";
+}
+
+function normalizeSourceText(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+}
+
+function getRecommendationSourceState(summary, itemCount = 0) {
+  if (!summary && itemCount === 0) {
+    return {
+      tone: "empty",
+      label: "추천 데이터 없음",
+      message: "분석 후 추천 정보가 표시됩니다.",
+    };
+  }
+
+  const sourceText = normalizeSourceText(
+    summary?.source ??
+      summary?.ingredientSource ??
+      summary?.productSource ??
+      "",
+  );
+  const status = getSummaryStatus(summary);
+  const hasStatus = status !== null && status !== undefined && String(status).trim() !== "";
+  const isCompleted = !hasStatus || isCompletedStatus(status);
+  const isFallback = Boolean(summary?.isFallback || summary?.fallback || summary?.fromDefault);
+  const isSavedFalse = summary?.saved === false;
+  const hasItems = itemCount > 0;
+
+  if (!hasItems || ["empty", "none", "null"].includes(sourceText)) {
+    return {
+      tone: "empty",
+      label: "추천 데이터 없음",
+      message: summary?.message || "분석 후 추천 정보가 표시됩니다.",
+    };
+  }
+
+  if (!isCompleted || isSavedFalse) {
+    return {
+      tone: "reference",
+      label: "분석 전 참고",
+      message: summary?.message || "분석 완료 전에는 참고 정보로만 확인해 주세요.",
+    };
+  }
+
+  if (
+    isFallback ||
+    !sourceText ||
+    ["default", "fallback", "reference", "static", "seed", "unknown"].includes(sourceText)
+  ) {
+    return {
+      tone: "reference",
+      label: "기본 참고",
+      message: summary?.message || "기본 참고 정보입니다. 최신 분석 후 관리 방향과 함께 확인해 주세요.",
+    };
+  }
+
+  if (isCompleted && ["latest", "latest_analysis", "analysis", "personalized", "result", "completed"].includes(sourceText)) {
+    return {
+      tone: "personalized",
+      label: "최근 분석 기반",
+      message: summary?.message || "최근 분석 결과를 바탕으로 참고할 수 있는 추천입니다.",
+    };
+  }
+
+  return {
+    tone: "reference",
+    label: "기준 확인 중",
+    message: summary?.message || "추천 기준을 확인 중입니다. 참고 정보로 활용해 주세요.",
+  };
 }
 
 function RecommendationSectionState({ type, message }) {
@@ -208,10 +317,33 @@ const isSkinRelatedQuestion = (text) => {
   }, []);
 
   useEffect(() => {
-    loadRecommendations();
+    const timeoutId = window.setTimeout(loadRecommendations, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [loadRecommendations]);
 
   const summary = productSummary || ingredientSummary;
+  const ingredientSourceState = useMemo(
+    () => getRecommendationSourceState(ingredientSummary, ingredients.length),
+    [ingredientSummary, ingredients.length],
+  );
+  const productSourceState = useMemo(
+    () => getRecommendationSourceState(productSummary, products.length),
+    [productSummary, products.length],
+  );
+  const sourceState = useMemo(() => {
+    if (ingredientSourceState.tone === "personalized" || productSourceState.tone === "personalized") {
+      return ingredientSourceState.tone === "personalized" ? ingredientSourceState : productSourceState;
+    }
+
+    if (ingredients.length || products.length) {
+      return ingredientSourceState.tone !== "empty" ? ingredientSourceState : productSourceState;
+    }
+
+    return ingredientSourceState;
+  }, [ingredientSourceState, ingredients.length, productSourceState, products.length]);
 
   const summaryItems = useMemo(
     () => [
@@ -237,17 +369,27 @@ const isSkinRelatedQuestion = (text) => {
     }
 
     if (ingredientError && productError) {
-      return "추천 API 연결 상태를 확인해 주세요. 로그인 토큰 또는 백엔드 서버 상태가 필요합니다.";
+      return "추천 정보를 불러오지 못했습니다. 로그인 상태와 서버 실행 여부를 확인해 주세요.";
     }
 
     if (!ingredients.length && !products.length) {
-      return summary?.message || "최근 분석 결과 기반 추천 데이터가 아직 없습니다.";
+      return sourceState.message;
     }
 
-    return `최근 분석 결과 기준 ${formatScore(summary?.totalScore)} 상태에서 참고할 수 있는 성분과 제품 추천입니다.`;
-  }, [ingredientError, ingredients.length, isLoading, productError, products.length, summary]);
+    if (sourceState.tone === "personalized") {
+      const scoreText = formatScore(
+        summary?.totalScore ?? summary?.totalSkinScore ?? summary?.total_skin_score ?? summary?.score
+      );
 
-  const statusLabel = isLoading ? "불러오는 중" : ingredientError && productError ? "연결 확인" : "API 연동";
+      return scoreText === "점수 없음"
+        ? "최근 분석 결과를 기준으로 참고할 수 있는 성분과 제품 추천입니다."
+        : `최근 분석 결과 ${scoreText} 기준으로 참고할 수 있는 성분과 제품 추천입니다.`;
+    }
+
+    return sourceState.message;
+  }, [ingredientError, ingredients.length, isLoading, productError, products.length, sourceState, summary]);
+
+  const statusLabel = isLoading ? "불러오는 중" : ingredientError && productError ? "연결 확인" : sourceState.label;
 
   return (
     <PageLayout>
@@ -354,6 +496,32 @@ const isSkinRelatedQuestion = (text) => {
           font-size: 12px;
           font-weight: 950;
           white-space: nowrap;
+        }
+
+        .sf-source-pill {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 7px 10px;
+          max-width: 100%;
+          border-radius: 999px;
+          color: #167d7f;
+          background: rgba(22, 125, 127, 0.09);
+          font-size: 11px;
+          font-weight: 950;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .sf-source-pill.is-reference {
+          color: #0f766e;
+          background: rgba(20, 184, 166, 0.1);
+        }
+
+        .sf-source-pill.is-empty {
+          color: #64748b;
+          background: rgba(100, 116, 139, 0.1);
         }
 
         .sf-recommend-summary-grid {
@@ -550,12 +718,59 @@ const isSkinRelatedQuestion = (text) => {
           font-weight: 900;
         }
 
+        .sf-product-detail {
+          display: grid;
+          gap: 7px;
+          margin-top: 10px;
+          padding-top: 10px;
+          border-top: 1px solid rgba(226, 232, 240, 0.82);
+        }
+
+        .sf-product-detail-label {
+          color: #94a3b8;
+          font-size: 11px;
+          font-weight: 950;
+        }
+
+        .sf-product-ingredient-row {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+        }
+
+        .sf-product-ingredient-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          max-width: 100%;
+          padding: 4px 8px;
+          border-radius: 999px;
+          color: #0f766e;
+          background: rgba(20, 184, 166, 0.1);
+          font-size: 11px;
+          font-weight: 900;
+          line-height: 1.25;
+        }
+
+        .sf-product-ingredient-score {
+          color: #64748b;
+          font-weight: 850;
+        }
+
+        .sf-product-reason {
+          color: #475569;
+          font-size: 12px;
+          font-weight: 750;
+          line-height: 1.45;
+          word-break: keep-all;
+        }
+
         .sf-match-score {
           display: inline-flex;
           flex-direction: column;
           align-items: flex-end;
           justify-content: center;
-          min-width: 54px;
+          min-width: 72px;
           padding: 8px 0;
           color: #167d7f;
           text-align: right;
@@ -563,6 +778,13 @@ const isSkinRelatedQuestion = (text) => {
           font-weight: 950;
           line-height: 1.05;
           letter-spacing: -0.04em;
+        }
+
+        .sf-match-score.is-pending {
+          color: #64748b;
+          font-size: 12px;
+          line-height: 1.25;
+          letter-spacing: 0;
         }
 
         .sf-match-score span {
@@ -873,7 +1095,7 @@ const isSkinRelatedQuestion = (text) => {
       <div className="sf-recommend-page">
         <section className="sf-recommend-hero">
           <Card className="sf-recommend-hero-card">
-            <Badge>AI Recommendation</Badge>
+            <Badge>Recommendation</Badge>
             <h1>
               분석 결과에 맞춘
               <br />
@@ -881,7 +1103,7 @@ const isSkinRelatedQuestion = (text) => {
             </h1>
             <p>
               색소침착과 주름 중심의 분석 결과를 바탕으로 기능성 성분,
-              화장품 제품, 식습관 가이드까지 다음 관리 행동을 짧게 정리합니다.
+              화장품 제품, 식습관 가이드까지 다음 관리 방향을 짧게 정리합니다.
             </p>
 
             <div className="sf-recommend-actions">
@@ -934,6 +1156,9 @@ const isSkinRelatedQuestion = (text) => {
                   <h2>기능성 성분 추천</h2>
                 </div>
               </div>
+              <span className={`sf-source-pill is-${ingredientSourceState.tone}`}>
+                {ingredientSourceState.label}
+              </span>
             </div>
 
             {isLoading ? (
@@ -944,30 +1169,34 @@ const isSkinRelatedQuestion = (text) => {
               <RecommendationSectionState type="empty" message="표시할 성분 추천 데이터가 없습니다." />
             ) : (
               <div className="sf-recommend-list">
-                {ingredients.map((item) => (
-                  <article className="sf-ingredient-card" key={item.id || item.name}>
-                    <span className="sf-icon-tile" aria-hidden="true">
-                      <FlaskConical size={22} />
-                    </span>
+                {ingredients.map((item) => {
+                  const matchScore = getRecommendationMatchScore(item);
 
-                    <div className="sf-ingredient-main">
-                      <h3>{item.name}</h3>
-                      <p>{item.description}</p>
-                      <div className="sf-tag-row">
-                        {item.tags.map((tag) => (
-                          <span className="sf-tag" key={tag}>
-                            #{tag}
-                          </span>
-                        ))}
+                  return (
+                    <article className="sf-ingredient-card" key={item.id || item.name}>
+                      <span className="sf-icon-tile" aria-hidden="true">
+                        <FlaskConical size={22} />
+                      </span>
+
+                      <div className="sf-ingredient-main">
+                        <h3>{item.name}</h3>
+                        <p>{item.description}</p>
+                        <div className="sf-tag-row">
+                          {item.tags.map((tag) => (
+                            <span className="sf-tag" key={tag}>
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="sf-match-score">
-                      <span>매칭</span>
-                      {item.match}점
-                    </div>
-                  </article>
-                ))}
+                      <div className={`sf-match-score ${hasMatchScore(matchScore) ? "" : "is-pending"}`}>
+                        <span>매칭</span>
+                        {formatMatchScore(matchScore)}
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             )}
           </Card>
@@ -981,6 +1210,9 @@ const isSkinRelatedQuestion = (text) => {
                   <h2>화장품 제품 추천</h2>
                 </div>
               </div>
+              <span className={`sf-source-pill is-${productSourceState.tone}`}>
+                {productSourceState.label}
+              </span>
             </div>
 
             {isLoading ? (
@@ -991,47 +1223,75 @@ const isSkinRelatedQuestion = (text) => {
               <RecommendationSectionState type="empty" message="표시할 제품 추천 데이터가 없습니다." />
             ) : (
               <div className="sf-recommend-list">
-                {products.map((item) => (
-                  <article className="sf-product-card" key={item.id || item.name}>
-                    {item.imageUrl ? (
-                      <span className="sf-product-thumb" aria-hidden="true">
-                        <img src={item.imageUrl} alt="" />
-                      </span>
-                    ) : (
-                      <span className="sf-icon-tile" aria-hidden="true">
-                        <PackageCheck size={22} />
-                      </span>
-                    )}
+                {products.map((item) => {
+                  const matchScore = getRecommendationMatchScore(item);
+                  const matchedIngredients = getVisibleMatchedIngredients(item);
 
-                    <div className="sf-product-main">
-                      <span className="sf-product-brand">{item.brand}</span>
-                      <h3>{item.name}</h3>
-                      <p>{item.description}</p>
-                      <div className="sf-tag-row">
-                        {item.tags.map((tag) => (
-                          <span className="sf-tag" key={tag}>
-                            #{tag}
-                          </span>
-                        ))}
-                      </div>
-                      {item.productUrl && (
-                        <a
-                          className="sf-product-link"
-                          href={item.productUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          올리브영에서 보기 <ExternalLink size={13} />
-                        </a>
+                  return (
+                    <article className="sf-product-card" key={item.id || item.name}>
+                      {item.imageUrl ? (
+                        <span className="sf-product-thumb" aria-hidden="true">
+                          <img src={item.imageUrl} alt="" />
+                        </span>
+                      ) : (
+                        <span className="sf-icon-tile" aria-hidden="true">
+                          <PackageCheck size={22} />
+                        </span>
                       )}
-                    </div>
 
-                    <div className="sf-match-score">
-                      <span>매칭</span>
-                      {item.match}점
-                    </div>
-                  </article>
-                ))}
+                      <div className="sf-product-main">
+                        <span className="sf-product-brand">{item.brand}</span>
+                        <h3>{item.name}</h3>
+                        <p>{item.description}</p>
+                        {matchedIngredients.length > 0 && (
+                          <div className="sf-product-detail">
+                            <span className="sf-product-detail-label">대표 성분</span>
+                            <div className="sf-product-ingredient-row">
+                              {matchedIngredients.map((ingredient) => (
+                                <span className="sf-product-ingredient-pill" key={ingredient.id || ingredient.name}>
+                                  {ingredient.name}
+                                  {hasMatchScore(ingredient.match) && (
+                                    <span className="sf-product-ingredient-score">
+                                      {formatMatchScore(ingredient.match)}
+                                    </span>
+                                  )}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {hasText(item.reason) && (
+                          <div className="sf-product-detail">
+                            <span className="sf-product-detail-label">추천 기준</span>
+                            <p className="sf-product-reason">{item.reason}</p>
+                          </div>
+                        )}
+                        <div className="sf-tag-row">
+                          {item.tags.map((tag) => (
+                            <span className="sf-tag" key={tag}>
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
+                        {item.productUrl && (
+                          <a
+                            className="sf-product-link"
+                            href={item.productUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            올리브영에서 보기 <ExternalLink size={13} />
+                          </a>
+                        )}
+                      </div>
+
+                      <div className={`sf-match-score ${hasMatchScore(matchScore) ? "" : "is-pending"}`}>
+                        <span>매칭</span>
+                        {formatMatchScore(matchScore)}
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             )}
           </Card>

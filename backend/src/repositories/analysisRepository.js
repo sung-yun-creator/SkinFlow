@@ -34,7 +34,7 @@ async function findMetricTypesByCodes(connection, metricCodes) {
     }, {});
 }
 
-async function createAnalysisWithMetrics(userId, analysis) {
+async function createAnalysisWithMetrics(userId, analysis, image = null) {
     const connection = await pool.getConnection();
 
     try {
@@ -109,6 +109,41 @@ async function createAnalysisWithMetrics(userId, analysis) {
             );
         }
 
+        let savedImage = null;
+
+        if (image) {
+            const [imageResult] = await connection.query(
+                `
+                    INSERT INTO t_images (
+                        user_id,
+                        skin_analysis_id,
+                        image_type,
+                        file_name,
+                        file_size,
+                        file_ext,
+                        created_at
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, NOW())
+                `,
+                [
+                    userId,
+                    analysisId,
+                    image.imageType,
+                    image.fileName,
+                    image.fileSize,
+                    image.fileExt,
+                ],
+            );
+
+            savedImage = {
+                analysisImageId: imageResult.insertId,
+                imageType: image.imageType,
+                fileName: image.fileName,
+                fileSize: image.fileSize,
+                fileExt: image.fileExt,
+            };
+        }
+
         await connection.commit();
 
         return {
@@ -124,6 +159,7 @@ async function createAnalysisWithMetrics(userId, analysis) {
                 name: metricTypesByCode[metric.code].metric_name,
                 unit: metricTypesByCode[metric.code].unit_name,
             })),
+            image: savedImage,
         };
     } catch (error) {
         await connection.rollback();
@@ -198,8 +234,40 @@ async function replaceAnalysisRois(analysisId, rois) {
     }
 }
 
+async function findExpiredPrivacyImages(retentionDays) {
+    const [rows] = await pool.query(
+        `
+            SELECT analysis_image_id, file_name
+            FROM t_images
+            WHERE image_type = 'privacy_masked'
+                AND created_at < DATE_SUB(NOW(), INTERVAL ? DAY)
+        `,
+        [retentionDays],
+    );
+
+    return rows;
+}
+
+async function deleteImagesByIds(imageIds) {
+    if (imageIds.length === 0) {
+        return 0;
+    }
+
+    const [result] = await pool.query(
+        `
+            DELETE FROM t_images
+            WHERE analysis_image_id IN (?)
+        `,
+        [imageIds],
+    );
+
+    return result.affectedRows || 0;
+}
+
 module.exports = {
     createAnalysisWithMetrics,
+    deleteImagesByIds,
+    findExpiredPrivacyImages,
     findAnalysisByIdAndUserId,
     replaceAnalysisRois,
 };

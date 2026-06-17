@@ -4,34 +4,208 @@ function toArray(value) {
   return Array.isArray(value) ? value : [];
 }
 
+function normalizeText(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function pickValue(...values) {
+  return values.find((value) => {
+    if (value === null || value === undefined) return false;
+    if (typeof value === "string") return value.trim() !== "";
+    if (Array.isArray(value)) return value.length > 0;
+
+    return true;
+  });
+}
+
+function pickText(...values) {
+  return normalizeText(pickValue(...values));
+}
+
+function normalizeMatch(value) {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "string" && value.trim() === "") return null;
+
+  const numericValue = Number(value);
+
+  return Number.isFinite(numericValue) ? numericValue : null;
+}
+
 function normalizeIngredient(item) {
+  const name = normalizeText(item?.name);
+
+  if (!name) {
+    return null;
+  }
+
   return {
-    id: item?.id ?? item?.name,
-    name: item?.name ?? "성분 정보 없음",
-    description: item?.description ?? "추천 성분 설명을 불러오지 못했습니다.",
-    match: Number.isFinite(Number(item?.match)) ? Number(item.match) : 0,
-    reason: item?.reason ?? "최근 분석 결과를 기준으로 추천된 성분입니다.",
+    id: item?.id ?? name,
+    name,
+    description: normalizeText(item?.description),
+    match: normalizeMatch(item?.match),
+    reason: normalizeText(item?.reason),
     priority: item?.priority ?? null,
-    metricName: item?.metricName ?? "피부 지표",
-    tags: toArray(item?.tags),
+    metricName: normalizeText(item?.metricName),
+    tags: toArray(item?.tags).map(normalizeText).filter(Boolean),
+  };
+}
+
+function normalizeSummary(response, defaultSource) {
+  const summary = response?.summary ?? {};
+  const source =
+    response?.source ??
+    summary?.source ??
+    response?.ingredientSource ??
+    response?.productSource ??
+    defaultSource;
+
+  return {
+    ...summary,
+    source,
+    message: response?.message ?? summary?.message ?? "",
+    ingredientSource: response?.ingredientSource ?? summary?.ingredientSource ?? null,
+    productSource: response?.productSource ?? summary?.productSource ?? null,
+    isFallback: response?.isFallback ?? summary?.isFallback ?? false,
+    fallback: response?.fallback ?? summary?.fallback ?? false,
+    fromDefault: response?.fromDefault ?? summary?.fromDefault ?? false,
+  };
+}
+
+function normalizeTags(value) {
+  return toArray(value).map(normalizeText).filter(Boolean);
+}
+
+function normalizeMatchedIngredient(item) {
+  const name = pickText(item?.name, item?.ingredientName, item?.ingredient_name);
+
+  if (!name) {
+    return null;
+  }
+
+  return {
+    id: item?.id ?? item?.ingredientId ?? item?.ingredient_id ?? name,
+    name,
+    match: normalizeMatch(
+      pickValue(item?.match, item?.matchScore, item?.match_score, item?.score),
+    ),
+    reason: pickText(item?.reason, item?.recommendReason, item?.recommend_reason),
+    tags: normalizeTags(item?.tags),
   };
 }
 
 function normalizeProduct(item) {
   const card = item?.card ?? {};
+  const brand = pickText(
+    card?.brandName,
+    card?.brand_name,
+    item?.brandName,
+    item?.brand_name,
+    item?.brand,
+  );
+  const name = pickText(
+    card?.productName,
+    card?.product_name,
+    card?.name,
+    item?.productName,
+    item?.product_name,
+    item?.name,
+  );
+
+  if (!brand || !name) {
+    return null;
+  }
 
   return {
-    id: item?.id ?? card?.name ?? item?.productName,
-    brand: card?.brandName ?? item?.brandName ?? "브랜드 정보 없음",
-    name: card?.name ?? item?.productName ?? "제품 정보 없음",
-    description: card?.description ?? item?.description ?? "제품 추천 설명을 불러오지 못했습니다.",
-    match: Number.isFinite(Number(card?.match ?? item?.match))
-      ? Number(card?.match ?? item?.match)
-      : 0,
-    tags: toArray(card?.tags ?? item?.tags),
-    productUrl: card?.productUrl ?? item?.productUrl ?? "",
-    imageUrl: card?.imageUrl ?? item?.imageUrl ?? "",
-    matchedIngredients: toArray(item?.matchedIngredients),
+    id: item?.id ?? name,
+    brand,
+    name,
+    description: pickText(card?.description, item?.description),
+    match: normalizeMatch(
+      pickValue(
+        card?.match,
+        card?.matchScore,
+        card?.match_score,
+        card?.score,
+        item?.match,
+        item?.matchScore,
+        item?.match_score,
+        item?.score,
+      ),
+    ),
+    reason: pickText(
+      card?.recommendReason,
+      card?.recommend_reason,
+      card?.reason,
+      item?.recommendReason,
+      item?.recommend_reason,
+      item?.reason,
+    ),
+    tags: normalizeTags(pickValue(card?.tags, item?.tags)),
+    productUrl: pickText(card?.productUrl, card?.product_url, item?.productUrl, item?.product_url),
+    imageUrl: pickText(
+      card?.imageUrl,
+      card?.image_url,
+      card?.productImg,
+      card?.product_img,
+      item?.imageUrl,
+      item?.image_url,
+      item?.productImg,
+      item?.product_img,
+    ),
+    matchedIngredients: toArray(
+      pickValue(card?.matchedIngredients, card?.matched_ingredients, item?.matchedIngredients, item?.matched_ingredients),
+    )
+      .map(normalizeMatchedIngredient)
+      .filter(Boolean),
+  };
+}
+
+function normalizeDietSummary(response) {
+  const summary = response?.summary ?? {};
+  const hasGuideCount = summary?.guideCount !== null && summary?.guideCount !== undefined && summary?.guideCount !== "";
+  const guideCount = Number(summary?.guideCount);
+
+  return {
+    analysisId: summary?.analysisId ?? null,
+    analyzedAt: summary?.analyzedAt ?? null,
+    totalScore: summary?.totalScore ?? null,
+    guideSource: summary?.guideSource ?? null,
+    saved: response?.saved ?? summary?.saved ?? null,
+    guideCount: hasGuideCount && Number.isFinite(guideCount) ? guideCount : null,
+    message: normalizeText(summary?.message),
+  };
+}
+
+function normalizeDietGuide(item) {
+  const card = item?.card ?? {};
+
+  return {
+    id: item?.id ?? item?.recommendationId ?? null,
+    recommendationId: item?.recommendationId ?? null,
+    ingredientId: item?.ingredientId ?? null,
+    ingredientName: normalizeText(item?.ingredientName),
+    category: normalizeText(item?.category),
+    title: normalizeText(card?.title) || normalizeText(item?.title),
+    description: normalizeText(card?.description) || normalizeText(item?.content),
+    content: normalizeText(item?.content),
+    reason: normalizeText(item?.reason),
+    priority: normalizeText(card?.priority) || normalizeText(item?.priority),
+    tag: normalizeText(card?.tag) || normalizeText(item?.category),
+    createdAt: item?.createdAt ?? null,
+  };
+}
+
+function normalizeDietRoutine(item) {
+  return {
+    time: normalizeText(item?.time),
+    text: normalizeText(item?.text),
+  };
+}
+
+function normalizeDietCheck(item) {
+  return {
+    title: normalizeText(item?.title),
+    category: normalizeText(item?.category),
   };
 }
 
@@ -39,9 +213,9 @@ async function getIngredientRecommendations() {
   const response = await http.get("/api/recommendations/ingredients");
 
   return {
-    source: response?.source ?? "unknown",
-    summary: response?.summary ?? null,
-    ingredients: toArray(response?.ingredients).map(normalizeIngredient),
+    source: response?.source ?? response?.summary?.source ?? "unknown",
+    summary: normalizeSummary(response, "unknown"),
+    ingredients: toArray(response?.ingredients).map(normalizeIngredient).filter(Boolean),
   };
 }
 
@@ -49,10 +223,26 @@ async function getProductRecommendations() {
   const response = await http.get("/api/recommendations/products");
 
   return {
-    source: response?.source ?? "unknown",
-    summary: response?.summary ?? null,
-    products: toArray(response?.products).map(normalizeProduct),
+    source: response?.source ?? response?.summary?.source ?? "unknown",
+    summary: normalizeSummary(response, "unknown"),
+    products: toArray(response?.products).map(normalizeProduct).filter(Boolean),
   };
 }
 
-export { getIngredientRecommendations, getProductRecommendations };
+async function getDietGuideRecommendations() {
+  const response = await http.get("/api/recommendations/diet-guides");
+
+  return {
+    source: normalizeText(response?.source) || "unknown",
+    summary: normalizeDietSummary(response),
+    guides: toArray(response?.guides).map(normalizeDietGuide),
+    routines: toArray(response?.routines).map(normalizeDietRoutine),
+    checks: toArray(response?.checks).map(normalizeDietCheck),
+  };
+}
+
+export {
+  getIngredientRecommendations,
+  getProductRecommendations,
+  getDietGuideRecommendations,
+};

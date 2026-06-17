@@ -3,7 +3,18 @@ const {
     INGREDIENT_REFERENCES,
     METRIC_INGREDIENT_META,
 } = require('../constants/ingredientReference');
+const {
+    DIET_CHECK_REFERENCES,
+    DIET_GUIDE_REFERENCES,
+    DIET_ROUTINE_REFERENCES,
+} = require('../constants/dietGuideReference');
 const { toNumber } = require('../utils/number');
+
+const OLIVE_YOUNG_SEARCH_BASE_URL = 'https://www.oliveyoung.co.kr/store/search/getSearchMain.do?query=';
+
+function oliveYoungSearchUrl(keyword) {
+    return `${OLIVE_YOUNG_SEARCH_BASE_URL}${encodeURIComponent(keyword)}`;
+}
 
 function scoreToMatch(score, index) {
     const metricScore = Number(score);
@@ -174,7 +185,16 @@ function buildProductRecommendations(productRows, ingredientRecommendations) {
 
     return groupProducts(productRows)
         .map((product) => {
-            const matchedIngredients = product.ingredients
+            const ingredientRanks = product.ingredients
+                .map((ingredient) => toNumber(ingredient.ingredient_pct))
+                .filter((rank) => rank !== null);
+            const primaryIngredientRank = ingredientRanks.length > 0
+                ? Math.max(...ingredientRanks)
+                : null;
+            const matchableIngredients = primaryIngredientRank === null
+                ? product.ingredients
+                : product.ingredients.filter((ingredient) => toNumber(ingredient.ingredient_pct) === primaryIngredientRank);
+            const matchedIngredients = matchableIngredients
                 .map((ingredient) => {
                     const recommendation = recommendedIngredients.get(ingredient.ingredient_id);
 
@@ -199,7 +219,13 @@ function buildProductRecommendations(productRows, ingredientRecommendations) {
                 matchedIngredients.reduce((sum, ingredient) => sum + ingredient.match, 0)
                 / matchedIngredients.length,
             );
-            const tags = [...new Set(matchedIngredients.flatMap((ingredient) => ingredient.tags || []))].slice(0, 4);
+            const sortedMatchedIngredients = matchedIngredients
+                .sort((left, right) => right.match - left.match || left.id - right.id);
+            const primaryMatchedIngredient = sortedMatchedIngredients[0] || null;
+            const tags = [...new Set(sortedMatchedIngredients.flatMap((ingredient) => ingredient.tags || []))].slice(0, 4);
+            const productUrl = primaryMatchedIngredient?.name
+                ? oliveYoungSearchUrl(primaryMatchedIngredient.name)
+                : product.product_url;
 
             return {
                 id: product.product_id,
@@ -207,11 +233,11 @@ function buildProductRecommendations(productRows, ingredientRecommendations) {
                 productName: product.product_name,
                 productType: product.product_type,
                 priceAmount: product.price_amount,
-                productUrl: product.product_url,
+                productUrl,
                 imageUrl: product.product_img,
                 description: product.description,
                 match,
-                matchedIngredients,
+                matchedIngredients: sortedMatchedIngredients,
                 tags,
                 card: {
                     brandName: product.brand_name,
@@ -219,7 +245,7 @@ function buildProductRecommendations(productRows, ingredientRecommendations) {
                     description: product.description,
                     match,
                     tags,
-                    productUrl: product.product_url,
+                    productUrl,
                     imageUrl: product.product_img,
                 },
             };
@@ -233,21 +259,47 @@ function buildProductRecommendations(productRows, ingredientRecommendations) {
         }));
 }
 
-async function getIngredientRecommendations(userId) {
-    const [latestAnalysis, ingredients] = await Promise.all([
-        recommendationRepository.findLatestAnalysisWithMetricsByUserId(userId),
-        recommendationRepository.findIngredients(),
-    ]);
-    const concernMetrics = getConcernMetrics(latestAnalysis?.metrics || []);
+function toDietGuide(guide, index) {
+    const title = guide.guide_title || guide.title;
+    const reference = DIET_GUIDE_REFERENCES.find((item) => item.title === title);
+    const priority = guide.priority || reference?.priority || `${index + 1}순위`;
+
+    return {
+        id: guide.diet_guide_id || null,
+        recommendationId: guide.analysis_recommendation_id || null,
+        ingredientId: guide.ingredient_id || null,
+        ingredientName: guide.ingredient_name || null,
+        category: guide.diet_category || guide.category,
+        title,
+        content: guide.guide_content || guide.content,
+        reason: guide.recommend_reason || guide.reason,
+        priority,
+        createdAt: guide.created_at || null,
+        card: {
+            title,
+            description: guide.guide_content || guide.content,
+            tag: guide.diet_category || guide.category,
+            priority,
+        },
+    };
+}
+
+function buildFallbackDietGuides() {
+    return DIET_GUIDE_REFERENCES.map(toDietGuide);
+}
+
+async function buildIngredientRecommendationResult(analysisContext) {
+    const ingredients = await recommendationRepository.findIngredients();
+    const concernMetrics = getConcernMetrics(analysisContext?.metrics || []);
     const focusMetric = concernMetrics[0] || null;
     const recommendations = buildIngredientRecommendations(ingredients, concernMetrics);
 
     return {
-        source: latestAnalysis ? 'latest_analysis' : 'default',
+        source: analysisContext ? 'analysis' : 'default',
         summary: {
-            analysisId: latestAnalysis?.analysis.skin_analysis_id || null,
-            analyzedAt: latestAnalysis?.analysis.analyzed_at || latestAnalysis?.analysis.created_at || null,
-            totalScore: toNumber(latestAnalysis?.analysis.total_skin_score),
+            analysisId: analysisContext?.analysis.skin_analysis_id || null,
+            analyzedAt: analysisContext?.analysis.analyzed_at || analysisContext?.analysis.created_at || null,
+            totalScore: toNumber(analysisContext?.analysis.total_skin_score),
             focusMetric,
             recommendationCount: recommendations.length,
             ingredientSource: ingredients.length > 0 ? 'database' : 'fallback',
@@ -256,11 +308,65 @@ async function getIngredientRecommendations(userId) {
     };
 }
 
+async function getIngredientRecommendations(userId) {
+    const latestAnalysis = await recommendationRepository.findLatestAnalysisWithMetricsByUserId(userId);
+    const result = await buildIngredientRecommendationResult(latestAnalysis);
+
+    return {
+        ...result,
+        source: latestAnalysis ? 'latest_analysis' : 'default',
+    };
+}
+
+async function getDietGuideRecommendations(userId) {
+    const latestAnalysis = await recommendationRepository.findLatestAnalysisWithMetricsByUserId(userId);
+    const latestAnalysisId = latestAnalysis?.analysis.skin_analysis_id || null;
+
+    if (!latestAnalysisId) {
+        return {
+            source: 'default',
+            summary: {
+                analysisId: null,
+                analyzedAt: null,
+                totalScore: null,
+                guideSource: 'fallback',
+                guideCount: DIET_GUIDE_REFERENCES.length,
+                message: '분석 이력이 없어 기본 식습관 가이드를 제공합니다.',
+            },
+            guides: buildFallbackDietGuides(),
+            routines: DIET_ROUTINE_REFERENCES,
+            checks: DIET_CHECK_REFERENCES,
+        };
+    }
+
+    let dietGuides = await recommendationRepository.findDietGuidesByAnalysisId(latestAnalysisId);
+
+    if (dietGuides.length === 0) {
+        dietGuides = await recommendationRepository.createDietGuidesForAnalysis(
+            latestAnalysisId,
+            DIET_GUIDE_REFERENCES,
+        );
+    }
+
+    return {
+        source: 'latest_analysis',
+        summary: {
+            analysisId: latestAnalysisId,
+            analyzedAt: latestAnalysis.analysis.analyzed_at || latestAnalysis.analysis.created_at || null,
+            totalScore: toNumber(latestAnalysis.analysis.total_skin_score),
+            guideSource: 'database',
+            guideCount: dietGuides.length,
+            message: null,
+        },
+        guides: dietGuides.map(toDietGuide),
+        routines: DIET_ROUTINE_REFERENCES,
+        checks: DIET_CHECK_REFERENCES,
+    };
+}
+
 async function getProductRecommendations(userId) {
-    const [ingredientResult, productRows] = await Promise.all([
-        getIngredientRecommendations(userId),
-        recommendationRepository.findActiveProductsWithIngredients(),
-    ]);
+    const ingredientResult = await getIngredientRecommendations(userId);
+    const productRows = await recommendationRepository.findActiveProductsWithIngredients();
     const products = buildProductRecommendations(productRows, ingredientResult.ingredients);
 
     return {
@@ -278,7 +384,36 @@ async function getProductRecommendations(userId) {
     };
 }
 
+async function getRecommendationSnapshotForAnalysis(userId, analysisId) {
+    const analysisContext = await recommendationRepository.findAnalysisWithMetricsByUserIdAndAnalysisId(userId, analysisId);
+
+    if (!analysisContext) {
+        return null;
+    }
+
+    const ingredientResult = await buildIngredientRecommendationResult(analysisContext);
+    const productRows = await recommendationRepository.findActiveProductsWithIngredients();
+    const products = buildProductRecommendations(productRows, ingredientResult.ingredients);
+    let dietGuides = await recommendationRepository.findDietGuidesByAnalysisId(analysisId);
+
+    if (dietGuides.length === 0) {
+        dietGuides = buildFallbackDietGuides();
+    }
+
+    return {
+        analysis: analysisContext.analysis,
+        metrics: analysisContext.metrics,
+        ingredients: ingredientResult.ingredients,
+        products,
+        dietGuides: dietGuides.map(toDietGuide),
+        routines: DIET_ROUTINE_REFERENCES,
+        checks: DIET_CHECK_REFERENCES,
+    };
+}
+
 module.exports = {
+    getDietGuideRecommendations,
     getIngredientRecommendations,
     getProductRecommendations,
+    getRecommendationSnapshotForAnalysis,
 };

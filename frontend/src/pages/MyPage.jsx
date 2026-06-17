@@ -11,7 +11,6 @@ import {
   Droplets,
   History,
   Image,
-  LockKeyhole,
   Mail,
   ShieldCheck,
   Sparkles,
@@ -22,6 +21,7 @@ import Button from "../components/common/Button";
 import Card from "../components/common/Card";
 import Badge from "../components/common/Badge";
 import { getMyPage } from "../api/mypageApi";
+import { shouldShowAnalysisScore } from "../utils/analysisStatus";
 
 const quickActions = [
   {
@@ -112,6 +112,10 @@ function getDisplayValue(value, emptyText = "미설정") {
   return value;
 }
 
+function hasText(value) {
+  return typeof value === "string" && value.trim() !== "";
+}
+
 function MyPage() {
   const [mypage, setMypage] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -151,9 +155,9 @@ function MyPage() {
   }, []);
 
   const profile = mypage?.profile ?? {
-    name: "사용자",
+    name: null,
     email: null,
-    skinType: "미설정",
+    skinType: null,
     createdAt: null,
   };
 
@@ -162,30 +166,41 @@ function MyPage() {
     latestTotalScore: null,
     mainConcern: null,
     latestAnalyzedAt: null,
+    latestStatus: null,
   };
 
+  const hasMypageData = Boolean(mypage) && !mypageError;
+  const latestStatus = stats.latestStatus ?? stats.latest_status ?? stats.analysisStatus ?? stats.analysis_status;
+  const latestScore = stats.latestTotalScore ?? stats.latest_total_score;
+  const hasLatestScore = shouldShowAnalysisScore({
+    score: latestScore,
+    status: latestStatus,
+    saved: stats.saved,
+  });
   const recentActivity = Array.isArray(mypage?.recentActivity)
-    ? mypage.recentActivity.slice(0, 3)
+    ? mypage.recentActivity
+        .filter((activity) => hasText(activity?.title) || hasText(activity?.description) || activity?.occurredAt)
+        .slice(0, 3)
     : [];
-  const profileName = getDisplayValue(profile.name, "사용자");
+  const profileName = getDisplayValue(profile.name, "계정 정보 없음");
   const profileEmail = getDisplayValue(profile.email, "로그인 정보 확인 필요");
 
   const profileStats = useMemo(
     () => [
       {
         label: "총 분석",
-        value: `${stats.analysisCount ?? 0}회`,
+        value: hasMypageData ? `${stats.analysisCount ?? 0}회` : "정보 없음",
       },
       {
         label: "최근 점수",
-        value: formatScore(stats.latestTotalScore),
+        value: hasLatestScore ? formatScore(latestScore) : "분석 완료 후 표시",
       },
       {
         label: "관심 지표",
         value: getDisplayValue(stats.mainConcern, "분석 후 표시"),
       },
     ],
-    [stats.analysisCount, stats.latestTotalScore, stats.mainConcern]
+    [hasLatestScore, hasMypageData, latestScore, stats.analysisCount, stats.mainConcern]
   );
 
   const skinProfileItems = useMemo(
@@ -684,8 +699,8 @@ function MyPage() {
                 <span className="sf-gradient-text">한눈에 확인하세요</span>
               </h1>
               <p>
-                회원 정보, 피부 타입, 최근 분석 상태와 추천 흐름을 한 화면에서 확인하고
-                필요한 화면으로 바로 이동할 수 있습니다.
+                계정 정보, 최근 분석 상태, 추천 흐름을 한 화면에서 확인하고
+                필요한 관리 화면으로 바로 이동합니다.
               </p>
 
               {mypageError && (
@@ -736,7 +751,7 @@ function MyPage() {
               </span>
               <p>
                 {stats.mainConcern
-                  ? `최근 분석 기준으로 ${stats.mainConcern} 관리 흐름을 확인할 수 있습니다.`
+                  ? `최근 분석 기준으로 ${stats.mainConcern} 관리 방향을 확인할 수 있습니다.`
                   : "첫 분석을 진행하면 관심 지표와 맞춤 추천 흐름이 표시됩니다."}
               </p>
             </div>
@@ -893,7 +908,7 @@ function MyPage() {
                   <div>
                     <strong>아직 표시할 활동이 없습니다.</strong>
                     <span>
-                      피부 분석을 시작하면 분석 결과와 추천 내용을 이곳에서 확인할 수 있습니다.
+                      피부 분석을 시작하면 결과와 추천 흐름이 이곳에 표시됩니다.
                     </span>
                   </div>
                   <span className="sf-status-badge is-muted">대기</span>

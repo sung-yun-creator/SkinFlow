@@ -6,6 +6,21 @@ import { clearLoginSession, cleanupLegacyAuthStorage } from "../../api/authApi";
 
 const ANALYSIS_PROGRESS_KEY = "skinflow_analysis_progress";
 const ANALYSIS_PROGRESS_EVENT = "skinflow-analysis-progress";
+const COMPLETED_VISIBLE_MS = 30 * 1000;
+const STALE_PROGRESS_MS = 15 * 60 * 1000;
+
+const completedStatuses = ["analysis_completed"];
+const progressStatuses = [
+  "roi_pending",
+  "roi_processing",
+  "roi_complete",
+  "skin_analysis_processing",
+  "analysis_waiting",
+  "analysis_pending",
+  "ai_model_pending",
+  "model_missing",
+  "failed",
+];
 
 const navItems = [
   {
@@ -42,6 +57,38 @@ const defaultProgress = {
   path: "/analysis/loading",
 };
 
+function getProgressTimestamp(progress) {
+  const rawTimestamp = progress?.updatedAt ?? progress?.createdAt ?? progress?.timestamp;
+
+  if (!rawTimestamp) return null;
+
+  if (typeof rawTimestamp === "number") {
+    return rawTimestamp < 1000000000000 ? rawTimestamp * 1000 : rawTimestamp;
+  }
+
+  const parsedTimestamp = new Date(rawTimestamp).getTime();
+
+  return Number.isNaN(parsedTimestamp) ? null : parsedTimestamp;
+}
+
+function isStoredProgressStale(progress, now = Date.now()) {
+  if (!progress || progress.status === "idle") return false;
+
+  const progressTimestamp = getProgressTimestamp(progress);
+
+  if (!progressTimestamp) return true;
+
+  if (completedStatuses.includes(progress.status)) {
+    return now - progressTimestamp > COMPLETED_VISIBLE_MS;
+  }
+
+  if (progressStatuses.includes(progress.status)) {
+    return now - progressTimestamp > STALE_PROGRESS_MS;
+  }
+
+  return true;
+}
+
 function getStoredAnalysisProgress() {
   try {
     const storedValue = localStorage.getItem(ANALYSIS_PROGRESS_KEY);
@@ -52,15 +99,21 @@ function getStoredAnalysisProgress() {
 
     const parsedValue = JSON.parse(storedValue);
     const progressNumber = Number(parsedValue?.progress);
-
-    return {
+    const normalizedProgress = {
       ...defaultProgress,
       ...parsedValue,
       progress: Number.isNaN(progressNumber)
         ? defaultProgress.progress
         : Math.max(0, Math.min(100, Math.round(progressNumber))),
     };
-  } catch (error) {
+
+    if (isStoredProgressStale(normalizedProgress)) {
+      localStorage.removeItem(ANALYSIS_PROGRESS_KEY);
+      return null;
+    }
+
+    return normalizedProgress;
+  } catch {
     localStorage.removeItem(ANALYSIS_PROGRESS_KEY);
     return null;
   }
@@ -69,18 +122,7 @@ function getStoredAnalysisProgress() {
 function shouldShowProgress(progress) {
   if (!progress || progress.status === "idle") return false;
 
-  return [
-    "roi_pending",
-    "roi_processing",
-    "roi_complete",
-    "skin_analysis_processing",
-    "analysis_waiting",
-    "analysis_pending",
-    "ai_model_pending",
-    "analysis_completed",
-    "model_missing",
-    "failed",
-  ].includes(progress.status);
+  return [...progressStatuses, ...completedStatuses].includes(progress.status);
 }
 
 function getProgressTone(status) {
@@ -98,6 +140,27 @@ function getProgressTone(status) {
 function clearStoredAnalysisProgress() {
   localStorage.removeItem(ANALYSIS_PROGRESS_KEY);
   window.dispatchEvent(new Event(ANALYSIS_PROGRESS_EVENT));
+}
+
+function getAnalysisStatusCopy(progress) {
+  if (completedStatuses.includes(progress?.status)) {
+    return {
+      label: "분석 완료",
+      description: "결과 확인 가능 상태입니다. 결과 화면에서 피부 상태 참고 정보를 확인할 수 있습니다.",
+    };
+  }
+
+  if (progressStatuses.includes(progress?.status)) {
+    return {
+      label: progress?.label || "분석 진행 중",
+      description: progress?.description || "분석 진행 상태를 확인하고 있습니다.",
+    };
+  }
+
+  return {
+    label: defaultProgress.label,
+    description: defaultProgress.description,
+  };
 }
 
 function Header() {
@@ -129,6 +192,22 @@ function Header() {
     };
   }, [location.pathname]);
 
+  useEffect(() => {
+    if (!completedStatuses.includes(analysisProgress?.status)) return undefined;
+
+    const progressTimestamp = getProgressTimestamp(analysisProgress);
+    const elapsedTime = progressTimestamp ? Date.now() - progressTimestamp : COMPLETED_VISIBLE_MS;
+    const remainingTime = Math.max(0, COMPLETED_VISIBLE_MS - elapsedTime);
+
+    const hideCompletedProgress = window.setTimeout(() => {
+      clearStoredAnalysisProgress();
+    }, remainingTime);
+
+    return () => {
+      window.clearTimeout(hideCompletedProgress);
+    };
+  }, [analysisProgress]);
+
   const shouldRenderAnalysisStatus = useMemo(
     () => isLoggedIn && shouldShowProgress(analysisProgress),
     [analysisProgress, isLoggedIn]
@@ -136,6 +215,7 @@ function Header() {
 
   const progressTone = getProgressTone(analysisProgress?.status);
   const progressPath = analysisProgress?.path || "/analysis/loading";
+  const progressCopy = getAnalysisStatusCopy(analysisProgress);
 
   const handleLogout = () => {
     clearLoginSession();
@@ -412,7 +492,7 @@ function Header() {
             <div className="global-analysis-content">
               <div className="global-analysis-topline">
                 <div className="global-analysis-title">
-                  <span>{analysisProgress?.label || defaultProgress.label}</span>
+                  <span>{progressCopy.label}</span>
                 </div>
                 <strong className="global-analysis-percent">
                   {analysisProgress?.progress ?? 0}%
@@ -424,7 +504,7 @@ function Header() {
               </div>
 
               <div className="global-analysis-description">
-                {analysisProgress?.description || defaultProgress.description}
+                {progressCopy.description}
               </div>
             </div>
 
