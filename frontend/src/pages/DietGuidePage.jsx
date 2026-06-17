@@ -13,7 +13,7 @@ import { getDietGuideRecommendations } from "../api/recommendationApi";
 
 const sourceLabelMap = {
   latest_analysis: "최근 분석 결과 기반 가이드",
-  analysis_unsaved: "분석 저장 전 참고",
+  analysis_unsaved: "분석 반영 전 참고",
   default: "기본 참고 가이드",
   fallback: "기본 참고 가이드",
 };
@@ -39,6 +39,7 @@ function getGuideSourceState(source, summary) {
   const isReference =
     isUnsavedAnalysis ||
     (!isLatestAnalysis && (referenceSources.includes(primarySource) || referenceSources.includes(guideSource)));
+
   const labelSource = isLatestAnalysis
     ? "latest_analysis"
     : isUnsavedAnalysis
@@ -49,19 +50,52 @@ function getGuideSourceState(source, summary) {
 
   return {
     label: getSourceLabel(labelSource),
+    isLatestAnalysis,
     isReference,
     notice: isLatestAnalysis
-      ? "최근 분석 결과와 연결된 식습관 참고 가이드입니다."
+      ? "최근 피부 분석 결과와 연결된 식습관 관리 방향입니다."
       : isUnsavedAnalysis
-        ? "분석 결과 저장 전이므로 참고 정보로 표시합니다."
-      : isReference
-        ? "현재 가이드는 기본 참고 정보입니다. 최신 분석 후 관리 방향과 함께 확인해 주세요."
-        : "식습관 가이드는 의료적 판단이 아닌 관리 방향 확인용 참고 정보입니다.",
+        ? "분석 결과가 아직 이력에 반영되기 전이므로 참고 정보로 표시합니다."
+        : isReference
+          ? "현재 가이드는 기본 참고 정보입니다. 최신 분석 후 개인별 관리 방향과 함께 확인해 주세요."
+          : "피부 관리 방향을 확인하기 위한 식습관 참고 정보입니다.",
   };
 }
 
 function hasText(value) {
   return typeof value === "string" && value.trim() !== "";
+}
+
+function getFirstText(...values) {
+  return values.find((value) => hasText(value))?.trim() ?? "";
+}
+
+function toSafeArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function createActionItems(checks, guides) {
+  if (checks.length > 0) {
+    return checks.map((item, index) => ({
+      id: item.id ?? `check-${index}`,
+      title: getFirstText(item.title, item.name),
+      description: getFirstText(item.description, item.content, item.reason),
+      category: getFirstText(item.category, item.tag, item.priority),
+      sourceType: "check",
+    }));
+  }
+
+  return guides.map((item, index) => ({
+    id: item.id ?? `guide-action-${index}`,
+    title: getFirstText(item.title, item.name),
+    description: getFirstText(item.description, item.content, item.reason),
+    category: getFirstText(item.priority, item.tag, item.category),
+    sourceType: "guide",
+  }));
+}
+
+function getActionItemId(item, index) {
+  return String(item.id ?? `${item.sourceType || "action"}-${index}`);
 }
 
 function DietGuidePage() {
@@ -74,6 +108,7 @@ function DietGuidePage() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [checkedActionIds, setCheckedActionIds] = useState([]);
 
   useEffect(() => {
     let isMounted = true;
@@ -113,12 +148,34 @@ function DietGuidePage() {
     };
   }, []);
 
-  const { source, summary, guides, routines, checks } = dietGuide;
+  const { source, summary } = dietGuide;
+  const guides = toSafeArray(dietGuide.guides);
+  const routines = toSafeArray(dietGuide.routines);
+  const checks = toSafeArray(dietGuide.checks);
+
   const guideSourceState = getGuideSourceState(source, summary);
   const sourceLabel = guideSourceState.label;
-  const isEmpty = !isLoading && !errorMessage && guides.length === 0 && routines.length === 0 && checks.length === 0;
+  const actionItems = createActionItems(checks, guides).filter((item) => hasText(item.title));
+  const visibleActionItems = actionItems.slice(0, 5);
+  const visibleActionIds = visibleActionItems.map((item, index) => getActionItemId(item, index));
+  const checkedVisibleCount = visibleActionIds.filter((id) => checkedActionIds.includes(id)).length;
   const guideCount = summary?.guideCount ?? guides.length;
-  const visibleChecks = checks.slice(0, 3);
+  const totalScore = summary?.totalScore ?? summary?.total_skin_score;
+  const hasTotalScore = totalScore !== null && totalScore !== undefined && totalScore !== "";
+  const isEmpty =
+    !isLoading &&
+    !errorMessage &&
+    guides.length === 0 &&
+    routines.length === 0 &&
+    checks.length === 0;
+
+  const handleCheckToggle = (itemId) => {
+    setCheckedActionIds((currentIds) =>
+      currentIds.includes(itemId)
+        ? currentIds.filter((currentId) => currentId !== itemId)
+        : [...currentIds, itemId]
+    );
+  };
 
   return (
     <PageLayout>
@@ -130,7 +187,7 @@ function DietGuidePage() {
 
         .sf-diet-hero {
           display: grid;
-          grid-template-columns: minmax(0, 1fr) minmax(360px, 0.78fr);
+          grid-template-columns: minmax(0, 1fr) minmax(340px, 0.78fr);
           gap: 18px;
           align-items: stretch;
         }
@@ -140,13 +197,13 @@ function DietGuidePage() {
           border-radius: 28px;
           border: 1px solid rgba(203, 213, 225, 0.74);
           background:
-            radial-gradient(circle at 0% 0%, rgba(22, 125, 127, 0.055), transparent 34%),
-            linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(248, 250, 252, 0.92));
+            radial-gradient(circle at 0% 0%, rgba(22, 125, 127, 0.06), transparent 34%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
           box-shadow: 0 22px 52px rgba(15, 23, 42, 0.07);
         }
 
         .sf-diet-copy {
-          min-height: 276px;
+          min-height: 260px;
           padding: 30px;
           display: flex;
           flex-direction: column;
@@ -185,7 +242,7 @@ function DietGuidePage() {
         }
 
         .sf-diet-copy p {
-          max-width: 650px;
+          max-width: 680px;
           margin: 0;
           color: #64748b;
           font-size: 15px;
@@ -201,7 +258,7 @@ function DietGuidePage() {
         }
 
         .sf-diet-summary {
-          min-height: 276px;
+          min-height: 260px;
           padding: 26px;
           display: grid;
           align-content: space-between;
@@ -257,25 +314,31 @@ function DietGuidePage() {
           letter-spacing: 0;
         }
 
-        .sf-diet-score-box {
+        .sf-diet-source-box {
           padding: 18px;
           border-radius: 22px;
           background: rgba(248, 250, 252, 0.94);
           border: 1px solid rgba(226, 232, 240, 0.88);
         }
 
-        .sf-diet-score-head {
-          display: flex;
-          align-items: flex-end;
-          justify-content: space-between;
-          gap: 16px;
-          margin-bottom: 12px;
+        .sf-diet-source-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 10px;
         }
 
-        .sf-diet-score-head strong {
+        .sf-diet-source-item {
+          padding: 13px 14px;
+          border-radius: 17px;
+          background: #ffffff;
+          border: 1px solid rgba(226, 232, 240, 0.88);
+        }
+
+        .sf-diet-source-item strong {
           display: block;
+          margin-top: 6px;
           color: #0f172a;
-          font-size: 27px;
+          font-size: 22px;
           letter-spacing: 0;
         }
 
@@ -308,14 +371,206 @@ function DietGuidePage() {
         }
 
         .sf-state-message.is-error {
-          color: #be123c;
-          background: rgba(244, 63, 94, 0.06);
-          border-color: rgba(244, 63, 94, 0.16);
+          color: #0f766e;
+          background: rgba(22, 125, 127, 0.07);
+          border-color: rgba(22, 125, 127, 0.18);
+        }
+
+        .sf-check-focus-card {
+          position: relative;
+          padding: 28px;
+          background:
+            radial-gradient(circle at 0% 0%, rgba(20, 184, 166, 0.11), transparent 32%),
+            radial-gradient(circle at 100% 18%, rgba(22, 125, 127, 0.055), transparent 28%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(248, 250, 252, 0.95));
+        }
+
+        .sf-check-focus-head {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 18px;
+          margin-bottom: 20px;
+        }
+
+        .sf-check-title-wrap {
+          display: flex;
+          align-items: flex-start;
+          gap: 14px;
+        }
+
+        .sf-check-title-wrap .sf-icon-tile {
+          width: 50px;
+          height: 50px;
+          min-width: 50px;
+          min-height: 50px;
+          color: #ffffff;
+          background: linear-gradient(135deg, #167d7f 0%, #14b8a6 100%);
+          border-color: rgba(22, 125, 127, 0.14);
+        }
+
+        .sf-check-focus-head h2 {
+          margin: 6px 0 0;
+          color: #0f172a;
+          font-size: clamp(24px, 2.7vw, 34px);
+          line-height: 1.18;
+          letter-spacing: 0;
+        }
+
+        .sf-check-subtitle {
+          max-width: 760px;
+          margin: 10px 0 0;
+          color: #64748b;
+          font-size: 14px;
+          line-height: 1.65;
+          word-break: keep-all;
+        }
+
+        .sf-check-count {
+          display: grid;
+          justify-items: end;
+          gap: 8px;
+          flex: 0 0 auto;
+        }
+
+        .sf-check-count strong {
+          color: #167d7f;
+          font-size: 34px;
+          line-height: 1;
+          letter-spacing: -0.03em;
+        }
+
+        .sf-check-save-note {
+          max-width: 210px;
+          margin: 0;
+          color: #64748b;
+          font-size: 11px;
+          font-weight: 800;
+          line-height: 1.5;
+          text-align: right;
+          word-break: keep-all;
+        }
+
+        .sf-diet-chip {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 54px;
+          padding: 8px 11px;
+          border-radius: 999px;
+          color: #167d7f;
+          background: rgba(22, 125, 127, 0.1);
+          font-size: 12px;
+          font-weight: 950;
+          line-height: 1;
+          white-space: nowrap;
+        }
+
+        .sf-check-list {
+          display: grid;
+          gap: 12px;
+        }
+
+        .sf-check-item {
+          width: 100%;
+          border: 0;
+          font: inherit;
+          text-align: left;
+          cursor: pointer;
+          display: grid;
+          grid-template-columns: 42px minmax(0, 1fr) auto;
+          align-items: center;
+          gap: 14px;
+          min-height: 78px;
+          padding: 16px 18px;
+          border-radius: 22px;
+          background: rgba(255, 255, 255, 0.92);
+          border: 1px solid rgba(203, 213, 225, 0.78);
+          box-shadow: 0 14px 30px rgba(15, 23, 42, 0.045);
+          transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+        }
+
+        .sf-check-item:hover,
+        .sf-check-item:focus-visible {
+          transform: translateY(-2px);
+          border-color: rgba(22, 125, 127, 0.22);
+          box-shadow: 0 18px 38px rgba(15, 23, 42, 0.075);
+        }
+
+        .sf-check-item:focus-visible {
+          outline: 3px solid rgba(22, 125, 127, 0.22);
+          outline-offset: 2px;
+        }
+
+        .sf-check-item .sf-icon-tile {
+          width: 38px;
+          height: 38px;
+          min-width: 38px;
+          min-height: 38px;
+          border-radius: 999px;
+          color: #167d7f;
+          background: rgba(22, 125, 127, 0.1);
+          box-shadow: none;
+        }
+
+        .sf-check-item.is-checked {
+          background: rgba(22, 125, 127, 0.08);
+          border-color: rgba(22, 125, 127, 0.3);
+          box-shadow: 0 18px 38px rgba(22, 125, 127, 0.08);
+        }
+
+        .sf-check-item.is-checked .sf-icon-tile {
+          color: #ffffff;
+          background: linear-gradient(135deg, #167d7f 0%, #14b8a6 100%);
+        }
+
+        .sf-check-copy {
+          min-width: 0;
+        }
+
+        .sf-check-item strong {
+          display: block;
+          color: #0f172a;
+          font-size: 15px;
+          line-height: 1.35;
+          letter-spacing: 0;
+        }
+
+        .sf-check-item.is-checked strong {
+          color: #0f766e;
+        }
+
+        .sf-check-copy span {
+          display: block;
+          margin-top: 5px;
+          color: #64748b;
+          font-size: 12px;
+          line-height: 1.5;
+          word-break: keep-all;
+        }
+
+        .sf-check-state {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 62px;
+          padding: 7px 10px;
+          border-radius: 999px;
+          color: #167d7f;
+          background: rgba(22, 125, 127, 0.1);
+          font-size: 11px;
+          font-weight: 950;
+          white-space: nowrap;
+        }
+
+        .sf-check-item.is-checked .sf-check-state {
+          color: #ffffff;
+          background: #167d7f;
         }
 
         .sf-diet-main-grid {
           display: grid;
-          grid-template-columns: minmax(0, 1.15fr) minmax(340px, 0.85fr);
+          grid-template-columns: minmax(0, 1.12fr) minmax(340px, 0.88fr);
           gap: 18px;
           align-items: start;
         }
@@ -334,21 +589,6 @@ function DietGuidePage() {
           margin-bottom: 16px;
         }
 
-        .sf-diet-chip {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          min-width: 54px;
-          padding: 8px 11px;
-          border-radius: 999px;
-          color: #167d7f;
-          background: rgba(22, 125, 127, 0.1);
-          font-size: 12px;
-          font-weight: 950;
-          line-height: 1;
-          white-space: nowrap;
-        }
-
         .sf-guide-grid {
           display: grid;
           grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -356,7 +596,7 @@ function DietGuidePage() {
         }
 
         .sf-guide-card {
-          min-height: 184px;
+          min-height: 176px;
           padding: 17px;
           border-radius: 22px;
           background:
@@ -410,6 +650,8 @@ function DietGuidePage() {
         }
 
         .sf-guide-tag {
+          display: inline-flex;
+          align-items: center;
           padding: 6px 9px;
           border-radius: 999px;
           color: #167d7f;
@@ -424,23 +666,9 @@ function DietGuidePage() {
           gap: 12px;
         }
 
-        .sf-check-card {
-          padding: 18px 20px;
-        }
-
-        .sf-check-card .sf-diet-section-title {
-          margin-bottom: 12px;
-        }
-
-        .sf-check-list {
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 10px;
-        }
-
-        .sf-routine-item,
-        .sf-check-item {
+        .sf-routine-item {
           display: grid;
-          grid-template-columns: 44px 1fr auto;
+          grid-template-columns: 44px 1fr;
           align-items: center;
           gap: 12px;
           padding: 13px;
@@ -449,13 +677,7 @@ function DietGuidePage() {
           border: 1px solid rgba(226, 232, 240, 0.88);
         }
 
-        .sf-check-item {
-          grid-template-columns: 38px minmax(0, 1fr);
-          padding: 11px 12px;
-        }
-
-        .sf-routine-item .sf-icon-tile,
-        .sf-check-item .sf-icon-tile {
+        .sf-routine-item .sf-icon-tile {
           width: 42px;
           height: 42px;
           min-width: 42px;
@@ -468,16 +690,7 @@ function DietGuidePage() {
           align-self: center;
         }
 
-        .sf-check-item .sf-icon-tile {
-          width: 36px;
-          height: 36px;
-          min-width: 36px;
-          min-height: 36px;
-          border-radius: 13px;
-        }
-
-        .sf-routine-item .sf-icon-tile svg,
-        .sf-check-item .sf-icon-tile svg {
+        .sf-routine-item .sf-icon-tile svg {
           display: block;
           width: 18px !important;
           height: 18px !important;
@@ -487,21 +700,14 @@ function DietGuidePage() {
           transform: none;
         }
 
-        .sf-routine-item strong,
-        .sf-check-item strong {
+        .sf-routine-item strong {
           display: block;
           color: #0f172a;
           font-size: 14px;
           letter-spacing: 0;
         }
 
-        .sf-check-item strong {
-          font-size: 13px;
-          line-height: 1.35;
-        }
-
-        .sf-routine-item > div > span,
-        .sf-check-item > div > span {
+        .sf-routine-item > div > span {
           display: block;
           margin-top: 4px;
           color: #64748b;
@@ -510,41 +716,13 @@ function DietGuidePage() {
           word-break: keep-all;
         }
 
-        .sf-check-state {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          margin: 0;
-          align-self: center;
-          min-width: 42px;
-          padding: 6px 9px;
-          border-radius: 999px;
-          color: #167d7f;
-          background: rgba(22, 125, 127, 0.1);
-          font-size: 11px;
-          font-weight: 950;
-          white-space: nowrap;
-        }
-
-        .sf-diet-bottom {
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 18px;
-          align-items: stretch;
-        }
-
         @media (max-width: 1080px) {
           .sf-diet-hero,
-          .sf-diet-main-grid,
-          .sf-diet-bottom {
+          .sf-diet-main-grid {
             grid-template-columns: 1fr;
           }
 
           .sf-guide-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .sf-check-list {
             grid-template-columns: 1fr;
           }
         }
@@ -557,33 +735,51 @@ function DietGuidePage() {
           .sf-diet-copy,
           .sf-diet-summary,
           .sf-diet-section-card,
-          .sf-diet-side-card {
+          .sf-diet-side-card,
+          .sf-check-focus-card {
             padding: 20px;
           }
 
           .sf-diet-copy h1 {
-            font-size: 36px;
+            font-size: 35px;
           }
 
           .sf-diet-actions {
-            grid-template-columns: 1fr;
             display: grid;
+            grid-template-columns: 1fr;
           }
 
-          .sf-diet-summary-top,
-          .sf-diet-section-title,
-          .sf-diet-side-title {
-            align-items: flex-start;
+          .sf-diet-source-grid {
+            grid-template-columns: 1fr;
           }
 
-          .sf-routine-item,
+          .sf-check-focus-head {
+            display: grid;
+            gap: 16px;
+          }
+
+          .sf-check-count {
+            justify-items: start;
+          }
+
+          .sf-check-save-note {
+            max-width: none;
+            text-align: left;
+          }
+
           .sf-check-item {
-            grid-template-columns: 42px 1fr;
+            grid-template-columns: 38px minmax(0, 1fr);
+            align-items: flex-start;
           }
 
           .sf-check-state {
             grid-column: 2;
             width: fit-content;
+          }
+
+          .sf-diet-section-title,
+          .sf-diet-side-title {
+            align-items: flex-start;
           }
         }
       `}</style>
@@ -597,20 +793,20 @@ function DietGuidePage() {
               </span>
 
               <h1>
-                피부 분석 흐름과 연결된
+                피부 분석 결과와 연결된
                 <br />
-                <span className="sf-gradient-text">식습관 가이드</span>
+                <span className="sf-gradient-text">오늘의 식습관 체크</span>
               </h1>
 
               <p>
-                피부 상태 참고 정보와 함께 확인할 수 있는 식습관 관리 방향입니다.
-                서버에서 전달된 가이드만 표시합니다.
+                최근 피부 분석 흐름을 바탕으로 오늘 실천하기 좋은 식습관 항목을 정리했습니다.
+                색소침착과 주름 관리 방향을 함께 고려해 일상에서 바로 확인할 수 있도록 구성했습니다.
               </p>
             </div>
 
             <div className="sf-diet-actions">
               <Button to="/recommendations" size="lg">
-                추천 결과 보기 <ArrowRight size={18} />
+                맞춤 추천 보기 <ArrowRight size={18} />
               </Button>
               <Button to="/history" variant="secondary" size="lg">
                 분석 이력 확인
@@ -621,21 +817,34 @@ function DietGuidePage() {
           <div className="sf-diet-card sf-diet-summary">
             <div className="sf-diet-summary-top">
               <span className="sf-icon-tile" aria-hidden="true">
-                <CheckCircle2 size={21} />
+                <ShieldCheck size={21} />
               </span>
               <div>
-                <span className="sf-diet-label">가이드 출처</span>
+                <span className="sf-diet-label">분석 연결 상태</span>
                 <h2>{sourceLabel}</h2>
               </div>
             </div>
 
-            <div className="sf-diet-score-box">
-              <div className="sf-diet-score-head">
-                <div>
-                  <span className="sf-diet-label">표시 가능한 가이드</span>
+            <div className="sf-diet-source-box">
+              <div className="sf-diet-source-grid">
+                <div className="sf-diet-source-item">
+                  <span className="sf-diet-label">추천 체크</span>
+                  <strong>{visibleActionItems.length}개</strong>
+                </div>
+                <div className="sf-diet-source-item">
+                  <span className="sf-diet-label">가이드</span>
                   <strong>{guideCount}개</strong>
                 </div>
-                <span className="sf-diet-chip">{sourceLabel}</span>
+                {hasTotalScore && (
+                  <div className="sf-diet-source-item">
+                    <span className="sf-diet-label">최근 점수</span>
+                    <strong>{totalScore}점</strong>
+                  </div>
+                )}
+                <div className="sf-diet-source-item">
+                  <span className="sf-diet-label">기준 지표</span>
+                  <strong>색소침착 · 주름</strong>
+                </div>
               </div>
             </div>
 
@@ -654,12 +863,71 @@ function DietGuidePage() {
 
         {!isLoading && !errorMessage && !isEmpty && (
           <>
+            {visibleActionItems.length > 0 && (
+              <section className="sf-diet-card sf-check-focus-card">
+                <div className="sf-check-focus-head">
+                  <div className="sf-check-title-wrap">
+                    <span className="sf-icon-tile" aria-hidden="true">
+                      <CheckCircle2 size={21} />
+                    </span>
+                    <div>
+                      <span className="sf-diet-label">오늘 실천 체크</span>
+                      <h2>분석 결과 기반 추천 체크리스트</h2>
+                      <p className="sf-check-subtitle">
+                        피부 분석 결과와 연결된 식습관 관리 포인트입니다.
+                        오늘 확인하고 실천할 항목을 한눈에 볼 수 있도록 정리했습니다.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="sf-check-count">
+                    <span className="sf-diet-label">확인한 항목</span>
+                    <strong>
+                      {checkedVisibleCount} / {visibleActionItems.length}
+                    </strong>
+                    <p className="sf-check-save-note">체크 상태는 저장되지 않는 화면 확인용 표시입니다.</p>
+                    <span className="sf-diet-chip">{sourceLabel}</span>
+                  </div>
+                </div>
+
+                <div className="sf-check-list">
+                  {visibleActionItems.map((item, index) => {
+                    const itemId = getActionItemId(item, index);
+                    const isChecked = checkedActionIds.includes(itemId);
+
+                    return (
+                      <button
+                        type="button"
+                        className={`sf-check-item ${isChecked ? "is-checked" : ""}`}
+                        key={itemId}
+                        aria-pressed={isChecked}
+                        onClick={() => handleCheckToggle(itemId)}
+                      >
+                        <span className="sf-icon-tile" aria-hidden="true">
+                          <CheckCircle2 size={18} />
+                        </span>
+
+                        <span className="sf-check-copy">
+                          <strong>{item.title}</strong>
+                          {hasText(item.description) && <span>{item.description}</span>}
+                        </span>
+
+                        <span className="sf-check-state">
+                          {isChecked ? "확인됨" : hasText(item.category) ? item.category : "확인"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
             <section className="sf-diet-main-grid">
               {guides.length > 0 && (
                 <div className="sf-diet-card sf-diet-section-card">
                   <div className="sf-diet-section-title">
                     <div>
-                      <span className="sf-diet-label">식습관 가이드</span>
+                      <span className="sf-diet-label">추천 이유</span>
                       <h2>식습관 참고 가이드</h2>
                     </div>
                     <span className="sf-diet-chip">{sourceLabel}</span>
@@ -694,8 +962,8 @@ function DietGuidePage() {
                 <div className="sf-diet-card sf-diet-side-card">
                   <div className="sf-diet-side-title">
                     <div>
-                      <span className="sf-diet-label">식습관 루틴</span>
-                      <h2>식습관 루틴</h2>
+                      <span className="sf-diet-label">루틴 제안</span>
+                      <h2>하루 식습관 루틴</h2>
                     </div>
                     <Sparkles size={24} color="#167d7f" />
                   </div>
@@ -716,34 +984,6 @@ function DietGuidePage() {
                 </div>
               )}
             </section>
-
-            {visibleChecks.length > 0 && (
-              <section className="sf-diet-bottom">
-                <div className="sf-diet-card sf-diet-section-card sf-check-card">
-                  <div className="sf-diet-section-title">
-                    <div>
-                      <span className="sf-diet-label">오늘 실천 체크</span>
-                      <h2>오늘 실천 체크</h2>
-                    </div>
-                    <span className="sf-diet-chip">최대 3개</span>
-                  </div>
-
-                  <div className="sf-side-stack sf-check-list">
-                    {visibleChecks.map((item, index) => (
-                      <div className="sf-check-item" key={`${item.title}-${index}`}>
-                        <span className="sf-icon-tile" aria-hidden="true">
-                          <CheckCircle2 size={18} />
-                        </span>
-                        <div>
-                          {hasText(item.title) && <strong>{item.title}</strong>}
-                        </div>
-                        {hasText(item.category) && <span className="sf-check-state">{item.category}</span>}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </section>
-            )}
           </>
         )}
       </div>
