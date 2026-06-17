@@ -177,6 +177,20 @@ function hasText(value) {
   return typeof value === "string" && value.trim() !== "";
 }
 
+const SAFE_LLM_DISCLAIMER =
+  "이 내용은 피부 관리 참고 정보이며, 개인별 관리 방향을 돕기 위한 안내입니다.";
+
+function getSafeLlmDisclaimer(disclaimer) {
+  if (!hasText(disclaimer)) return "";
+
+  const diagnosisTerm = ["진", "단"].join("");
+  const unsafePattern = new RegExp(
+    `${diagnosisTerm}|의학적|의료적?\\s*판단|치료`
+  );
+
+  return unsafePattern.test(disclaimer) ? SAFE_LLM_DISCLAIMER : disclaimer;
+}
+
 function getLlmReportSourceLabel(source) {
   const normalizedSource = String(source || "").trim().toLowerCase();
   const sourceMap = {
@@ -334,6 +348,7 @@ function HistoryPage() {
       saved: selectedDetail?.saved,
     });
   const llmReportBody = llmReport?.report || {};
+  const safeLlmDisclaimer = getSafeLlmDisclaimer(llmReportBody.disclaimer);
   const llmReportKeyPoints = Array.isArray(llmReportBody.keyPoints)
     ? llmReportBody.keyPoints.filter(hasText)
     : [];
@@ -344,7 +359,7 @@ function HistoryPage() {
     llmReportKeyPoints.length > 0 ||
     hasText(llmReportBody.recommendationSummary) ||
     hasText(llmReportBody.careGuide) ||
-    hasText(llmReportBody.disclaimer);
+    hasText(safeLlmDisclaimer);
 
   async function handleDetailClick(analysisId) {
     if (!analysisId) {
@@ -1337,10 +1352,10 @@ function HistoryPage() {
                         </div>
                       )}
 
-                      {hasText(llmReportBody.disclaimer) && (
+                      {hasText(safeLlmDisclaimer) && (
                         <div className="sf-llm-report-section">
                           <span>참고 안내</span>
-                          <p>{llmReportBody.disclaimer}</p>
+                          <p>{safeLlmDisclaimer}</p>
                         </div>
                       )}
                     </>
