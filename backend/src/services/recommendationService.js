@@ -144,6 +144,26 @@ function buildIngredientRecommendations(ingredients, concernMetrics) {
         }));
 }
 
+function buildStoredIngredientRecommendations(storedIngredients, concernMetrics) {
+    return storedIngredients.map((ingredient, index) => {
+        const metricCode = getIngredientMetricCode(ingredient, concernMetrics);
+        const metric = concernMetrics.find((item) => item.code === metricCode)
+            || { code: metricCode, name: getMetricMeta(metricCode).name, score: null };
+        const recommendation = toIngredientRecommendation(ingredient, metric, index);
+        const match = toNumber(ingredient.match_score) || recommendation.match;
+
+        return {
+            ...recommendation,
+            match,
+            priority: index + 1,
+            card: {
+                ...recommendation.card,
+                match,
+            },
+        };
+    });
+}
+
 function groupProducts(productRows) {
     const productMap = new Map();
 
@@ -174,6 +194,73 @@ function groupProducts(productRows) {
     });
 
     return [...productMap.values()];
+}
+
+function buildStoredProductRecommendations(productRows, ingredientRecommendations) {
+    const recommendedIngredients = new Map(
+        ingredientRecommendations
+            .filter((ingredient) => ingredient.id)
+            .map((ingredient) => [ingredient.id, ingredient]),
+    );
+
+    return groupProducts(productRows)
+        .map((product) => {
+            const sourceRows = productRows.filter((row) => row.product_id === product.product_id);
+            const source = sourceRows[0] || {};
+            const matchedIngredients = product.ingredients
+                .map((ingredient) => {
+                    const recommendation = recommendedIngredients.get(ingredient.ingredient_id);
+
+                    if (!recommendation) {
+                        return null;
+                    }
+
+                    return {
+                        id: ingredient.ingredient_id,
+                        name: ingredient.ingredient_name,
+                        match: recommendation.match,
+                        tags: recommendation.tags,
+                    };
+                })
+                .filter(Boolean)
+                .sort((left, right) => right.match - left.match || left.id - right.id);
+            const primaryMatchedIngredient = matchedIngredients[0] || null;
+            const tags = [...new Set(matchedIngredients.flatMap((ingredient) => ingredient.tags || []))].slice(0, 4);
+            const productUrl = primaryMatchedIngredient?.name
+                ? oliveYoungSearchUrl(primaryMatchedIngredient.name)
+                : product.product_url;
+            const match = toNumber(source.match_score) || 0;
+            const rank = toNumber(source.rank_no) || null;
+
+            return {
+                id: product.product_id,
+                brandName: product.brand_name,
+                productName: product.product_name,
+                productType: product.product_type,
+                priceAmount: product.price_amount,
+                productUrl,
+                imageUrl: product.product_img,
+                description: product.description,
+                match,
+                matchedIngredients,
+                tags,
+                rank,
+                card: {
+                    brandName: product.brand_name,
+                    name: product.product_name,
+                    description: product.description,
+                    match,
+                    tags,
+                    productUrl,
+                    imageUrl: product.product_img,
+                },
+            };
+        })
+        .sort((left, right) => (left.rank || 999) - (right.rank || 999) || right.match - left.match || left.id - right.id)
+        .map((product, index) => ({
+            ...product,
+            rank: product.rank || index + 1,
+        }));
 }
 
 function buildProductRecommendations(productRows, ingredientRecommendations) {
@@ -292,17 +379,44 @@ async function buildIngredientRecommendationResult(analysisContext) {
     const ingredients = await recommendationRepository.findIngredients();
     const concernMetrics = getConcernMetrics(analysisContext?.metrics || []);
     const focusMetric = concernMetrics[0] || null;
-    const recommendations = buildIngredientRecommendations(ingredients, concernMetrics);
+    const analysisId = analysisContext?.analysis.skin_analysis_id || null;
+    let ingredientSource = ingredients.length > 0 ? 'database' : 'fallback';
+    let recommendations = [];
+
+    if (analysisId) {
+        const storedIngredients = await recommendationRepository.findIngredientRecommendationsByAnalysisId(analysisId);
+
+        if (storedIngredients.length > 0) {
+            ingredientSource = 'stored';
+            recommendations = buildStoredIngredientRecommendations(storedIngredients, concernMetrics);
+        }
+    }
+
+    if (recommendations.length === 0) {
+        recommendations = buildIngredientRecommendations(ingredients, concernMetrics);
+
+        if (analysisId && ingredients.length > 0) {
+            const storedIngredients = await recommendationRepository.createIngredientRecommendationsForAnalysis(
+                analysisId,
+                recommendations,
+            );
+
+            if (storedIngredients.length > 0) {
+                ingredientSource = 'created';
+                recommendations = buildStoredIngredientRecommendations(storedIngredients, concernMetrics);
+            }
+        }
+    }
 
     return {
         source: analysisContext ? 'analysis' : 'default',
         summary: {
-            analysisId: analysisContext?.analysis.skin_analysis_id || null,
+            analysisId,
             analyzedAt: analysisContext?.analysis.analyzed_at || analysisContext?.analysis.created_at || null,
             totalScore: toNumber(analysisContext?.analysis.total_skin_score),
             focusMetric,
             recommendationCount: recommendations.length,
-            ingredientSource: ingredients.length > 0 ? 'database' : 'fallback',
+            ingredientSource,
         },
         ingredients: recommendations,
     };
@@ -366,8 +480,36 @@ async function getDietGuideRecommendations(userId) {
 
 async function getProductRecommendations(userId) {
     const ingredientResult = await getIngredientRecommendations(userId);
-    const productRows = await recommendationRepository.findActiveProductsWithIngredients();
-    const products = buildProductRecommendations(productRows, ingredientResult.ingredients);
+    const analysisId = ingredientResult.summary.analysisId || null;
+    let productSource = 'empty_database';
+    let products = [];
+
+    if (analysisId) {
+        const storedProductRows = await recommendationRepository.findProductRecommendationsByAnalysisId(analysisId);
+
+        if (storedProductRows.length > 0) {
+            productSource = 'stored';
+            products = buildStoredProductRecommendations(storedProductRows, ingredientResult.ingredients);
+        }
+    }
+
+    if (products.length === 0) {
+        const productRows = await recommendationRepository.findActiveProductsWithIngredients();
+        productSource = productRows.length > 0 ? 'database' : 'empty_database';
+        products = buildProductRecommendations(productRows, ingredientResult.ingredients);
+
+        if (analysisId && products.length > 0) {
+            const storedProductRows = await recommendationRepository.createProductRecommendationsForAnalysis(
+                analysisId,
+                products,
+            );
+
+            if (storedProductRows.length > 0) {
+                productSource = 'created';
+                products = buildStoredProductRecommendations(storedProductRows, ingredientResult.ingredients);
+            }
+        }
+    }
 
     return {
         source: ingredientResult.source,
@@ -375,8 +517,8 @@ async function getProductRecommendations(userId) {
             ...ingredientResult.summary,
             recommendationCount: products.length,
             ingredientRecommendationCount: ingredientResult.ingredients.length,
-            productSource: productRows.length > 0 ? 'database' : 'empty_database',
-            message: productRows.length > 0
+            productSource,
+            message: productSource !== 'empty_database'
                 ? null
                 : '등록된 제품 데이터가 아직 없습니다.',
         },
@@ -392,8 +534,17 @@ async function getRecommendationSnapshotForAnalysis(userId, analysisId) {
     }
 
     const ingredientResult = await buildIngredientRecommendationResult(analysisContext);
-    const productRows = await recommendationRepository.findActiveProductsWithIngredients();
-    const products = buildProductRecommendations(productRows, ingredientResult.ingredients);
+    let storedProductRows = await recommendationRepository.findProductRecommendationsByAnalysisId(analysisId);
+
+    if (storedProductRows.length === 0) {
+        const productRows = await recommendationRepository.findActiveProductsWithIngredients();
+        const products = buildProductRecommendations(productRows, ingredientResult.ingredients);
+        storedProductRows = await recommendationRepository.createProductRecommendationsForAnalysis(analysisId, products);
+    }
+
+    const products = storedProductRows.length > 0
+        ? buildStoredProductRecommendations(storedProductRows, ingredientResult.ingredients)
+        : [];
     let dietGuides = await recommendationRepository.findDietGuidesByAnalysisId(analysisId);
 
     if (dietGuides.length === 0) {
