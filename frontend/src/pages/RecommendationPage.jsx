@@ -98,10 +98,10 @@ function getVisibleMatchedIngredients(item) {
     : [];
 }
 
-function getFocusMetricName(...summaries) {
+function getFocusMetricName(hasRecommendationData, ...summaries) {
   const focusMetric = summaries.find((summary) => summary?.focusMetric?.name)?.focusMetric;
 
-  return focusMetric?.name || "분석 대기";
+  return focusMetric?.name || (hasRecommendationData ? "색소침착 · 주름 기준" : "추천 기준 확인");
 }
 
 function getSummaryStatus(summary) {
@@ -164,8 +164,8 @@ function getRecommendationSourceState(summary, itemCount = 0) {
   ) {
     return {
       tone: "reference",
-      label: "기본 참고",
-      message: summary?.message || "기본 참고 정보입니다. 최신 분석 후 관리 방향과 함께 확인해 주세요.",
+      label: "추천 기준 확인",
+      message: summary?.message || "색소침착 · 주름 기준의 기본 참고 정보입니다. 최신 분석 후 관리 방향과 함께 확인해 주세요.",
     };
   }
 
@@ -179,7 +179,7 @@ function getRecommendationSourceState(summary, itemCount = 0) {
 
   return {
     tone: "reference",
-    label: "기준 확인 중",
+    label: "추천 기준 확인",
     message: summary?.message || "추천 기준을 확인 중입니다. 참고 정보로 활용해 주세요.",
   };
 }
@@ -248,6 +248,7 @@ function RecommendationPage() {
 
   const summary = productSummary || ingredientSummary;
   const visibleIngredients = useMemo(() => getUniqueDisplayIngredients(ingredients), [ingredients]);
+  const hasRecommendationData = visibleIngredients.length > 0 || products.length > 0;
   const ingredientSourceState = useMemo(
     () => getRecommendationSourceState(ingredientSummary, visibleIngredients.length),
     [ingredientSummary, visibleIngredients.length],
@@ -272,7 +273,7 @@ function RecommendationPage() {
     () => [
       {
         label: "중점 지표",
-        value: getFocusMetricName(productSummary, ingredientSummary),
+        value: getFocusMetricName(hasRecommendationData, productSummary, ingredientSummary),
       },
       {
         label: "추천 성분",
@@ -283,7 +284,7 @@ function RecommendationPage() {
         value: formatCount(productSummary?.recommendationCount ?? products.length),
       },
     ],
-    [productSummary, products.length, visibleIngredients.length],
+    [hasRecommendationData, ingredientSummary, productSummary, products.length, visibleIngredients.length],
   );
 
   const summaryNote = useMemo(() => {

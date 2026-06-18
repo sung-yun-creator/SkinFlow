@@ -67,7 +67,7 @@ function getProgressFromAnalysisResult(analysisResult) {
   return {
     status: "analysis_pending",
     label: "분석 결과 확인 필요",
-    description: "분석 결과 응답을 확인해야 합니다. 서버 응답 구조를 점검해주세요.",
+    description: "분석 결과를 바로 표시하지 못했습니다. 잠시 후 다시 시도해주세요.",
     progress: 70,
   };
 }
@@ -88,7 +88,7 @@ function getProgressFromRoiResult(roiResult) {
     return {
       status: "model_missing",
       label: "얼굴 영역 모델 확인 필요",
-      description: "AI 서버 모델 파일 확인이 필요합니다. 요청 흐름은 전달되었습니다.",
+      description: "얼굴 영역 분석 준비 상태를 확인하고 있습니다. 잠시 후 다시 시도해주세요.",
       progress: 20,
     };
   }
@@ -447,7 +447,7 @@ function AnalysisCapturePage() {
     } catch (error) {
       const rawMessage = error.message || "";
       const fallbackMessage =
-        "이미지 분석 요청을 처리하지 못했습니다. 백엔드 서버와 AI 서버 실행 상태를 확인한 뒤 다시 시도해주세요.";
+        "이미지 분석 요청을 처리하지 못했습니다. 서비스 연결 상태를 확인한 뒤 다시 시도해주세요.";
 
       const message =
         rawMessage === "Failed to fetch" ||
@@ -459,7 +459,7 @@ function AnalysisCapturePage() {
       saveAnalysisProgress({
         status: "failed",
         label: "분석 요청 확인 필요",
-        description: "분석 요청 처리 중 문제가 발생했습니다. 서버 실행 상태를 확인해주세요.",
+        description: "분석 요청 처리 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요.",
         progress: 0,
       });
 

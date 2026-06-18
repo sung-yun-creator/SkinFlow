@@ -13,9 +13,9 @@ import { getDietGuideRecommendations } from "../api/recommendationApi";
 
 const sourceLabelMap = {
   latest_analysis: "최근 분석 결과 기반 가이드",
-  analysis_unsaved: "분석 반영 전 참고",
-  default: "기본 참고 가이드",
-  fallback: "기본 참고 가이드",
+  analysis_unsaved: "이력 반영 전 참고 가이드",
+  default: "기본 피부 관리 참고 가이드",
+  fallback: "첫 분석 전 참고할 수 있는 가이드",
 };
 
 function normalizeSourceValue(value) {
@@ -155,6 +155,15 @@ function DietGuidePage() {
 
   const guideSourceState = getGuideSourceState(source, summary);
   const sourceLabel = guideSourceState.label;
+  const isLatestGuide = guideSourceState.isLatestAnalysis;
+  const heroTitle = isLatestGuide ? "분석 결과 기반" : "기본 관리 참고";
+  const heroDescription = isLatestGuide
+    ? "최근 피부 분석 흐름을 바탕으로 식습관 항목을 추천합니다. 색소침착과 주름 관리 방향을 함께 고려해 오늘 실천할 수 있는 항목을 확인해 보세요."
+    : "첫 분석 전에도 참고할 수 있는 기본 피부 관리 가이드입니다. 색소침착과 주름 관리 방향을 함께 고려해 오늘 실천할 수 있는 항목을 확인해 보세요.";
+  const checklistTitle = isLatestGuide ? "분석 결과 기반 추천 체크리스트" : "기본 피부 관리 체크리스트";
+  const checklistDescription = isLatestGuide
+    ? "피부 분석 결과와 연결된 식습관 관리 포인트입니다. 오늘 확인하고 실천할 항목을 한눈에 볼 수 있도록 정리했습니다."
+    : "첫 분석 전 참고할 수 있는 식습관 관리 포인트입니다. 오늘 확인하고 실천할 항목을 한눈에 볼 수 있도록 정리했습니다.";
   const actionItems = createActionItems(checks, guides).filter((item) => hasText(item.title));
   const visibleActionItems = actionItems.slice(0, 5);
   const visibleActionIds = visibleActionItems.map((item, index) => getActionItemId(item, index));
@@ -832,14 +841,13 @@ function DietGuidePage() {
               </span>
 
               <h1>
-                분석 결과 기반
+                {heroTitle}
                 <br />
                 <span className="sf-gradient-text">오늘의 식습관 체크</span>
               </h1>
 
               <p>
-                최근 피부 분석 흐름을 바탕으로 식습관 항목을 추천합니다.
-                색소침착과 주름 관리 방향을 함께 고려해 오늘 실천할 수 있는 항목을 확인해 보세요.
+                {heroDescription}
               </p>
             </div>
 
@@ -911,10 +919,9 @@ function DietGuidePage() {
                     </span>
                     <div>
                       <span className="sf-diet-label">오늘 실천 체크</span>
-                      <h2>분석 결과 기반 추천 체크리스트</h2>
+                      <h2>{checklistTitle}</h2>
                       <p className="sf-check-subtitle">
-                        피부 분석 결과와 연결된 식습관 관리 포인트입니다.
-                        오늘 확인하고 실천할 항목을 한눈에 볼 수 있도록 정리했습니다.
+                        {checklistDescription}
                       </p>
                     </div>
                   </div>

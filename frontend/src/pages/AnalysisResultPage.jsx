@@ -110,7 +110,7 @@ function buildMetricCards(analysisResult) {
           }
 
           return {
-            label: metric.name || metric.code || `지표 ${index + 1}`,
+            label: metric.name || metric.metricName || metric.metric_name || metric.code || `지표 ${index + 1}`,
             value: metricScore,
             status: metric.grade?.name || metric.gradeName || metric.grade_name || "분석 완료",
             color: getMetricColor(metric.code, index),

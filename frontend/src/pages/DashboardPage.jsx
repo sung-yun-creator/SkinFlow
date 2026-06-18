@@ -96,6 +96,22 @@ function getStatusLabel(status) {
   return statusMap[normalizedStatus] || status;
 }
 
+function getDashboardErrorMessage(error) {
+  const rawMessage = String(error?.message || "").toLowerCase();
+
+  if (
+    !rawMessage ||
+    rawMessage.includes("internal server error") ||
+    rawMessage.includes("failed to fetch") ||
+    rawMessage.includes("networkerror") ||
+    rawMessage.includes("api 요청에 실패했습니다")
+  ) {
+    return "대시보드 정보를 불러오지 못했습니다. 로그인 상태와 서비스 연결 상태를 확인한 뒤 다시 시도해주세요.";
+  }
+
+  return "대시보드 정보를 불러오지 못했습니다. 잠시 후 다시 확인해 주세요.";
+}
+
 function getMetricName(metric) {
   return (
     metric?.metricName ||
@@ -194,10 +210,7 @@ function DashboardPage() {
         }
       } catch (error) {
         if (isMounted) {
-          setDashboardError(
-            error?.message ||
-              "대시보드 정보를 불러오지 못했습니다. 로그인 상태를 확인한 뒤 다시 시도해주세요."
-          );
+          setDashboardError(getDashboardErrorMessage(error));
         }
       } finally {
         if (isMounted) {

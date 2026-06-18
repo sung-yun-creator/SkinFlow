@@ -732,8 +732,8 @@ function SettingsPage() {
           <Card className="sf-settings-panel">
             <div className="sf-settings-panelHeader">
               <div>
-                <span className="sf-settings-panelKicker">데이터 관리 안내</span>
-                <h2>데이터 관리 안내</h2>
+                <span className="sf-settings-panelKicker">계정 및 이용 안내</span>
+                <h2>계정 및 이용 안내</h2>
               </div>
 
               <span className="sf-settings-iconTile sf-settings-iconTile--panel" aria-hidden="true">

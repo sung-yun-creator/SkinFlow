@@ -3,11 +3,17 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import {
   ChevronDown,
   Clock3,
+  LogIn,
   LogOut,
   Settings,
   Sparkles,
   UserRound,
 } from "lucide-react";
+import {
+  AUTH_SESSION_CLEARED_EVENT,
+  AUTH_STORAGE_KEYS,
+  clearLoginSession,
+} from "../../api/authSession";
 
 const navItems = [
   { label: "대시보드", to: "/dashboard" },
@@ -16,6 +22,34 @@ const navItems = [
 ];
 
 function getStoredUserName() {
+  const storedUser = localStorage.getItem(AUTH_STORAGE_KEYS.user);
+
+  if (storedUser) {
+    try {
+      const parsedUser = JSON.parse(storedUser);
+      const userCandidates = [
+        parsedUser?.name,
+        parsedUser?.userName,
+        parsedUser?.username,
+        parsedUser?.nickname,
+        parsedUser?.email,
+      ];
+      const userName = userCandidates.find((value) => typeof value === "string" && value.trim());
+
+      if (userName) {
+        return userName.trim();
+      }
+    } catch {
+      localStorage.removeItem(AUTH_STORAGE_KEYS.user);
+    }
+  }
+
+  const email = localStorage.getItem(AUTH_STORAGE_KEYS.userEmail);
+
+  if (typeof email === "string" && email.trim()) {
+    return email.trim();
+  }
+
   const candidates = ["skinflow_user_name", "skinflow_username", "userName", "name"];
 
   for (const key of candidates) {
@@ -26,6 +60,15 @@ function getStoredUserName() {
   }
 
   return "내 계정";
+}
+
+function getAuthSnapshot() {
+  const token = localStorage.getItem(AUTH_STORAGE_KEYS.token);
+
+  return {
+    isLoggedIn: Boolean(token),
+    userName: token ? getStoredUserName() : "로그인이 필요합니다",
+  };
 }
 
 function getInitials(name) {
@@ -49,11 +92,17 @@ function Header() {
   const navigate = useNavigate();
   const menuRef = useRef(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [authSnapshot, setAuthSnapshot] = useState(getAuthSnapshot);
 
-  const userName = getStoredUserName();
+  const { isLoggedIn, userName } = authSnapshot;
   const initials = getInitials(userName);
 
   useEffect(() => {
+    function refreshAuthSnapshot() {
+      setAuthSnapshot(getAuthSnapshot());
+      setIsProfileOpen(false);
+    }
+
     function handleClickOutside(event) {
       if (!menuRef.current) return;
 
@@ -70,10 +119,14 @@ function Header() {
 
     document.addEventListener("mousedown", handleClickOutside);
     document.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("storage", refreshAuthSnapshot);
+    window.addEventListener(AUTH_SESSION_CLEARED_EVENT, refreshAuthSnapshot);
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("storage", refreshAuthSnapshot);
+      window.removeEventListener(AUTH_SESSION_CLEARED_EVENT, refreshAuthSnapshot);
     };
   }, []);
 
@@ -82,10 +135,8 @@ function Header() {
   }
 
   function handleLogout() {
-    localStorage.removeItem("skinflow_token");
-    localStorage.removeItem("skinflow_user_name");
-    localStorage.removeItem("skinflow_username");
-
+    clearLoginSession();
+    setAuthSnapshot(getAuthSnapshot());
     setIsProfileOpen(false);
     navigate("/login");
   }
@@ -219,6 +270,34 @@ function Header() {
           transform: translateY(-1px);
           filter: brightness(1.02);
           box-shadow: 0 16px 30px rgba(22, 125, 127, 0.24);
+        }
+
+        .sf-header-login {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 7px;
+          height: 40px;
+          padding: 0 16px;
+          border: 1px solid rgba(22, 125, 127, 0.18);
+          border-radius: 999px;
+          color: #167d7f;
+          background: rgba(255, 255, 255, 0.96);
+          font-size: 13px;
+          font-weight: 950;
+          line-height: 1;
+          text-decoration: none;
+          box-shadow: 0 10px 22px rgba(15, 23, 42, 0.055);
+          transition:
+            transform 0.18s ease,
+            border-color 0.18s ease,
+            background-color 0.18s ease;
+        }
+
+        .sf-header-login:hover {
+          border-color: rgba(22, 125, 127, 0.3);
+          background: rgba(22, 125, 127, 0.07);
+          transform: translateY(-1px);
         }
 
         .sf-profile-menu-wrap {
@@ -506,32 +585,42 @@ function Header() {
       `}</style>
 
       <div className="sf-header-inner">
-        <Link className="sf-header-brand" to="/dashboard" aria-label="SkinFlow 대시보드로 이동">
+        <Link className="sf-header-brand" to={isLoggedIn ? "/dashboard" : "/"} aria-label="SkinFlow 홈으로 이동">
           <span className="sf-header-logo-mark" aria-hidden="true">
             <Sparkles />
           </span>
           <span className="sf-header-brand-text">SkinFlow</span>
         </Link>
 
-        <nav className="sf-header-nav" aria-label="주요 메뉴">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                `sf-header-nav-link${isActive ? " is-active" : ""}`
-              }
-            >
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
+        {isLoggedIn && (
+          <nav className="sf-header-nav" aria-label="주요 메뉴">
+            {navItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) =>
+                  `sf-header-nav-link${isActive ? " is-active" : ""}`
+                }
+              >
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
+        )}
 
         <div className="sf-header-actions">
-          <Link className="sf-header-cta" to="/analysis/capture">
-            분석 시작
-          </Link>
+          {isLoggedIn ? (
+            <Link className="sf-header-cta" to="/analysis/capture">
+              분석 시작
+            </Link>
+          ) : (
+            <Link className="sf-header-login" to="/login">
+              <LogIn size={16} aria-hidden="true" />
+              로그인
+            </Link>
+          )}
 
+          {isLoggedIn && (
           <div className="sf-profile-menu-wrap" ref={menuRef}>
             <button
               type="button"
@@ -605,6 +694,7 @@ function Header() {
               </div>
             )}
           </div>
+          )}
         </div>
       </div>
     </header>
