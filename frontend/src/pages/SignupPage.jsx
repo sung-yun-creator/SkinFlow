@@ -230,7 +230,7 @@ function SignupPage() {
     <PageLayout showBottomNav={false}>
       <section className="auth-page signup-page">
         <div className="auth-copy">
-          <Badge>Personal Skin Care</Badge>
+          <Badge>개인 맞춤 피부 관리</Badge>
 
           <h1>
             피부 분석부터 추천까지
@@ -249,6 +249,21 @@ function SignupPage() {
             <div>
               <strong>가입 후 이용 가능한 기능</strong>
               <span>피부 분석, 추천 결과, 식습관 가이드, 분석 이력 관리</span>
+            </div>
+          </div>
+
+          <div className="auth-benefit-list signup-benefit-list">
+            <div className="auth-benefit-item">
+              <ShieldCheck size={20} />
+              <span>이메일 인증으로 계정 흐름 확인</span>
+            </div>
+            <div className="auth-benefit-item">
+              <ShieldCheck size={20} />
+              <span>분석 결과와 추천 정보를 한 계정에서 관리</span>
+            </div>
+            <div className="auth-benefit-item">
+              <ShieldCheck size={20} />
+              <span>색소침착·주름 중심 관리 가이드 확인</span>
             </div>
           </div>
         </div>

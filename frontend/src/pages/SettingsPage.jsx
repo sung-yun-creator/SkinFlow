@@ -172,36 +172,39 @@ function SettingsPage() {
     <PageLayout>
       <style>{`
         .sf-settings-page {
-          width: min(100%, 960px);
+          width: min(100%, 1080px);
           margin: 0 auto;
-          padding-bottom: 48px;
+          padding-bottom: 56px;
           display: grid;
-          gap: 18px;
+          gap: 20px;
         }
 
         .sf-settings-card,
         .sf-settings-panel {
-          border: 1px solid rgba(226, 232, 240, 0.9);
-          border-radius: 24px;
+          border: 1px solid rgba(226, 232, 240, 0.92);
+          border-radius: 26px;
           background: #ffffff;
-          box-shadow: 0 20px 52px rgba(15, 23, 42, 0.055);
+          box-shadow: 0 20px 54px rgba(15, 23, 42, 0.07);
         }
 
         .sf-settings-topGrid {
           display: grid;
-          grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.95fr);
+          grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
           gap: 18px;
           align-items: stretch;
         }
 
         .sf-settings-hero {
-          min-height: 270px;
-          padding: 30px;
+          min-height: 285px;
+          padding: 48px 42px;
           display: flex;
           flex-direction: column;
           justify-content: center;
           overflow: hidden;
-          background: linear-gradient(135deg, rgba(236, 254, 255, 0.82) 0%, rgba(255, 255, 255, 0.98) 62%);
+          background:
+            radial-gradient(circle at 82% 12%, rgba(22, 125, 127, 0.13), transparent 30%),
+            radial-gradient(circle at 8% 100%, rgba(20, 184, 166, 0.08), transparent 34%),
+            #ffffff;
         }
 
         .sf-settings-chip {
@@ -212,9 +215,9 @@ function SettingsPage() {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          color: #0f766e;
-          background: rgba(22, 125, 127, 0.1);
-          border: 1px solid rgba(22, 125, 127, 0.12);
+          color: #167d7f;
+          background: rgba(22, 125, 127, 0.09);
+          border: 1px solid rgba(22, 125, 127, 0.16);
           font-size: 12px;
           font-weight: 950;
           line-height: 1;
@@ -222,17 +225,24 @@ function SettingsPage() {
         }
 
         .sf-settings-hero h1 {
-          margin: 18px 0 10px;
+          max-width: 680px;
+          margin: 16px 0 12px;
           color: #0f172a;
-          font-size: clamp(44px, 4.6vw, 64px);
-          line-height: 0.96;
+          font-size: clamp(36px, 4.6vw, 58px);
+          line-height: 1.08;
           font-weight: 950;
-          letter-spacing: -0.085em;
+          letter-spacing: -0.06em;
+          word-break: keep-all;
+          overflow-wrap: normal;
+          text-wrap: balance;
         }
 
         .sf-settings-hero h1 span {
           display: block;
-          color: #14b8a6;
+          background: linear-gradient(90deg, #167d7f 0%, #22c5c8 100%);
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
         }
 
         .sf-settings-hero p {
@@ -244,6 +254,7 @@ function SettingsPage() {
           line-height: 1.7;
           letter-spacing: -0.025em;
           word-break: keep-all;
+          overflow-wrap: normal;
         }
 
         .sf-settings-heroChips {
@@ -253,8 +264,17 @@ function SettingsPage() {
           gap: 8px;
         }
 
+        .sf-settings-heroChips .sf-settings-chip {
+          min-height: 26px;
+          color: #475569;
+          background: rgba(255, 255, 255, 0.72);
+          border-color: rgba(226, 232, 240, 0.78);
+          font-weight: 850;
+          box-shadow: none;
+        }
+
         .sf-settings-profileCard {
-          min-height: 270px;
+          min-height: 250px;
           padding: 24px;
           display: flex;
           flex-direction: column;
@@ -344,7 +364,7 @@ function SettingsPage() {
         .sf-settings-grid {
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 18px;
+          gap: 16px;
           align-items: stretch;
         }
 
@@ -567,7 +587,6 @@ function SettingsPage() {
             gap: 14px;
           }
 
-          .sf-settings-hero,
           .sf-settings-profileCard,
           .sf-settings-panel {
             padding: 18px;
@@ -575,10 +594,13 @@ function SettingsPage() {
 
           .sf-settings-hero {
             min-height: auto;
+            padding: 30px 24px;
           }
 
           .sf-settings-hero h1 {
-            font-size: 42px;
+            font-size: 32px;
+            line-height: 1.12;
+            letter-spacing: -0.055em;
           }
 
           .sf-settings-profileStats {
@@ -610,14 +632,14 @@ function SettingsPage() {
         <section className="sf-settings-topGrid">
           <Card className="sf-settings-card sf-settings-hero">
             <div>
-              <span className="sf-settings-chip">읽기 전용 안내</span>
+              <span className="sf-settings-chip">계정 설정</span>
               <h1>
-                설정,
+                계정과 이용 안내를
                 <span>한눈에 확인하세요</span>
               </h1>
               <p>
-                계정 정보와 분석 이용 안내를 한 화면에서 확인하고
-                SkinFlow의 피부 관리 흐름을 차분하게 살펴볼 수 있습니다.
+                계정 정보와 피부 분석 이용 안내를 한 화면에서 확인하고, 필요한 참고 정보를
+                차분하게 살펴볼 수 있습니다.
               </p>
 
               <div className="sf-settings-heroChips">

@@ -73,7 +73,7 @@ function LoginPage() {
     <PageLayout showBottomNav={false}>
       <section className="auth-page">
         <div className="auth-copy">
-          <Badge>SkinFlow Account</Badge>
+          <Badge>계정 로그인</Badge>
 
           <h1>
             피부 분석 결과와

@@ -1,5 +1,5 @@
 ﻿import { useEffect, useRef, useState } from "react";
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   ChevronDown,
   Clock3,
@@ -7,6 +7,7 @@ import {
   LogOut,
   Settings,
   Sparkles,
+  UserPlus,
   UserRound,
 } from "lucide-react";
 import {
@@ -90,6 +91,7 @@ function getInitials(name) {
 }
 
 function Header() {
+  const location = useLocation();
   const navigate = useNavigate();
   const menuRef = useRef(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -97,6 +99,7 @@ function Header() {
 
   const { isLoggedIn, userName } = authSnapshot;
   const initials = getInitials(userName);
+  const isLoginPage = location.pathname === "/login";
 
   useEffect(() => {
     function refreshAuthSnapshot() {
@@ -619,9 +622,13 @@ function Header() {
               분석 시작
             </Link>
           ) : (
-            <Link className="sf-header-login" to="/login">
-              <LogIn size={16} aria-hidden="true" />
-              로그인
+            <Link className="sf-header-login" to={isLoginPage ? "/signup" : "/login"}>
+              {isLoginPage ? (
+                <UserPlus size={16} aria-hidden="true" />
+              ) : (
+                <LogIn size={16} aria-hidden="true" />
+              )}
+              {isLoginPage ? "회원가입" : "로그인"}
             </Link>
           )}
 

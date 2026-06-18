@@ -239,12 +239,12 @@ function AnalysisCapturePage() {
     : isSubmitting
       ? "분석 요청 중"
       : selectedFile
-        ? "이 이미지로 분석 시작"
+        ? "이미지로 분석 시작"
         : selectedMethod === "webcam"
           ? "촬영 후 분석 시작"
           : "이미지 선택 후 분석 시작";
   const startHelpText = selectedFile
-    ? "이미지가 준비되었습니다. 분석을 요청하면 얼굴 영역 확인 후 다음 화면으로 이동합니다."
+    ? "이미지가 준비되었습니다. 분석을 시작하면 결과 화면으로 이동합니다."
     : selectedMethod === "webcam"
       ? "웹캠을 켜고 얼굴 이미지를 촬영하면 분석 시작 버튼이 활성화됩니다."
       : "JPG 또는 PNG 이미지를 선택하면 분석 시작 버튼이 활성화됩니다.";

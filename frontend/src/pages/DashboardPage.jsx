@@ -11,7 +11,6 @@ import {
 import PageLayout from "../components/layout/PageLayout";
 import Button from "../components/common/Button";
 import Card from "../components/common/Card";
-import Badge from "../components/common/Badge";
 import { getDashboard } from "../api/dashboardApi";
 import { shouldShowAnalysisScore, toAnalysisScoreNumber } from "../utils/analysisStatus";
 
@@ -19,7 +18,7 @@ const quickActions = [
   {
     icon: Camera,
     title: "피부 분석",
-    description: "처음이라면 사진 업로드로 피부 분석부터 시작하세요.",
+    description: "새 분석은 사진 업로드로 바로 시작할 수 있습니다.",
     to: "/analysis/capture",
     variant: "primary",
     step: "01",
@@ -28,12 +27,12 @@ const quickActions = [
   },
   {
     icon: Sparkles,
-    title: "맞춤 추천",
+    title: "최근 추천 확인",
     description: "최근 분석에 맞춘 성분과 제품 추천을 확인합니다.",
     to: "/recommendations",
     variant: "secondary",
     step: "02",
-    cta: "추천 확인",
+    cta: "추천 이어보기",
   },
   {
     icon: Leaf,
@@ -54,6 +53,40 @@ const quickActions = [
     cta: "이력 보기",
   },
 ];
+
+function hasRecommendationKeyword(value) {
+  return /recommendation/i.test(value);
+}
+
+function normalizeActionTitle(value) {
+  if (typeof value !== "string") return "";
+
+  const trimmedValue = value.trim();
+
+  return hasRecommendationKeyword(trimmedValue) ? "최근 추천 확인" : trimmedValue;
+}
+
+function normalizeActionDescription(value) {
+  if (typeof value !== "string") return "";
+
+  const trimmedValue = value.trim();
+
+  return hasRecommendationKeyword(trimmedValue)
+    ? "최근 분석에 맞춘 추천을 이어서 확인합니다."
+    : trimmedValue;
+}
+
+function normalizeActionCta(value) {
+  if (typeof value !== "string") return "";
+
+  const trimmedValue = value.trim();
+
+  return hasRecommendationKeyword(trimmedValue) ? "추천 확인" : trimmedValue;
+}
+
+function normalizeRoutePath(path) {
+  return path?.slice(1) === "commendations" ? "/recommendations" : path;
+}
 
 function getDisplayText(value, fallback = "분석 후 표시됩니다") {
   if (typeof value === "string" && value.trim()) return value.trim();
@@ -97,21 +130,25 @@ function getNextActionValue(nextAction, keys) {
 function normalizeNextAction(nextAction) {
   if (!nextAction || typeof nextAction !== "object") return null;
 
-  const to = getNextActionValue(nextAction, ["to", "path", "route", "url", "href"]);
+  const to = normalizeRoutePath(getNextActionValue(nextAction, ["to", "path", "route", "url", "href"]));
 
   if (!to || !to.startsWith("/")) return null;
 
+  const rawTitle = getNextActionValue(nextAction, ["title", "label", "name"]);
+  const rawDescription = getNextActionValue(nextAction, ["description", "summary", "message"]);
+  const rawCta = getNextActionValue(nextAction, ["cta", "buttonText", "button_text", "actionText"]);
+
   return {
     icon: Sparkles,
-    title: getNextActionValue(nextAction, ["title", "label", "name"]) || "다음 관리 흐름",
+    title: normalizeActionTitle(rawTitle) || "다음 관리 흐름",
     description:
-      getNextActionValue(nextAction, ["description", "summary", "message"]) ||
+      normalizeActionDescription(rawDescription) ||
       "최근 분석 흐름에 맞춰 다음 화면으로 이어서 확인합니다.",
     to,
     variant: "primary",
     step: "01",
-    stepLabel: "다음 단계",
-    cta: getNextActionValue(nextAction, ["cta", "buttonText", "button_text", "actionText"]) || "이어보기",
+    stepLabel: "다음",
+    cta: normalizeActionCta(rawCta) || "이어보기",
   };
 }
 
@@ -136,7 +173,7 @@ function getDashboardActions(hasAnalysisHistory, nextAction) {
           ? "관리 가이드"
           : item.to === "/history"
             ? "이력 확인"
-            : "다시 분석",
+            : "새 분석",
   }));
 
   if (!normalizedNextAction) {
@@ -273,7 +310,7 @@ function normalizeMetrics(latestAnalysis, canShowScores) {
   return mvpMetrics.slice(0, 2).map((metric) => ({
     label: getMetricName(metric),
     score: getMetricScore(metric),
-    status: getStatusLabel(getMetricGrade(metric)),
+    status: getMetricGrade(metric) ? getStatusLabel(getMetricGrade(metric)) : "관리 참고",
     hasScore: hasMetricScore(metric),
   }));
 }
@@ -359,7 +396,7 @@ function DashboardPage() {
   );
 
   const userName = profile.name || profile.userName || profile.nickname || "사용자";
-  const heroEyebrow = hasAnalysisHistory ? "최근 관리 흐름" : "첫 사용자 추천 흐름";
+  const heroEyebrow = hasAnalysisHistory ? "최근 분석 기반" : "관리 흐름";
   const heroTitle = hasAnalysisHistory
     ? "최근 분석 결과를 바탕으로"
     : "첫 피부 분석을";
@@ -380,7 +417,7 @@ function DashboardPage() {
         {`
           .dashboard-app-home {
             display: grid;
-            gap: 18px;
+            gap: 38px;
           }
 
           .dashboard-app-hero {
@@ -433,6 +470,9 @@ function DashboardPage() {
             font-size: clamp(32px, 3.4vw, 44px);
             line-height: 1.12;
             letter-spacing: -0.06em;
+            word-break: keep-all;
+            overflow-wrap: normal;
+            text-wrap: balance;
           }
 
           .dashboard-gradient-text {
@@ -786,6 +826,10 @@ function DashboardPage() {
           }
 
           @media (max-width: 980px) {
+            .dashboard-app-home {
+              gap: 28px;
+            }
+
             .dashboard-app-hero {
               grid-template-columns: 1fr;
             }
@@ -796,6 +840,10 @@ function DashboardPage() {
           }
 
           @media (max-width: 640px) {
+            .dashboard-app-home {
+              gap: 20px;
+            }
+
             .dashboard-welcome-card,
             .dashboard-status-card,
             .dashboard-mini-card {
@@ -842,7 +890,6 @@ function DashboardPage() {
         <div className="dashboard-app-hero">
           <Card className="dashboard-welcome-card">
             <div className="dashboard-welcome-copy">
-              <Badge>홈</Badge>
               <span className="dashboard-start-pill">
                 <Camera size={14} />
                 {heroEyebrow}
