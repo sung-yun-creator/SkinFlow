@@ -1,3 +1,5 @@
+const axios = require("axios");
+const vectorSearchService = require("./vectorSearchService");
 const { fixedAnswers } = require("../../data/chatFaqs");
 const { GoogleGenAI } = require("@google/genai");
 const { getRelevantKnowledge } = require("./knowledgeService");
@@ -44,6 +46,32 @@ const getFixedAnswer = (message) => {
  
   return matchedQuestion ? fixedAnswers[matchedQuestion] : null;
 };
+ async function getVectorKnowledge(message) {
+  try {
+    const response = await axios.post("http://localhost:8000/search", {
+      query: message,
+      top_k: 3,
+    });
+
+    const results = response.data.results || [];
+
+    if (results.length === 0) {
+      return "";
+    }
+
+    return results
+      .map((item) => {
+        return `
+[문서명: ${item.file}]
+${item.text}
+`;
+      })
+      .join("\n\n---\n\n");
+  } catch (error) {
+    console.error("FAISS 검색 실패:", error.message);
+    return "";
+  }
+}
 
 const getChatResponse = async (message, analysisResult) => {
   const trimmedMessage = message.trim();
@@ -71,10 +99,14 @@ const getChatResponse = async (message, analysisResult) => {
 - 아직 제공되지 않음
 `;
 
-  const knowledge = getRelevantKnowledge(trimmedMessage);
+  const vectorKnowledge =
+  await getVectorKnowledge(trimmedMessage);
 
-  console.log("=== RAG 문서 검색 결과 ===");
-  console.log(knowledge);
+const keywordKnowledge =
+  getRelevantKnowledge(trimmedMessage);
+
+const knowledge =
+  vectorKnowledge || keywordKnowledge;
 
   const prompt = `
 너는 SkinFlow의 피부 상담 챗봇이다.
