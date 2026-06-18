@@ -14,8 +14,9 @@ import { getDietGuideRecommendations } from "../api/recommendationApi";
 const sourceLabelMap = {
   latest_analysis: "최근 분석 결과 기반 가이드",
   analysis_unsaved: "이력 반영 전 참고 가이드",
-  default: "기본 피부 관리 참고 가이드",
-  fallback: "첫 분석 전 참고할 수 있는 가이드",
+  default: "기본 식습관 가이드",
+  fallback: "식습관 관리 가이드",
+  unknown: "식습관 관리 가이드",
 };
 
 function normalizeSourceValue(value) {
@@ -33,31 +34,38 @@ function getGuideSourceState(source, summary) {
   const primarySource = normalizeSourceValue(source);
   const guideSource = normalizeSourceValue(summary?.guideSource ?? summary?.guide_source);
   const isSavedFalse = summary?.saved === false;
-  const referenceSources = ["default", "fallback", "reference", "static", "seed", "unknown", ""];
+  const defaultSources = ["default"];
+  const safeGuideSources = ["fallback", "reference", "static", "seed", "unknown", ""];
   const isLatestAnalysis = primarySource === "latest_analysis" && !isSavedFalse;
   const isUnsavedAnalysis = primarySource === "latest_analysis" && isSavedFalse;
-  const isReference =
+  const isDefaultGuide =
+    !isLatestAnalysis &&
+    (defaultSources.includes(primarySource) || defaultSources.includes(guideSource));
+  const isSafeGuide =
     isUnsavedAnalysis ||
-    (!isLatestAnalysis && (referenceSources.includes(primarySource) || referenceSources.includes(guideSource)));
+    (!isLatestAnalysis && (safeGuideSources.includes(primarySource) || safeGuideSources.includes(guideSource)));
 
   const labelSource = isLatestAnalysis
     ? "latest_analysis"
     : isUnsavedAnalysis
       ? "analysis_unsaved"
-      : isReference
+      : isDefaultGuide
         ? "default"
-        : guideSource || primarySource;
+        : isSafeGuide
+          ? "unknown"
+          : guideSource || primarySource;
 
   return {
     label: getSourceLabel(labelSource),
     isLatestAnalysis,
-    isReference,
+    isDefaultGuide,
+    isReference: isDefaultGuide || isSafeGuide,
     notice: isLatestAnalysis
       ? "최근 피부 분석 결과와 연결된 식습관 관리 방향입니다."
       : isUnsavedAnalysis
         ? "분석 결과가 아직 이력에 반영되기 전이므로 참고 정보로 표시합니다."
-        : isReference
-          ? "현재 가이드는 기본 참고 정보입니다. 최신 분석 후 개인별 관리 방향과 함께 확인해 주세요."
+        : isDefaultGuide
+          ? "현재 가이드는 기본 식습관 관리 참고 정보입니다. 피부 분석 후 더 구체적인 관리 방향을 확인할 수 있습니다."
           : "피부 관리 방향을 확인하기 위한 식습관 참고 정보입니다.",
   };
 }
@@ -74,23 +82,13 @@ function toSafeArray(value) {
   return Array.isArray(value) ? value : [];
 }
 
-function createActionItems(checks, guides) {
-  if (checks.length > 0) {
-    return checks.map((item, index) => ({
-      id: item.id ?? `check-${index}`,
-      title: getFirstText(item.title, item.name),
-      description: getFirstText(item.description, item.content, item.reason),
-      category: getFirstText(item.category, item.tag, item.priority),
-      sourceType: "check",
-    }));
-  }
-
-  return guides.map((item, index) => ({
-    id: item.id ?? `guide-action-${index}`,
+function createActionItems(checks) {
+  return checks.map((item, index) => ({
+    id: item.id ?? `check-${index}`,
     title: getFirstText(item.title, item.name),
     description: getFirstText(item.description, item.content, item.reason),
-    category: getFirstText(item.priority, item.tag, item.category),
-    sourceType: "guide",
+    category: getFirstText(item.category, item.tag, item.priority),
+    sourceType: "check",
   }));
 }
 
@@ -164,19 +162,19 @@ function DietGuidePage() {
   const checklistDescription = isLatestGuide
     ? "피부 분석 결과와 연결된 식습관 관리 포인트입니다. 오늘 확인하고 실천할 항목을 한눈에 볼 수 있도록 정리했습니다."
     : "첫 분석 전 참고할 수 있는 식습관 관리 포인트입니다. 오늘 확인하고 실천할 항목을 한눈에 볼 수 있도록 정리했습니다.";
-  const actionItems = createActionItems(checks, guides).filter((item) => hasText(item.title));
+  const actionItems = createActionItems(checks).filter((item) => hasText(item.title));
   const visibleActionItems = actionItems.slice(0, 5);
   const visibleActionIds = visibleActionItems.map((item, index) => getActionItemId(item, index));
   const checkedVisibleCount = visibleActionIds.filter((id) => checkedActionIds.includes(id)).length;
   const guideCount = summary?.guideCount ?? guides.length;
   const totalScore = summary?.totalScore ?? summary?.total_skin_score;
   const hasTotalScore = totalScore !== null && totalScore !== undefined && totalScore !== "";
-  const isEmpty =
-    !isLoading &&
-    !errorMessage &&
-    guides.length === 0 &&
-    routines.length === 0 &&
-    checks.length === 0;
+  const primaryAction = isLatestGuide
+    ? { to: "/recommendations", label: "추천 화면으로 이동" }
+    : { to: "/analysis/capture", label: "피부 분석 시작하기" };
+  const secondaryAction = isLatestGuide
+    ? { to: "/history", label: "분석 이력 보기" }
+    : { to: "/recommendations", label: "추천 확인" };
 
   const handleCheckToggle = (itemId) => {
     setCheckedActionIds((currentIds) =>
@@ -383,6 +381,35 @@ function DietGuidePage() {
           color: #0f766e;
           background: rgba(22, 125, 127, 0.07);
           border-color: rgba(22, 125, 127, 0.18);
+        }
+
+        .sf-diet-empty-card {
+          display: grid;
+          justify-items: center;
+          align-content: center;
+          gap: 10px;
+          min-height: 180px;
+          padding: 22px;
+          border-radius: 20px;
+          border: 1px dashed rgba(22, 125, 127, 0.22);
+          background: #f8fafc;
+          text-align: center;
+        }
+
+        .sf-diet-empty-card strong {
+          color: #0f172a;
+          font-size: 15px;
+          font-weight: 950;
+          line-height: 1.35;
+        }
+
+        .sf-diet-empty-card p {
+          max-width: 360px;
+          margin: 0;
+          color: #64748b;
+          font-size: 13px;
+          line-height: 1.6;
+          word-break: keep-all;
         }
 
         .sf-check-focus-card {
@@ -852,11 +879,11 @@ function DietGuidePage() {
             </div>
 
             <div className="sf-diet-actions">
-              <Button to="/recommendations" size="lg">
-                맞춤 추천 보기 <ArrowRight size={18} />
+              <Button to={primaryAction.to} size="lg">
+                {primaryAction.label} <ArrowRight size={18} />
               </Button>
-              <Button to="/history" variant="secondary" size="lg">
-                분석 이력 확인
+              <Button to={secondaryAction.to} variant="secondary" size="lg">
+                {secondaryAction.label}
               </Button>
             </div>
           </div>
@@ -906,26 +933,24 @@ function DietGuidePage() {
 
         {!isLoading && errorMessage && <div className="sf-state-message is-error">{errorMessage}</div>}
 
-        {isEmpty && <div className="sf-state-message">아직 표시할 식습관 가이드가 없습니다.</div>}
-
-        {!isLoading && !errorMessage && !isEmpty && (
+        {!isLoading && !errorMessage && (
           <>
-            {visibleActionItems.length > 0 && (
-              <section className="sf-diet-card sf-check-focus-card">
-                <div className="sf-check-focus-head">
-                  <div className="sf-check-title-wrap">
-                    <span className="sf-icon-tile" aria-hidden="true">
-                      <CheckCircle2 size={21} />
-                    </span>
-                    <div>
-                      <span className="sf-diet-label">오늘 실천 체크</span>
-                      <h2>{checklistTitle}</h2>
-                      <p className="sf-check-subtitle">
-                        {checklistDescription}
-                      </p>
-                    </div>
+            <section className="sf-diet-card sf-check-focus-card">
+              <div className="sf-check-focus-head">
+                <div className="sf-check-title-wrap">
+                  <span className="sf-icon-tile" aria-hidden="true">
+                    <CheckCircle2 size={21} />
+                  </span>
+                  <div>
+                    <span className="sf-diet-label">오늘 실천 체크</span>
+                    <h2>{checklistTitle}</h2>
+                    <p className="sf-check-subtitle">
+                      {checklistDescription}
+                    </p>
                   </div>
+                </div>
 
+                {visibleActionItems.length > 0 && (
                   <div className="sf-check-count">
                     <span className="sf-diet-label">확인한 항목</span>
                     <strong>
@@ -936,8 +961,10 @@ function DietGuidePage() {
                     </p>
                     <span className="sf-diet-chip">{sourceLabel}</span>
                   </div>
-                </div>
+                )}
+              </div>
 
+              {visibleActionItems.length > 0 ? (
                 <div className="sf-check-list">
                   {visibleActionItems.map((item, index) => {
                     const itemId = getActionItemId(item, index);
@@ -967,20 +994,25 @@ function DietGuidePage() {
                     );
                   })}
                 </div>
-              </section>
-            )}
+              ) : (
+                <div className="sf-diet-empty-card">
+                  <strong>확인할 체크 항목이 아직 없습니다</strong>
+                  <p>피부 분석 후 색소침착·주름 지표와 연결된 체크 항목을 더 구체적으로 확인할 수 있습니다.</p>
+                </div>
+              )}
+            </section>
 
             <section className="sf-diet-main-grid">
-              {guides.length > 0 && (
-                <div className="sf-diet-card sf-diet-section-card">
-                  <div className="sf-diet-section-title">
-                    <div>
-                      <span className="sf-diet-label">추천 이유</span>
-                      <h2>식습관 참고 가이드</h2>
-                    </div>
-                    <span className="sf-diet-chip">{sourceLabel}</span>
+              <div className="sf-diet-card sf-diet-section-card">
+                <div className="sf-diet-section-title">
+                  <div>
+                    <span className="sf-diet-label">추천 이유</span>
+                    <h2>식습관 참고 가이드</h2>
                   </div>
+                  <span className="sf-diet-chip">{sourceLabel}</span>
+                </div>
 
+                {guides.length > 0 ? (
                   <div className="sf-guide-grid">
                     {guides.map((item, index) => (
                       <article className="sf-guide-card" key={item.id ?? `guide-${index}`}>
@@ -1003,21 +1035,26 @@ function DietGuidePage() {
                       </article>
                     ))}
                   </div>
-                </div>
-              )}
-
-              {routines.length > 0 && (
-                <div className="sf-diet-card sf-diet-side-card">
-                  <div className="sf-diet-side-title">
-                    <div>
-                      <span className="sf-diet-label">루틴 제안</span>
-                      <h2>하루 식습관 루틴</h2>
-                    </div>
-                    <span className="sf-side-title-icon" aria-hidden="true">
-                      <Sparkles size={18} />
-                    </span>
+                ) : (
+                  <div className="sf-diet-empty-card">
+                    <strong>표시할 식습관 가이드가 아직 없습니다</strong>
+                    <p>분석 결과가 저장되면 색소침착·주름 지표를 기준으로 더 구체적인 관리 가이드를 확인할 수 있습니다.</p>
                   </div>
+                )}
+              </div>
 
+              <div className="sf-diet-card sf-diet-side-card">
+                <div className="sf-diet-side-title">
+                  <div>
+                    <span className="sf-diet-label">루틴 제안</span>
+                    <h2>하루 식습관 루틴</h2>
+                  </div>
+                  <span className="sf-side-title-icon" aria-hidden="true">
+                    <Sparkles size={18} />
+                  </span>
+                </div>
+
+                {routines.length > 0 ? (
                   <div className="sf-side-stack">
                     {routines.map((item, index) => (
                       <div className="sf-routine-item" key={`${item.time}-${index}`}>
@@ -1031,8 +1068,13 @@ function DietGuidePage() {
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="sf-diet-empty-card">
+                    <strong>오늘 루틴 정보가 아직 준비되지 않았습니다</strong>
+                    <p>분석 후 개인별 관리 방향에 맞춘 식습관 루틴을 이 영역에서 확인할 수 있습니다.</p>
+                  </div>
+                )}
+              </div>
             </section>
           </>
         )}
