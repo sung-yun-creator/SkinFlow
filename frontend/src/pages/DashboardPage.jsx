@@ -55,6 +55,101 @@ const quickActions = [
   },
 ];
 
+function getDisplayText(value, fallback = "분석 후 표시됩니다") {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+
+  if (value && typeof value === "object") {
+    const candidates = [
+      value.metricName,
+      value.metric_name,
+      value.name,
+      value.label,
+      value.title,
+      value.type,
+      value.code,
+    ];
+    const matchedValue = candidates.find((item) => typeof item === "string" && item.trim());
+
+    if (matchedValue) {
+      const normalizedValue = matchedValue.trim().toLowerCase();
+
+      if (normalizedValue === "pigmentation") return "색소침착";
+      if (normalizedValue === "wrinkle" || normalizedValue === "wrinkles") return "주름";
+
+      return matchedValue.trim();
+    }
+  }
+
+  return fallback;
+}
+
+function getNextActionValue(nextAction, keys) {
+  if (!nextAction || typeof nextAction !== "object") return "";
+
+  const matchedValue = keys
+    .map((key) => nextAction[key])
+    .find((value) => typeof value === "string" && value.trim());
+
+  return matchedValue ? matchedValue.trim() : "";
+}
+
+function normalizeNextAction(nextAction) {
+  if (!nextAction || typeof nextAction !== "object") return null;
+
+  const to = getNextActionValue(nextAction, ["to", "path", "route", "url", "href"]);
+
+  if (!to || !to.startsWith("/")) return null;
+
+  return {
+    icon: Sparkles,
+    title: getNextActionValue(nextAction, ["title", "label", "name"]) || "다음 관리 흐름",
+    description:
+      getNextActionValue(nextAction, ["description", "summary", "message"]) ||
+      "최근 분석 흐름에 맞춰 다음 화면으로 이어서 확인합니다.",
+    to,
+    variant: "primary",
+    step: "01",
+    stepLabel: "다음 단계",
+    cta: getNextActionValue(nextAction, ["cta", "buttonText", "button_text", "actionText"]) || "이어보기",
+  };
+}
+
+function getDashboardActions(hasAnalysisHistory, nextAction) {
+  const normalizedNextAction = normalizeNextAction(nextAction);
+
+  if (!hasAnalysisHistory) {
+    return quickActions.map((item) => ({
+      ...item,
+      variant: item.to === "/analysis/capture" ? "primary" : "secondary",
+      stepLabel: item.to === "/analysis/capture" ? "먼저 시작" : item.stepLabel,
+    }));
+  }
+
+  const followUpActions = quickActions.map((item) => ({
+    ...item,
+    variant: item.to === "/analysis/capture" ? "secondary" : item.variant,
+    stepLabel:
+      item.to === "/recommendations"
+        ? "추천 확인"
+        : item.to === "/diet-guide"
+          ? "관리 가이드"
+          : item.to === "/history"
+            ? "이력 확인"
+            : "다시 분석",
+  }));
+
+  if (!normalizedNextAction) {
+    return followUpActions.map((item) => ({
+      ...item,
+      variant: item.to === "/recommendations" ? "primary" : "secondary",
+    }));
+  }
+
+  const remainingActions = followUpActions.filter((item) => item.to !== normalizedNextAction.to);
+  return [normalizedNextAction, ...remainingActions].slice(0, 4);
+}
+
 function formatDate(dateValue) {
   if (!dateValue) return "분석 전";
 
@@ -80,9 +175,9 @@ function getStatusLabel(status) {
     normal: "보통",
     caution: "주의",
     medium: "주의",
-    risk: "위험",
-    high: "위험",
-    danger: "위험",
+    risk: "관리 필요",
+    high: "관리 필요",
+    danger: "관리 필요",
     severe: "집중 관리",
     pending: "분석 대기",
     processing: "분석 중",
@@ -113,14 +208,7 @@ function getDashboardErrorMessage(error) {
 }
 
 function getMetricName(metric) {
-  return (
-    metric?.metricName ||
-    metric?.metric_name ||
-    metric?.name ||
-    metric?.label ||
-    metric?.type ||
-    "피부 지표"
-  );
+  return getDisplayText(metric, "피부 지표");
 }
 
 function getMetricScore(metric) {
@@ -230,6 +318,7 @@ function DashboardPage() {
   const summary = dashboard?.summary || {};
   const latestAnalysis = dashboard?.latestAnalysis || null;
   const mainConcern = dashboard?.mainConcern || null;
+  const nextAction = dashboard?.nextAction || dashboard?.next_action || null;
   const latestStatus =
     latestAnalysis?.analysis_status ||
     latestAnalysis?.analysisStatus ||
@@ -254,18 +343,36 @@ function DashboardPage() {
     status: latestStatus,
     saved: latestAnalysis?.saved ?? summary.saved,
   });
-  const hasLatestAnalysis = hasLatestAnalysisScore;
+  const hasAnalysisHistory = Boolean(latestAnalysis) || analysisCount >= 1;
   const metrics = useMemo(
     () => normalizeMetrics(latestAnalysis, hasLatestAnalysisScore),
     [hasLatestAnalysisScore, latestAnalysis],
   );
+  const dashboardActions = useMemo(
+    () => getDashboardActions(hasAnalysisHistory, nextAction),
+    [hasAnalysisHistory, nextAction],
+  );
 
-  const mainConcernName = mainConcern ? getMetricName(mainConcern) : "분석 전";
+  const mainConcernName = getDisplayText(mainConcern, "분석 후 표시됩니다");
   const latestDate = formatDate(
     latestAnalysis?.analyzedAt || latestAnalysis?.analyzed_at || summary.latestAnalyzedAt
   );
 
   const userName = profile.name || profile.userName || profile.nickname || "사용자";
+  const heroEyebrow = hasAnalysisHistory ? "최근 관리 흐름" : "첫 사용자 추천 흐름";
+  const heroTitle = hasAnalysisHistory
+    ? "최근 분석 결과를 바탕으로"
+    : "첫 피부 분석을";
+  const heroHighlight = hasAnalysisHistory ? "관리 흐름을 이어가세요" : "시작해 보세요";
+  const heroDescription = hasAnalysisHistory
+    ? "색소침착·주름 지표와 추천 정보를 한 화면에서 확인할 수 있습니다."
+    : "얼굴 이미지를 기반으로 색소침착·주름 지표를 분석하고 관리 가이드를 확인할 수 있습니다.";
+  const primaryHeroAction = hasAnalysisHistory
+    ? { to: "/recommendations", label: "추천 확인" }
+    : { to: "/analysis/capture", label: "피부 분석 시작" };
+  const secondaryHeroAction = hasAnalysisHistory
+    ? { to: "/history", label: "분석 이력 보기" }
+    : null;
 
   return (
     <PageLayout>
@@ -738,28 +845,28 @@ function DashboardPage() {
               <Badge>홈</Badge>
               <span className="dashboard-start-pill">
                 <Camera size={14} />
-                처음 사용자 추천 흐름
+                {heroEyebrow}
               </span>
               <h1>
-                처음이라면 피부 분석부터
+                {heroTitle}
                 <br />
-                <span className="dashboard-gradient-text">시작하세요</span>
+                <span className="dashboard-gradient-text">{heroHighlight}</span>
               </h1>
-              <p>
-                {userName}님의 첫 화면에서는 분석 시작, 결과 확인, 추천 확인, 이력 관리 순서로 이어지는 핵심 흐름을 바로 확인합니다.
-              </p>
+              <p>{userName}님, {heroDescription}</p>
 
               <div className="dashboard-welcome-actions">
                 <span className="dashboard-primary-cta">
-                  <Button to="/analysis/capture" size="lg">
-                    피부 분석 시작 <ArrowRight size={18} />
+                  <Button to={primaryHeroAction.to} size="lg">
+                    {primaryHeroAction.label} <ArrowRight size={18} />
                   </Button>
                 </span>
-                <span className="dashboard-secondary-cta">
-                  <Button to="/recommendations" variant="secondary" size="lg">
-                    추천은 분석 후 확인
-                  </Button>
-                </span>
+                {secondaryHeroAction && (
+                  <span className="dashboard-secondary-cta">
+                    <Button to={secondaryHeroAction.to} variant="secondary" size="lg">
+                      {secondaryHeroAction.label}
+                    </Button>
+                  </span>
+                )}
               </div>
 
               {dashboardError && (
@@ -790,7 +897,7 @@ function DashboardPage() {
             <div className="dashboard-status-top">
               <div>
                 <span>최근 피부 상태</span>
-                <h2>{hasLatestAnalysis ? "분석 결과 요약" : "아직 분석 전입니다"}</h2>
+                <h2>{hasLatestAnalysisScore ? "분석 결과 요약" : hasAnalysisHistory ? "분석 상태 안내" : "아직 분석 전입니다"}</h2>
               </div>
               <span className="dashboard-status-pill">
                 <CheckCircle2 size={14} />
@@ -809,18 +916,22 @@ function DashboardPage() {
 
               <div className="dashboard-score-summary">
                 <strong>
-                  {hasLatestAnalysis
+                  {hasLatestAnalysisScore
                     ? "최근 분석 결과가 준비되었습니다"
-                    : "첫 분석을 진행하면 결과가 표시됩니다"}
+                    : hasAnalysisHistory
+                      ? "점수는 분석 완료 후 표시됩니다"
+                      : "첫 분석을 진행하면 결과가 표시됩니다"}
                 </strong>
                 <p>
                   {isLoading
                     ? "대시보드 정보를 불러오는 중입니다."
-                    : hasLatestAnalysis
+                    : hasLatestAnalysisScore
                       ? latestAnalysis.summary ||
                         latestAnalysis.description ||
                         summary.latestSummary ||
                         "색소침착과 주름 중심의 분석 결과를 확인할 수 있습니다."
+                      : hasAnalysisHistory
+                        ? "분석이 완료되지 않았거나 저장되지 않은 결과는 실제 점수처럼 표시하지 않습니다."
                       : "사진 업로드 후 분석 결과와 추천 정보를 이어서 확인할 수 있습니다."}
                 </p>
               </div>
@@ -841,7 +952,7 @@ function DashboardPage() {
         </div>
 
         <div className="dashboard-quick-grid">
-          {quickActions.map((item) => {
+          {dashboardActions.map((item) => {
             const Icon = item.icon;
 
             return (
