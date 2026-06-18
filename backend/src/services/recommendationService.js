@@ -196,6 +196,72 @@ function groupProducts(productRows) {
     return [...productMap.values()];
 }
 
+function sortMatchedIngredientsByProductFit(matchedIngredients) {
+    return [...matchedIngredients].sort((left, right) => (
+        (right.productIngredientRank || 0) - (left.productIngredientRank || 0)
+        || (left.priority || 999) - (right.priority || 999)
+        || right.match - left.match
+        || left.id - right.id
+    ));
+}
+
+function getIngredientKey(ingredient) {
+    return ingredient?.id ? `id:${ingredient.id}` : `name:${ingredient?.name || ''}`;
+}
+
+function pickProductLinkIngredient(matchedIngredients, usedIngredientKeys) {
+    const sortedIngredients = sortMatchedIngredientsByProductFit(matchedIngredients);
+
+    return sortedIngredients.find((ingredient) => !usedIngredientKeys.has(getIngredientKey(ingredient)))
+        || sortedIngredients[0]
+        || null;
+}
+
+function toPublicMatchedIngredient(ingredient) {
+    if (!ingredient) {
+        return null;
+    }
+
+    return {
+        id: ingredient.id,
+        name: ingredient.name,
+        match: ingredient.match,
+        tags: ingredient.tags,
+    };
+}
+
+function applyProductSearchUrls(products) {
+    const usedIngredientKeys = new Set();
+
+    return products.map((product) => {
+        const linkCandidates = product.linkIngredients || product.matchedIngredients || [];
+        const linkIngredient = pickProductLinkIngredient(linkCandidates, usedIngredientKeys);
+        const productUrl = linkIngredient?.name
+            ? oliveYoungSearchUrl(linkIngredient.name)
+            : product.productUrl;
+
+        if (linkIngredient) {
+            usedIngredientKeys.add(getIngredientKey(linkIngredient));
+        }
+
+        const { linkIngredients, ...publicProduct } = product;
+        const displayedMatchedIngredient = toPublicMatchedIngredient(linkIngredient);
+        const displayedMatchedIngredients = displayedMatchedIngredient ? [displayedMatchedIngredient] : [];
+
+        return {
+            ...publicProduct,
+            productUrl,
+            matchedIngredients: displayedMatchedIngredients,
+            linkIngredient: displayedMatchedIngredient,
+            card: {
+                ...product.card,
+                productUrl,
+                matchedIngredients: displayedMatchedIngredients,
+            },
+        };
+    });
+}
+
 function buildStoredProductRecommendations(productRows, ingredientRecommendations) {
     const recommendedIngredients = new Map(
         ingredientRecommendations
@@ -203,7 +269,7 @@ function buildStoredProductRecommendations(productRows, ingredientRecommendation
             .map((ingredient) => [ingredient.id, ingredient]),
     );
 
-    return groupProducts(productRows)
+    const products = groupProducts(productRows)
         .map((product) => {
             const sourceRows = productRows.filter((row) => row.product_id === product.product_id);
             const source = sourceRows[0] || {};
@@ -220,15 +286,13 @@ function buildStoredProductRecommendations(productRows, ingredientRecommendation
                         name: ingredient.ingredient_name,
                         match: recommendation.match,
                         tags: recommendation.tags,
+                        priority: recommendation.priority,
+                        productIngredientRank: toNumber(ingredient.ingredient_pct) || 0,
                     };
                 })
                 .filter(Boolean)
                 .sort((left, right) => right.match - left.match || left.id - right.id);
-            const primaryMatchedIngredient = matchedIngredients[0] || null;
             const tags = [...new Set(matchedIngredients.flatMap((ingredient) => ingredient.tags || []))].slice(0, 4);
-            const productUrl = primaryMatchedIngredient?.name
-                ? oliveYoungSearchUrl(primaryMatchedIngredient.name)
-                : product.product_url;
             const match = toNumber(source.match_score) || 0;
             const rank = toNumber(source.rank_no) || null;
 
@@ -238,11 +302,12 @@ function buildStoredProductRecommendations(productRows, ingredientRecommendation
                 productName: product.product_name,
                 productType: product.product_type,
                 priceAmount: product.price_amount,
-                productUrl,
+                productUrl: product.product_url,
                 imageUrl: product.product_img,
                 description: product.description,
                 match,
                 matchedIngredients,
+                linkIngredients: matchedIngredients,
                 tags,
                 rank,
                 card: {
@@ -251,7 +316,7 @@ function buildStoredProductRecommendations(productRows, ingredientRecommendation
                     description: product.description,
                     match,
                     tags,
-                    productUrl,
+                    productUrl: product.product_url,
                     imageUrl: product.product_img,
                 },
             };
@@ -260,7 +325,13 @@ function buildStoredProductRecommendations(productRows, ingredientRecommendation
         .map((product, index) => ({
             ...product,
             rank: product.rank || index + 1,
+        }))
+        .map((product) => ({
+            ...product,
+            linkIngredients: sortMatchedIngredientsByProductFit(product.linkIngredients),
         }));
+
+    return applyProductSearchUrls(products);
 }
 
 function buildProductRecommendations(productRows, ingredientRecommendations) {
@@ -270,7 +341,7 @@ function buildProductRecommendations(productRows, ingredientRecommendations) {
             .map((ingredient) => [ingredient.id, ingredient]),
     );
 
-    return groupProducts(productRows)
+    const products = groupProducts(productRows)
         .map((product) => {
             const ingredientRanks = product.ingredients
                 .map((ingredient) => toNumber(ingredient.ingredient_pct))
@@ -278,10 +349,7 @@ function buildProductRecommendations(productRows, ingredientRecommendations) {
             const primaryIngredientRank = ingredientRanks.length > 0
                 ? Math.max(...ingredientRanks)
                 : null;
-            const matchableIngredients = primaryIngredientRank === null
-                ? product.ingredients
-                : product.ingredients.filter((ingredient) => toNumber(ingredient.ingredient_pct) === primaryIngredientRank);
-            const matchedIngredients = matchableIngredients
+            const matchedIngredients = product.ingredients
                 .map((ingredient) => {
                     const recommendation = recommendedIngredients.get(ingredient.ingredient_id);
 
@@ -294,6 +362,8 @@ function buildProductRecommendations(productRows, ingredientRecommendations) {
                         name: ingredient.ingredient_name,
                         match: recommendation.match,
                         tags: recommendation.tags,
+                        priority: recommendation.priority,
+                        productIngredientRank: toNumber(ingredient.ingredient_pct) || 0,
                     };
                 })
                 .filter(Boolean);
@@ -302,17 +372,18 @@ function buildProductRecommendations(productRows, ingredientRecommendations) {
                 return null;
             }
 
+            const primaryMatchedIngredients = primaryIngredientRank === null
+                ? matchedIngredients
+                : matchedIngredients.filter((ingredient) => ingredient.productIngredientRank === primaryIngredientRank);
+            const matchIngredients = primaryMatchedIngredients.length > 0
+                ? primaryMatchedIngredients
+                : matchedIngredients;
             const match = Math.round(
-                matchedIngredients.reduce((sum, ingredient) => sum + ingredient.match, 0)
-                / matchedIngredients.length,
+                matchIngredients.reduce((sum, ingredient) => sum + ingredient.match, 0)
+                / matchIngredients.length,
             );
-            const sortedMatchedIngredients = matchedIngredients
-                .sort((left, right) => right.match - left.match || left.id - right.id);
-            const primaryMatchedIngredient = sortedMatchedIngredients[0] || null;
+            const sortedMatchedIngredients = sortMatchedIngredientsByProductFit(matchedIngredients);
             const tags = [...new Set(sortedMatchedIngredients.flatMap((ingredient) => ingredient.tags || []))].slice(0, 4);
-            const productUrl = primaryMatchedIngredient?.name
-                ? oliveYoungSearchUrl(primaryMatchedIngredient.name)
-                : product.product_url;
 
             return {
                 id: product.product_id,
@@ -320,11 +391,12 @@ function buildProductRecommendations(productRows, ingredientRecommendations) {
                 productName: product.product_name,
                 productType: product.product_type,
                 priceAmount: product.price_amount,
-                productUrl,
+                productUrl: product.product_url,
                 imageUrl: product.product_img,
                 description: product.description,
                 match,
                 matchedIngredients: sortedMatchedIngredients,
+                linkIngredients: sortedMatchedIngredients,
                 tags,
                 card: {
                     brandName: product.brand_name,
@@ -332,7 +404,7 @@ function buildProductRecommendations(productRows, ingredientRecommendations) {
                     description: product.description,
                     match,
                     tags,
-                    productUrl,
+                    productUrl: product.product_url,
                     imageUrl: product.product_img,
                 },
             };
@@ -344,6 +416,8 @@ function buildProductRecommendations(productRows, ingredientRecommendations) {
             ...product,
             rank: index + 1,
         }));
+
+    return applyProductSearchUrls(products);
 }
 
 function toDietGuide(guide, index) {
