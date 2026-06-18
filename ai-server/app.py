@@ -28,7 +28,7 @@ print("FAISS 벡터 수:", index.ntotal)
 
 class SearchRequest(BaseModel):
     query: str
-    top_k: int = 3
+    top_k: int = 7
 
 
 @app.get("/")

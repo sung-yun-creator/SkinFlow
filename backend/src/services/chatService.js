@@ -50,7 +50,7 @@ const getFixedAnswer = (message) => {
   try {
     const response = await axios.post("http://localhost:8000/search", {
       query: message,
-      top_k: 3,
+      top_k: 7,
     });
 
     const results = response.data.results || [];
