@@ -615,12 +615,15 @@ function DietGuidePage() {
           display: grid;
           grid-template-columns: minmax(0, 1.12fr) minmax(340px, 0.88fr);
           gap: 18px;
-          align-items: start;
+          align-items: stretch;
         }
 
         .sf-diet-section-card,
         .sf-diet-side-card {
-          padding: 20px;
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+          padding: 22px;
         }
 
         .sf-diet-section-title,
@@ -709,7 +712,9 @@ function DietGuidePage() {
 
         .sf-side-stack {
           display: grid;
-          gap: 12px;
+          flex: 1;
+          gap: 14px;
+          align-content: stretch;
         }
 
         .sf-diet-side-card {
@@ -741,22 +746,23 @@ function DietGuidePage() {
 
         .sf-routine-item {
           display: grid;
-          grid-template-columns: 44px 1fr;
+          grid-template-columns: 48px minmax(0, 1fr);
           align-items: center;
-          gap: 12px;
-          padding: 12px 13px;
+          gap: 14px;
+          min-height: 78px;
+          padding: 15px 16px;
           border-radius: 18px;
           background: rgba(248, 250, 252, 0.86);
           border: 1px solid rgba(226, 232, 240, 0.88);
         }
 
         .sf-routine-item .sf-icon-tile {
-          width: 42px;
-          height: 42px;
-          min-width: 42px;
-          min-height: 42px;
+          width: 46px;
+          height: 46px;
+          min-width: 46px;
+          min-height: 46px;
           margin: 0;
-          border-radius: 15px;
+          border-radius: 16px;
           display: grid;
           place-items: center;
           line-height: 0;
@@ -776,16 +782,17 @@ function DietGuidePage() {
         .sf-routine-item strong {
           display: block;
           color: #0f172a;
-          font-size: 14px;
+          font-size: 14.5px;
+          line-height: 1.35;
           letter-spacing: 0;
         }
 
         .sf-routine-item > div > span {
           display: block;
-          margin-top: 4px;
+          margin-top: 6px;
           color: #64748b;
           font-size: 12px;
-          line-height: 1.45;
+          line-height: 1.55;
           word-break: keep-all;
         }
 
