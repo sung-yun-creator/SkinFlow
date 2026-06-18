@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import {
   ChevronDown,
@@ -585,7 +585,7 @@ function Header() {
       `}</style>
 
       <div className="sf-header-inner">
-        <Link className="sf-header-brand" to={isLoggedIn ? "/dashboard" : "/"} aria-label="SkinFlow 홈으로 이동">
+        <Link className="sf-header-brand" to="/" aria-label="SkinFlow 홈으로 이동">
           <span className="sf-header-logo-mark" aria-hidden="true">
             <Sparkles />
           </span>
