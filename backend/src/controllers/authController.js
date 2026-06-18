@@ -8,6 +8,7 @@ const {
 } = require('../services/emailVerificationService');
 const { hashPassword, verifyPassword } = require('../utils/password');
 const { signToken } = require('../utils/token');
+const { touchSessionActivity } = require('../services/authSessionService');
 
 // 비밀번호 해시처럼 프론트에 보내면 안 되는 값은 제외하고 사용자 정보만 정리합니다.
 function toPublicUser(user) {
@@ -52,6 +53,7 @@ async function signup(req, res) {
     });
     // 회원가입 직후에도 로그인 상태로 사용할 수 있도록 JWT를 함께 발급합니다.
     const token = signToken({ userId: user.user_id, email: user.email });
+    touchSessionActivity({ userId: user.user_id });
 
     clearEmailVerification(email);
 
@@ -73,6 +75,7 @@ async function login(req, res) {
 
     // 이후 보호 API 요청에서 Authorization 헤더에 넣을 토큰입니다.
     const token = signToken({ userId: user.user_id, email: user.email });
+    touchSessionActivity({ userId: user.user_id });
 
     return res.json({ user: toPublicUser(user), token });
 }
