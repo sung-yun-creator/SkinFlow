@@ -123,7 +123,7 @@ function getRecommendationSourceState(summary, itemCount = 0) {
   if (!summary && itemCount === 0) {
     return {
       tone: "empty",
-      label: "추천 데이터 없음",
+      label: "추천 정보",
       message: "분석 후 추천 정보가 표시됩니다.",
     };
   }
@@ -144,7 +144,7 @@ function getRecommendationSourceState(summary, itemCount = 0) {
   if (!hasItems || ["empty", "none", "null"].includes(sourceText)) {
     return {
       tone: "empty",
-      label: "추천 데이터 없음",
+      label: "추천 정보",
       message: summary?.message || "분석 후 추천 정보가 표시됩니다.",
     };
   }
@@ -152,19 +152,15 @@ function getRecommendationSourceState(summary, itemCount = 0) {
   if (!isCompleted || isSavedFalse) {
     return {
       tone: "reference",
-      label: "분석 전 참고",
+      label: "추천 정보",
       message: summary?.message || "분석 완료 전에는 참고 정보로만 확인해 주세요.",
     };
   }
 
-  if (
-    isFallback ||
-    !sourceText ||
-    ["default", "fallback", "reference", "static", "seed", "unknown"].includes(sourceText)
-  ) {
+  if (isFallback || ["default", "fallback", "reference", "static", "seed"].includes(sourceText)) {
     return {
       tone: "reference",
-      label: "추천 기준 확인",
+      label: "기본 관리 추천",
       message: summary?.message || "색소침착 · 주름 기준의 기본 참고 정보입니다. 최신 분석 후 관리 방향과 함께 확인해 주세요.",
     };
   }
@@ -172,19 +168,19 @@ function getRecommendationSourceState(summary, itemCount = 0) {
   if (isCompleted && ["latest", "latest_analysis", "analysis", "personalized", "result", "completed"].includes(sourceText)) {
     return {
       tone: "personalized",
-      label: "최근 분석 결과 기반 추천",
+      label: "최근 분석 결과 기반",
       message: summary?.message || "최근 분석 결과를 바탕으로 참고할 수 있는 추천입니다.",
     };
   }
 
   return {
     tone: "reference",
-    label: "추천 기준 확인",
+    label: "추천 정보",
     message: summary?.message || "추천 기준을 확인 중입니다. 참고 정보로 활용해 주세요.",
   };
 }
 
-function RecommendationSectionState({ type, message }) {
+function RecommendationSectionState({ type, title, message }) {
   const isLoading = type === "loading";
   const isError = type === "error";
 
@@ -193,6 +189,7 @@ function RecommendationSectionState({ type, message }) {
       <span className="sf-section-state-icon" aria-hidden="true">
         {isLoading ? <LoaderCircle size={20} /> : <AlertCircle size={20} />}
       </span>
+      {title && <strong>{title}</strong>}
       <p>{message}</p>
     </div>
   );
@@ -802,6 +799,15 @@ function RecommendationPage() {
           word-break: keep-all;
         }
 
+        .sf-section-state strong {
+          display: block;
+          margin: 0;
+          color: #0f172a;
+          font-size: 15px;
+          font-weight: 950;
+          letter-spacing: -0.035em;
+        }
+
         @keyframes sf-spin {
           from {
             transform: rotate(0deg);
@@ -878,8 +884,8 @@ function RecommendationPage() {
               <Button to="/diet-guide" size="lg">
                 식습관 가이드 보기 <Leaf size={18} />
               </Button>
-              <Button to="/analysis/result" variant="secondary" size="lg">
-                분석 결과 다시 보기
+              <Button to="/history" variant="secondary" size="lg">
+                분석 이력에서 확인
               </Button>
               <Button variant="secondary" size="lg" onClick={loadRecommendations} disabled={isLoading}>
                 추천 다시 불러오기
@@ -934,7 +940,11 @@ function RecommendationPage() {
             ) : ingredientError ? (
               <RecommendationSectionState type="error" message={ingredientError} />
             ) : visibleIngredients.length === 0 ? (
-              <RecommendationSectionState type="empty" message="표시할 성분 추천 데이터가 없습니다." />
+              <RecommendationSectionState
+                type="empty"
+                title="표시할 성분 추천이 아직 없습니다"
+                message="최근 분석 결과가 저장되면 색소침착·주름 지표를 기준으로 추천 성분을 확인할 수 있습니다."
+              />
             ) : (
               <div className="sf-recommend-list">
                 {visibleIngredients.map((item) => {
@@ -990,7 +1000,11 @@ function RecommendationPage() {
             ) : productError ? (
               <RecommendationSectionState type="error" message={productError} />
             ) : products.length === 0 ? (
-              <RecommendationSectionState type="empty" message="표시할 제품 추천 데이터가 없습니다." />
+              <RecommendationSectionState
+                type="empty"
+                title="표시할 제품 추천이 아직 없습니다"
+                message="추천 성분과 연결된 제품 정보가 준비되면 이 화면에서 확인할 수 있습니다."
+              />
             ) : (
               <div className="sf-recommend-list">
                 {products.map((item) => {
@@ -1045,7 +1059,7 @@ function RecommendationPage() {
                               target="_blank"
                               rel="noreferrer"
                             >
-                              대표 성분 검색 결과 보기 <ExternalLink size={13} />
+                              성분 검색 결과 보기 <ExternalLink size={13} />
                             </a>
                             <p className="sf-product-link-note">대표 성분 기준으로 연결됩니다.</p>
                           </>
