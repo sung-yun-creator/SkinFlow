@@ -19,21 +19,6 @@ import Badge from "../components/common/Badge";
 import { getMyPage } from "../api/mypageApi";
 import { shouldShowAnalysisScore } from "../utils/analysisStatus";
 
-const nextCareActions = [
-  {
-    icon: Sparkles,
-    title: "맞춤 추천 보기",
-    to: "/recommendations",
-    label: "맞춤 추천 보기",
-  },
-  {
-    icon: Droplets,
-    title: "식습관 가이드",
-    to: "/diet-guide",
-    label: "식습관 가이드",
-  },
-];
-
 const settingItems = [
   {
     icon: Image,
@@ -91,6 +76,42 @@ function getDisplayValue(value, emptyText = "미설정") {
   }
 
   return value;
+}
+
+function getMainConcernLabel(value) {
+  if (typeof value === "string" && value.trim()) {
+    const normalizedValue = value.trim().toLowerCase();
+
+    if (normalizedValue === "pigmentation") return "색소침착";
+    if (normalizedValue === "wrinkle" || normalizedValue === "wrinkles") return "주름";
+
+    return value.trim();
+  }
+
+  if (value && typeof value === "object") {
+    const candidates = [
+      value.name,
+      value.metricName,
+      value.metric_name,
+      value.label,
+      value.title,
+      value.code,
+      value.metricCode,
+      value.metric_code,
+    ];
+    const matchedValue = candidates.find((item) => typeof item === "string" && item.trim());
+
+    if (matchedValue) {
+      const normalizedValue = matchedValue.trim().toLowerCase();
+
+      if (normalizedValue === "pigmentation") return "색소침착";
+      if (normalizedValue === "wrinkle" || normalizedValue === "wrinkles") return "주름";
+
+      return matchedValue.trim();
+    }
+  }
+
+  return "분석 후 표시됩니다";
 }
 
 function getSkinTypeLabel(value) {
@@ -166,6 +187,9 @@ function MyPage() {
   const hasMypageData = Boolean(mypage) && !mypageError;
   const latestStatus = stats.latestStatus ?? stats.latest_status ?? stats.analysisStatus ?? stats.analysis_status;
   const latestScore = stats.latestTotalScore ?? stats.latest_total_score;
+  const analysisCount = Number(stats.analysisCount ?? stats.analysis_count ?? 0);
+  const hasAnalysisHistory = Number.isFinite(analysisCount) && analysisCount > 0;
+  const mainConcernLabel = getMainConcernLabel(stats.mainConcern);
   const hasLatestScore = shouldShowAnalysisScore({
     score: latestScore,
     status: latestStatus,
@@ -178,23 +202,49 @@ function MyPage() {
     : [];
   const profileName = getDisplayValue(profile.name, "계정 정보 없음");
   const profileEmail = getDisplayValue(profile.email, "로그인 정보 확인 필요");
+  const nextActionDescription = hasAnalysisHistory
+    ? "분석 이력과 추천 화면에서 최근 관리 흐름을 이어서 확인할 수 있습니다."
+    : "피부 분석을 시작하면 분석 이력과 추천 흐름을 이어서 확인할 수 있습니다.";
+  const nextActions = hasAnalysisHistory
+    ? [
+      {
+        icon: History,
+        title: "분석 이력 보기",
+        to: "/history",
+        label: "분석 이력 보기",
+      },
+      {
+        icon: Sparkles,
+        title: "추천 확인하기",
+        to: "/recommendations",
+        label: "추천 확인하기",
+      },
+    ]
+    : [
+      {
+        icon: Camera,
+        title: "피부 분석 시작하기",
+        to: "/analysis/capture",
+        label: "피부 분석 시작하기",
+      },
+    ];
 
   const profileStats = useMemo(
     () => [
       {
         label: "총 분석",
-        value: hasMypageData ? `${stats.analysisCount ?? 0}회` : "정보 없음",
+        value: hasMypageData ? `${Number.isFinite(analysisCount) ? analysisCount : 0}회` : "정보 없음",
       },
       {
         label: "최근 점수",
-        value: hasLatestScore ? formatScore(latestScore) : "분석 완료 후 표시",
+        value: hasLatestScore ? formatScore(latestScore) : hasAnalysisHistory ? "분석 후 표시됩니다" : "최근 분석 기록 없음",
       },
       {
         label: "관심 지표",
-        value: getDisplayValue(stats.mainConcern, "분석 후 표시"),
+        value: mainConcernLabel,
       },
     ],
-    [hasLatestScore, hasMypageData, latestScore, stats.analysisCount, stats.mainConcern]
+    [analysisCount, hasAnalysisHistory, hasLatestScore, hasMypageData, latestScore, mainConcernLabel]
   );
 
   const skinProfileItems = useMemo(
@@ -208,7 +258,7 @@ function MyPage() {
       {
         icon: Sparkles,
         label: "관심 지표",
-        value: getDisplayValue(stats.mainConcern, "분석 후 표시"),
+        value: mainConcernLabel,
         description: "최근 분석 후 우선 관리 항목이 표시됩니다.",
       },
       {
@@ -218,7 +268,7 @@ function MyPage() {
         description: "마지막 분석 기록 기준으로 표시됩니다.",
       },
     ],
-    [profile.skinType, stats.mainConcern, stats.latestAnalyzedAt]
+    [mainConcernLabel, profile.skinType, stats.latestAnalyzedAt]
   );
 
 
@@ -821,8 +871,8 @@ function MyPage() {
                 <Sparkles size={20} />
               </span>
               <p>
-                {stats.mainConcern
-                  ? `최근 분석 기준으로 ${stats.mainConcern} 관리 방향을 확인할 수 있습니다.`
+                {mainConcernLabel !== "분석 후 표시됩니다"
+                  ? `최근 분석 기준으로 ${mainConcernLabel} 관리 방향을 확인할 수 있습니다.`
                   : "첫 분석을 진행하면 관심 지표와 맞춤 추천 흐름이 표시됩니다."}
               </p>
             </div>
@@ -836,14 +886,12 @@ function MyPage() {
             </span>
             <div>
               <h2>다음 관리 행동</h2>
-              <p>
-                최근 분석 흐름을 바탕으로 추천 결과와 식습관 가이드를 이어서 확인할 수 있습니다.
-              </p>
+              <p>{nextActionDescription}</p>
             </div>
           </div>
 
           <div className="sf-next-action-buttons">
-            {nextCareActions.map((item) => {
+            {nextActions.map((item) => {
               const Icon = item.icon;
 
               return (
@@ -983,9 +1031,9 @@ function MyPage() {
                   <History size={20} />
                 </span>
                 <div>
-                  <strong>아직 표시할 활동이 없습니다.</strong>
+                  <strong>최근 활동이 아직 없습니다</strong>
                   <span>
-                    피부 분석을 시작하면 최근 결과와 추천 흐름 요약이 이곳에 표시됩니다.
+                    피부 분석을 완료하면 분석 이력과 추천 활동이 이곳에 표시됩니다.
                   </span>
                 </div>
                 <span className="sf-status-badge is-muted">대기</span>
