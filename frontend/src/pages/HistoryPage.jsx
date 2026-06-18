@@ -315,7 +315,6 @@ function HistoryPage() {
       );
     });
   }, [records, searchText]);
-  const hasSearchKeyword = searchText.trim() !== "";
   const displayedRecords = filteredRecords;
 
   const trendItems = useMemo(() => {

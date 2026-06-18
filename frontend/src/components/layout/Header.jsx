@@ -17,6 +17,7 @@ import {
 
 const navItems = [
   { label: "대시보드", to: "/dashboard" },
+  { label: "분석 이력", to: "/history" },
   { label: "맞춤 추천", to: "/recommendations" },
   { label: "식습관 가이드", to: "/diet-guide" },
 ];
@@ -585,7 +586,11 @@ function Header() {
       `}</style>
 
       <div className="sf-header-inner">
-        <Link className="sf-header-brand" to="/" aria-label="SkinFlow 홈으로 이동">
+        <Link
+          className="sf-header-brand"
+          to={isLoggedIn ? "/dashboard" : "/"}
+          aria-label={isLoggedIn ? "SkinFlow 대시보드로 이동" : "SkinFlow 홈으로 이동"}
+        >
           <span className="sf-header-logo-mark" aria-hidden="true">
             <Sparkles />
           </span>
