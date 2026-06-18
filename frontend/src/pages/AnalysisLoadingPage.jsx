@@ -99,7 +99,17 @@ function getAnalysisStatus(analysisResult) {
     };
   }
 
-  if (analysisResult.saved) {
+  const status =
+    analysisResult.analysisStatus ??
+    analysisResult.analysis_status ??
+    analysisResult.latestStatus ??
+    analysisResult.latest_status ??
+    analysisResult.status;
+  const normalizedStatus = String(status || "").toLowerCase();
+  const normalizedCode = String(analysisResult.code || "").toLowerCase();
+  const pendingStates = ["ai_model_pending", "pending", "processing"];
+
+  if (analysisResult.saved === true && normalizedStatus === "completed") {
     return {
       isCompleted: true,
       isPending: false,
@@ -110,7 +120,11 @@ function getAnalysisStatus(analysisResult) {
     };
   }
 
-  if (analysisResult.code === "AI_MODEL_PENDING" || analysisResult.status === "pending") {
+  if (
+    analysisResult.saved === false ||
+    pendingStates.includes(normalizedStatus) ||
+    pendingStates.includes(normalizedCode)
+  ) {
     return {
       isCompleted: false,
       isPending: true,
@@ -225,7 +239,7 @@ function AnalysisLoadingPage() {
             grid-template-columns: minmax(0, 0.96fr) minmax(420px, 1.04fr);
             gap: 18px;
             align-items: start;
-            padding: 10px 0 24px;
+            padding: 24px 0 24px;
           }
 
           .sf-loading-card {
@@ -652,9 +666,15 @@ function AnalysisLoadingPage() {
                 다른 이미지로 다시 분석 <RefreshCw size={18} />
               </Button>
             )}
-            <Button to="/history" variant="secondary" size="lg">
-              분석 이력 확인
-            </Button>
+            {analysisStatus.isCompleted ? (
+              <Button to="/history" variant="secondary" size="lg">
+                분석 이력 확인
+              </Button>
+            ) : (
+              <Button to="/dashboard" variant="secondary" size="lg">
+                대시보드로 이동
+              </Button>
+            )}
           </div>
         </Card>
 
@@ -662,7 +682,7 @@ function AnalysisLoadingPage() {
           <Card className="sf-info-card">
             <div className="sf-info-title-row">
               <div className="sf-info-title-copy">
-                <small>Analysis Summary</small>
+                <small>분석 요청 요약</small>
                 <h2>분석 요청 정보</h2>
               </div>
 
@@ -684,7 +704,7 @@ function AnalysisLoadingPage() {
           <Card className="sf-info-card">
             <div className="sf-info-title-row">
               <div className="sf-info-title-copy">
-                <small>Process</small>
+                <small>분석 진행 단계</small>
                 <h2>분석 진행 단계</h2>
               </div>
 
@@ -731,8 +751,7 @@ function AnalysisLoadingPage() {
             </span>
 
             <p>
-              현재 화면은 분석 요청의 실제 처리 상태를 보여줍니다. AI 모델이 아직
-              점수를 반환하지 않으면 가짜 이력을 만들지 않고 대기 상태로 안내합니다.
+              현재 화면은 분석 요청 상태를 안내합니다. 결과가 준비되면 결과 화면에서 확인할 수 있습니다.
             </p>
           </div>
         </aside>

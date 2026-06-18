@@ -11,7 +11,6 @@ import {
 import PageLayout from "../components/layout/PageLayout";
 import Button from "../components/common/Button";
 import Card from "../components/common/Card";
-import Badge from "../components/common/Badge";
 import { getDashboard } from "../api/dashboardApi";
 import { shouldShowAnalysisScore, toAnalysisScoreNumber } from "../utils/analysisStatus";
 
@@ -19,26 +18,30 @@ const quickActions = [
   {
     icon: Camera,
     title: "피부 분석",
-    description: "사진 업로드로 색소침착·주름 분석을 시작합니다.",
+    description: "새 분석은 사진 업로드로 바로 시작할 수 있습니다.",
     to: "/analysis/capture",
     variant: "primary",
     step: "01",
+    stepLabel: "먼저 시작",
+    cta: "분석 시작",
   },
   {
     icon: Sparkles,
-    title: "맞춤 추천",
+    title: "최근 추천 확인",
     description: "최근 분석에 맞춘 성분과 제품 추천을 확인합니다.",
     to: "/recommendations",
     variant: "secondary",
     step: "02",
+    cta: "추천 이어보기",
   },
   {
     icon: Leaf,
-    title: "식습관",
+    title: "식습관 가이드",
     description: "오늘 참고할 수 있는 관리 가이드를 확인합니다.",
     to: "/diet-guide",
     variant: "secondary",
     step: "03",
+    cta: "가이드 보기",
   },
   {
     icon: History,
@@ -47,8 +50,142 @@ const quickActions = [
     to: "/history",
     variant: "secondary",
     step: "04",
+    cta: "이력 보기",
   },
 ];
+
+function hasRecommendationKeyword(value) {
+  return /recommendation/i.test(value);
+}
+
+function normalizeActionTitle(value) {
+  if (typeof value !== "string") return "";
+
+  const trimmedValue = value.trim();
+
+  return hasRecommendationKeyword(trimmedValue) ? "최근 추천 확인" : trimmedValue;
+}
+
+function normalizeActionDescription(value) {
+  if (typeof value !== "string") return "";
+
+  const trimmedValue = value.trim();
+
+  return hasRecommendationKeyword(trimmedValue)
+    ? "최근 분석에 맞춘 추천을 이어서 확인합니다."
+    : trimmedValue;
+}
+
+function normalizeActionCta(value) {
+  if (typeof value !== "string") return "";
+
+  const trimmedValue = value.trim();
+
+  return hasRecommendationKeyword(trimmedValue) ? "추천 확인" : trimmedValue;
+}
+
+function normalizeRoutePath(path) {
+  return path?.slice(1) === "commendations" ? "/recommendations" : path;
+}
+
+function getDisplayText(value, fallback = "분석 후 표시됩니다") {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+
+  if (value && typeof value === "object") {
+    const candidates = [
+      value.metricName,
+      value.metric_name,
+      value.name,
+      value.label,
+      value.title,
+      value.type,
+      value.code,
+    ];
+    const matchedValue = candidates.find((item) => typeof item === "string" && item.trim());
+
+    if (matchedValue) {
+      const normalizedValue = matchedValue.trim().toLowerCase();
+
+      if (normalizedValue === "pigmentation") return "색소침착";
+      if (normalizedValue === "wrinkle" || normalizedValue === "wrinkles") return "주름";
+
+      return matchedValue.trim();
+    }
+  }
+
+  return fallback;
+}
+
+function getNextActionValue(nextAction, keys) {
+  if (!nextAction || typeof nextAction !== "object") return "";
+
+  const matchedValue = keys
+    .map((key) => nextAction[key])
+    .find((value) => typeof value === "string" && value.trim());
+
+  return matchedValue ? matchedValue.trim() : "";
+}
+
+function normalizeNextAction(nextAction) {
+  if (!nextAction || typeof nextAction !== "object") return null;
+
+  const to = normalizeRoutePath(getNextActionValue(nextAction, ["to", "path", "route", "url", "href"]));
+
+  if (!to || !to.startsWith("/")) return null;
+
+  const rawTitle = getNextActionValue(nextAction, ["title", "label", "name"]);
+  const rawDescription = getNextActionValue(nextAction, ["description", "summary", "message"]);
+  const rawCta = getNextActionValue(nextAction, ["cta", "buttonText", "button_text", "actionText"]);
+
+  return {
+    icon: Sparkles,
+    title: normalizeActionTitle(rawTitle) || "다음 관리 흐름",
+    description:
+      normalizeActionDescription(rawDescription) ||
+      "최근 분석 흐름에 맞춰 다음 화면으로 이어서 확인합니다.",
+    to,
+    variant: "primary",
+    step: "01",
+    stepLabel: "다음",
+    cta: normalizeActionCta(rawCta) || "이어보기",
+  };
+}
+
+function getDashboardActions(hasAnalysisHistory, nextAction) {
+  const normalizedNextAction = normalizeNextAction(nextAction);
+
+  if (!hasAnalysisHistory) {
+    return quickActions.map((item) => ({
+      ...item,
+      variant: item.to === "/analysis/capture" ? "primary" : "secondary",
+      stepLabel: item.to === "/analysis/capture" ? "먼저 시작" : item.stepLabel,
+    }));
+  }
+
+  const followUpActions = quickActions.map((item) => ({
+    ...item,
+    variant: item.to === "/analysis/capture" ? "secondary" : item.variant,
+    stepLabel:
+      item.to === "/recommendations"
+        ? "추천 확인"
+        : item.to === "/diet-guide"
+          ? "관리 가이드"
+          : item.to === "/history"
+            ? "이력 확인"
+            : "새 분석",
+  }));
+
+  if (!normalizedNextAction) {
+    return followUpActions.map((item) => ({
+      ...item,
+      variant: item.to === "/recommendations" ? "primary" : "secondary",
+    }));
+  }
+
+  const remainingActions = followUpActions.filter((item) => item.to !== normalizedNextAction.to);
+  return [normalizedNextAction, ...remainingActions].slice(0, 4);
+}
 
 function formatDate(dateValue) {
   if (!dateValue) return "분석 전";
@@ -75,9 +212,9 @@ function getStatusLabel(status) {
     normal: "보통",
     caution: "주의",
     medium: "주의",
-    risk: "위험",
-    high: "위험",
-    danger: "위험",
+    risk: "관리 필요",
+    high: "관리 필요",
+    danger: "관리 필요",
     severe: "집중 관리",
     pending: "분석 대기",
     processing: "분석 중",
@@ -91,15 +228,24 @@ function getStatusLabel(status) {
   return statusMap[normalizedStatus] || status;
 }
 
+function getDashboardErrorMessage(error) {
+  const rawMessage = String(error?.message || "").toLowerCase();
+
+  if (
+    !rawMessage ||
+    rawMessage.includes("internal server error") ||
+    rawMessage.includes("failed to fetch") ||
+    rawMessage.includes("networkerror") ||
+    rawMessage.includes("api 요청에 실패했습니다")
+  ) {
+    return "대시보드 정보를 불러오지 못했습니다. 로그인 상태와 서비스 연결 상태를 확인한 뒤 다시 시도해주세요.";
+  }
+
+  return "대시보드 정보를 불러오지 못했습니다. 잠시 후 다시 확인해 주세요.";
+}
+
 function getMetricName(metric) {
-  return (
-    metric?.metricName ||
-    metric?.metric_name ||
-    metric?.name ||
-    metric?.label ||
-    metric?.type ||
-    "피부 지표"
-  );
+  return getDisplayText(metric, "피부 지표");
 }
 
 function getMetricScore(metric) {
@@ -164,7 +310,7 @@ function normalizeMetrics(latestAnalysis, canShowScores) {
   return mvpMetrics.slice(0, 2).map((metric) => ({
     label: getMetricName(metric),
     score: getMetricScore(metric),
-    status: getStatusLabel(getMetricGrade(metric)),
+    status: getMetricGrade(metric) ? getStatusLabel(getMetricGrade(metric)) : "관리 참고",
     hasScore: hasMetricScore(metric),
   }));
 }
@@ -189,10 +335,7 @@ function DashboardPage() {
         }
       } catch (error) {
         if (isMounted) {
-          setDashboardError(
-            error?.message ||
-              "대시보드 정보를 불러오지 못했습니다. 로그인 상태를 확인한 뒤 다시 시도해주세요."
-          );
+          setDashboardError(getDashboardErrorMessage(error));
         }
       } finally {
         if (isMounted) {
@@ -212,7 +355,7 @@ function DashboardPage() {
   const summary = dashboard?.summary || {};
   const latestAnalysis = dashboard?.latestAnalysis || null;
   const mainConcern = dashboard?.mainConcern || null;
-  const nextAction = dashboard?.nextAction || {};
+  const nextAction = dashboard?.nextAction || dashboard?.next_action || null;
   const latestStatus =
     latestAnalysis?.analysis_status ||
     latestAnalysis?.analysisStatus ||
@@ -237,20 +380,36 @@ function DashboardPage() {
     status: latestStatus,
     saved: latestAnalysis?.saved ?? summary.saved,
   });
-  const hasLatestAnalysis = hasLatestAnalysisScore;
+  const hasAnalysisHistory = Boolean(latestAnalysis) || analysisCount >= 1;
   const metrics = useMemo(
     () => normalizeMetrics(latestAnalysis, hasLatestAnalysisScore),
     [hasLatestAnalysisScore, latestAnalysis],
   );
+  const dashboardActions = useMemo(
+    () => getDashboardActions(hasAnalysisHistory, nextAction),
+    [hasAnalysisHistory, nextAction],
+  );
 
-  const mainConcernName = mainConcern ? getMetricName(mainConcern) : "분석 전";
+  const mainConcernName = getDisplayText(mainConcern, "분석 후 표시됩니다");
   const latestDate = formatDate(
     latestAnalysis?.analyzedAt || latestAnalysis?.analyzed_at || summary.latestAnalyzedAt
   );
 
-  const nextActionPath = nextAction.path || nextAction.to || "/analysis/capture";
-  const nextActionLabel = nextAction.label || "피부 분석 시작하기";
   const userName = profile.name || profile.userName || profile.nickname || "사용자";
+  const heroEyebrow = hasAnalysisHistory ? "최근 분석 기반" : "관리 흐름";
+  const heroTitle = hasAnalysisHistory
+    ? "최근 분석 결과를 바탕으로"
+    : "첫 피부 분석을";
+  const heroHighlight = hasAnalysisHistory ? "관리 흐름을 이어가세요" : "시작해 보세요";
+  const heroDescription = hasAnalysisHistory
+    ? "색소침착·주름 지표와 추천 정보를 한 화면에서 확인할 수 있습니다."
+    : "얼굴 이미지를 기반으로 색소침착·주름 지표를 분석하고 관리 가이드를 확인할 수 있습니다.";
+  const primaryHeroAction = hasAnalysisHistory
+    ? { to: "/recommendations", label: "추천 확인" }
+    : { to: "/analysis/capture", label: "피부 분석 시작" };
+  const secondaryHeroAction = hasAnalysisHistory
+    ? { to: "/history", label: "분석 이력 보기" }
+    : null;
 
   return (
     <PageLayout>
@@ -258,7 +417,7 @@ function DashboardPage() {
         {`
           .dashboard-app-home {
             display: grid;
-            gap: 18px;
+            gap: 38px;
           }
 
           .dashboard-app-hero {
@@ -288,6 +447,22 @@ function DashboardPage() {
               #ffffff;
           }
 
+          .dashboard-start-pill {
+            display: inline-flex;
+            align-items: center;
+            width: fit-content;
+            gap: 7px;
+            margin-bottom: 2px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            color: #167d7f;
+            background: rgba(22, 125, 127, 0.09);
+            border: 1px solid rgba(22, 125, 127, 0.16);
+            font-size: 12px;
+            font-weight: 950;
+            line-height: 1;
+          }
+
           .dashboard-welcome-copy h1 {
             max-width: 620px;
             margin: 16px 0 12px;
@@ -295,6 +470,9 @@ function DashboardPage() {
             font-size: clamp(32px, 3.4vw, 44px);
             line-height: 1.12;
             letter-spacing: -0.06em;
+            word-break: keep-all;
+            overflow-wrap: normal;
+            text-wrap: balance;
           }
 
           .dashboard-gradient-text {
@@ -318,6 +496,19 @@ function DashboardPage() {
             flex-wrap: wrap;
             gap: 10px;
             margin-top: 24px;
+          }
+
+          .dashboard-primary-cta .sf-button {
+            min-height: 54px;
+            padding-inline: 22px;
+            border: 1px solid rgba(22, 125, 127, 0.22);
+            box-shadow: 0 18px 38px rgba(22, 125, 127, 0.22);
+          }
+
+          .dashboard-secondary-cta .sf-button {
+            color: #475569;
+            background: rgba(255, 255, 255, 0.72);
+            box-shadow: none;
           }
 
           .dashboard-kpi-row {
@@ -452,7 +643,7 @@ function DashboardPage() {
 
           .dashboard-metric-compact {
             display: grid;
-            grid-template-columns: 74px 1fr 58px;
+            grid-template-columns: 74px minmax(0, 1fr) minmax(82px, auto);
             gap: 10px;
             align-items: center;
           }
@@ -467,6 +658,7 @@ function DashboardPage() {
             font-size: 12px;
             font-weight: 900;
             text-align: right;
+            white-space: nowrap;
           }
 
           .dashboard-bar {
@@ -521,9 +713,37 @@ function DashboardPage() {
           }
 
           .dashboard-action-card.is-primary-action {
+            border-color: rgba(22, 125, 127, 0.34);
             background:
-              radial-gradient(circle at 84% 16%, rgba(22, 125, 127, 0.1), transparent 28%),
-              rgba(255, 255, 255, 0.98);
+              radial-gradient(circle at 84% 16%, rgba(22, 125, 127, 0.16), transparent 30%),
+              linear-gradient(135deg, #ffffff 0%, #f0fdfa 100%);
+            box-shadow: 0 24px 62px rgba(22, 125, 127, 0.14);
+          }
+
+          .dashboard-action-card.is-primary-action::after {
+            background: radial-gradient(circle, rgba(22, 125, 127, 0.16), transparent 68%);
+          }
+
+          .dashboard-action-card.is-primary-action .dashboard-icon-tile {
+            color: #ffffff;
+            background: linear-gradient(135deg, #167d7f, #22c5c8);
+            border-color: rgba(22, 125, 127, 0.26);
+            box-shadow: 0 18px 36px rgba(22, 125, 127, 0.22);
+          }
+
+          .dashboard-action-card.is-primary-action .dashboard-action-index {
+            color: #ffffff;
+            background: #167d7f;
+          }
+
+          .dashboard-action-card.is-primary-action .sf-button {
+            box-shadow: 0 14px 30px rgba(22, 125, 127, 0.18);
+          }
+
+          .dashboard-action-card:not(.is-primary-action) .sf-button {
+            color: #475569;
+            background: rgba(255, 255, 255, 0.98);
+            box-shadow: none;
           }
 
           .dashboard-action-head {
@@ -534,7 +754,10 @@ function DashboardPage() {
           }
 
           .dashboard-action-index {
-            color: #cbd5e1;
+            color: #94a3b8;
+            padding: 6px 9px;
+            border-radius: 999px;
+            background: #f1f5f9;
             font-size: 12px;
             font-weight: 950;
             line-height: 1;
@@ -603,6 +826,10 @@ function DashboardPage() {
           }
 
           @media (max-width: 980px) {
+            .dashboard-app-home {
+              gap: 28px;
+            }
+
             .dashboard-app-hero {
               grid-template-columns: 1fr;
             }
@@ -613,6 +840,10 @@ function DashboardPage() {
           }
 
           @media (max-width: 640px) {
+            .dashboard-app-home {
+              gap: 20px;
+            }
+
             .dashboard-welcome-card,
             .dashboard-status-card,
             .dashboard-mini-card {
@@ -659,23 +890,30 @@ function DashboardPage() {
         <div className="dashboard-app-hero">
           <Card className="dashboard-welcome-card">
             <div className="dashboard-welcome-copy">
-              <Badge>SkinFlow Home</Badge>
+              <span className="dashboard-start-pill">
+                <Camera size={14} />
+                {heroEyebrow}
+              </span>
               <h1>
-                {userName}님의 피부 관리,
+                {heroTitle}
                 <br />
-                <span className="dashboard-gradient-text">SkinFlow에서 시작하세요</span>
+                <span className="dashboard-gradient-text">{heroHighlight}</span>
               </h1>
-              <p>
-                분석 시작부터 추천, 식습관 가이드, 이력 관리까지 핵심 흐름을 바로 확인합니다.
-              </p>
+              <p>{userName}님, {heroDescription}</p>
 
               <div className="dashboard-welcome-actions">
-                <Button to={nextActionPath} size="lg">
-                  {nextActionLabel} <ArrowRight size={18} />
-                </Button>
-                <Button to="/recommendations" variant="secondary" size="lg">
-                  추천 보기
-                </Button>
+                <span className="dashboard-primary-cta">
+                  <Button to={primaryHeroAction.to} size="lg">
+                    {primaryHeroAction.label} <ArrowRight size={18} />
+                  </Button>
+                </span>
+                {secondaryHeroAction && (
+                  <span className="dashboard-secondary-cta">
+                    <Button to={secondaryHeroAction.to} variant="secondary" size="lg">
+                      {secondaryHeroAction.label}
+                    </Button>
+                  </span>
+                )}
               </div>
 
               {dashboardError && (
@@ -706,7 +944,7 @@ function DashboardPage() {
             <div className="dashboard-status-top">
               <div>
                 <span>최근 피부 상태</span>
-                <h2>{hasLatestAnalysis ? "분석 결과 요약" : "아직 분석 전입니다"}</h2>
+                <h2>{hasLatestAnalysisScore ? "분석 결과 요약" : hasAnalysisHistory ? "분석 상태 안내" : "아직 분석 전입니다"}</h2>
               </div>
               <span className="dashboard-status-pill">
                 <CheckCircle2 size={14} />
@@ -725,18 +963,22 @@ function DashboardPage() {
 
               <div className="dashboard-score-summary">
                 <strong>
-                  {hasLatestAnalysis
+                  {hasLatestAnalysisScore
                     ? "최근 분석 결과가 준비되었습니다"
-                    : "첫 분석을 진행하면 결과가 표시됩니다"}
+                    : hasAnalysisHistory
+                      ? "점수는 분석 완료 후 표시됩니다"
+                      : "첫 분석을 진행하면 결과가 표시됩니다"}
                 </strong>
                 <p>
                   {isLoading
                     ? "대시보드 정보를 불러오는 중입니다."
-                    : hasLatestAnalysis
+                    : hasLatestAnalysisScore
                       ? latestAnalysis.summary ||
                         latestAnalysis.description ||
                         summary.latestSummary ||
                         "색소침착과 주름 중심의 분석 결과를 확인할 수 있습니다."
+                      : hasAnalysisHistory
+                        ? "분석이 완료되지 않았거나 저장되지 않은 결과는 실제 점수처럼 표시하지 않습니다."
                       : "사진 업로드 후 분석 결과와 추천 정보를 이어서 확인할 수 있습니다."}
                 </p>
               </div>
@@ -757,7 +999,7 @@ function DashboardPage() {
         </div>
 
         <div className="dashboard-quick-grid">
-          {quickActions.map((item) => {
+          {dashboardActions.map((item) => {
             const Icon = item.icon;
 
             return (
@@ -770,13 +1012,13 @@ function DashboardPage() {
                     <span className="dashboard-icon-tile" aria-hidden="true">
                       <Icon />
                     </span>
-                    <span className="dashboard-action-index">{item.step}</span>
+                    <span className="dashboard-action-index">{item.stepLabel || item.step}</span>
                   </div>
                   <h3>{item.title}</h3>
                   <p>{item.description}</p>
                 </div>
                 <Button to={item.to} variant={item.variant} size="sm">
-                  이동하기 <ArrowRight size={15} />
+                  {item.cta} <ArrowRight size={15} />
                 </Button>
               </Card>
             );

@@ -110,7 +110,7 @@ function buildMetricCards(analysisResult) {
           }
 
           return {
-            label: metric.name || metric.code || `지표 ${index + 1}`,
+            label: metric.name || metric.metricName || metric.metric_name || metric.code || `지표 ${index + 1}`,
             value: metricScore,
             status: metric.grade?.name || metric.gradeName || metric.grade_name || "분석 완료",
             color: getMetricColor(metric.code, index),
@@ -201,13 +201,13 @@ function AnalysisResultPage() {
       : emptyResultMessages.empty;
 
   const heroBadge = hasDisplayableMetrics
-    ? "Analysis Result"
+    ? "분석 결과"
     : isPending
       ? "AI 모델 연결 대기"
       : "분석 결과 없음";
 
   const summaryBadge = hasDisplayableMetrics
-    ? "결과 반영 완료"
+    ? "분석 결과 저장 완료"
     : isPending
       ? "저장 보류"
       : "점수 미표시";
@@ -255,6 +255,7 @@ function AnalysisResultPage() {
           .sf-result-page {
             display: grid;
             gap: 18px;
+            padding-top: 16px;
           }
 
           .sf-result-hero {
@@ -415,6 +416,8 @@ function AnalysisResultPage() {
             font-size: 27px;
             line-height: 1.16;
             letter-spacing: -0.055em;
+            word-break: keep-all;
+            overflow-wrap: normal;
           }
 
           .sf-result-score-grid {
@@ -569,6 +572,8 @@ function AnalysisResultPage() {
             color: #0f172a;
             font-size: 22px;
             letter-spacing: -0.05em;
+            word-break: keep-all;
+            overflow-wrap: normal;
           }
 
           .sf-result-next-grid {
@@ -660,15 +665,42 @@ function AnalysisResultPage() {
 
           @media (max-width: 760px) {
             .sf-result-page {
-              gap: 14px;
+              gap: 12px;
+              padding-top: 8px;
+              padding-bottom: 18px;
             }
 
             .sf-result-face-card,
             .sf-result-summary-card,
             .sf-result-next-card,
             .sf-result-notice-card {
-              border-radius: 24px;
-              padding: 18px;
+              border-radius: 22px;
+              padding: 16px;
+            }
+
+            .sf-result-face-card h1 {
+              margin-bottom: 12px;
+              font-size: 32px;
+              letter-spacing: -0.06em;
+            }
+
+            .sf-result-summary-top,
+            .sf-result-card-head {
+              flex-direction: column;
+              align-items: flex-start;
+              gap: 10px;
+            }
+
+            .sf-result-summary-top .sf-badge,
+            .sf-result-card-head .sf-badge {
+              max-width: 100%;
+              white-space: normal;
+              word-break: keep-all;
+            }
+
+            .sf-result-summary-top h2,
+            .sf-result-card-head h2 {
+              font-size: 22px;
             }
 
             .sf-result-score-grid,
@@ -678,7 +710,7 @@ function AnalysisResultPage() {
             }
 
             .sf-result-face-map {
-              min-height: 260px;
+              min-height: 230px;
             }
 
             .sf-result-comment {
@@ -782,6 +814,7 @@ function AnalysisResultPage() {
         </section>
 
         <section className="sf-result-lower-grid">
+          {hasDisplayableMetrics && (
           <div className="sf-result-next-card">
             <div className="sf-result-card-head">
               <div>
@@ -814,12 +847,13 @@ function AnalysisResultPage() {
               })}
             </div>
           </div>
+          )}
 
           <aside className="sf-result-notice-card">
             <div className="sf-result-card-head">
               <div>
-                <span className="sf-result-section-label">연동 상태</span>
-                <h2>{hasDisplayableMetrics ? "실제 결과 반영 완료" : isPending ? "AI 모델 연결 대기" : "실제 결과가 없습니다"}</h2>
+                <span className="sf-result-section-label">결과 저장 상태</span>
+                <h2>{hasDisplayableMetrics ? "분석 결과 저장 완료" : isPending ? "AI 모델 연결 대기" : "실제 결과가 없습니다"}</h2>
               </div>
               <ClipboardCheck size={26} />
             </div>

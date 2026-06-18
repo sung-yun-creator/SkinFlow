@@ -6,7 +6,6 @@ import {
   Camera,
   CheckCircle2,
   ImagePlus,
-  Lightbulb,
   Loader2,
   ScanFace,
   ShieldCheck,
@@ -68,7 +67,7 @@ function getProgressFromAnalysisResult(analysisResult) {
   return {
     status: "analysis_pending",
     label: "분석 결과 확인 필요",
-    description: "분석 결과 응답을 확인해야 합니다. 서버 응답 구조를 점검해주세요.",
+    description: "분석 결과를 바로 표시하지 못했습니다. 잠시 후 다시 시도해주세요.",
     progress: 70,
   };
 }
@@ -89,7 +88,7 @@ function getProgressFromRoiResult(roiResult) {
     return {
       status: "model_missing",
       label: "얼굴 영역 모델 확인 필요",
-      description: "AI 서버 모델 파일 확인이 필요합니다. 요청 흐름은 전달되었습니다.",
+      description: "얼굴 영역 분석 준비 상태를 확인하고 있습니다. 잠시 후 다시 시도해주세요.",
       progress: 20,
     };
   }
@@ -131,16 +130,20 @@ function createCapturedImageFile(blob) {
 
 const uploadGuideItems = [
   {
-    title: "정면 얼굴",
-    description: "얼굴이 중앙에 오고 이마와 양볼이 잘 보이는 사진을 권장합니다.",
+    title: "정면 얼굴이 보이도록 촬영",
+    description: "얼굴이 중앙에 오고 이마와 양볼이 함께 보이도록 맞춰주세요.",
   },
   {
-    title: "밝은 조명",
-    description: "강한 역광이나 너무 어두운 환경은 피해주세요.",
+    title: "밝은 환경에서 촬영",
+    description: "너무 어둡거나 강한 역광이 있는 환경은 피해주세요.",
   },
   {
-    title: "가림 요소 제거",
-    description: "마스크, 손, 머리카락 등 얼굴을 가리는 요소를 줄여주세요.",
+    title: "얼굴 가림 요소 줄이기",
+    description: "머리카락, 마스크, 손이 얼굴을 가리지 않도록 정리해 주세요.",
+  },
+  {
+    title: "그림자 줄이기",
+    description: "한쪽 얼굴만 어둡게 보이면 밝은 방향으로 위치를 조정해 주세요.",
   },
 ];
 
@@ -169,6 +172,27 @@ function getFileSizeLabel(file) {
   }
 
   return `${Math.max(1, Math.round(file.size / 1024))}KB`;
+}
+
+function getAnalysisRequestErrorMessage(error) {
+  const rawMessage = String(error?.message || "");
+  const lowerMessage = rawMessage.toLowerCase();
+
+  if (
+    !rawMessage ||
+    rawMessage === "Failed to fetch" ||
+    lowerMessage.includes("networkerror") ||
+    lowerMessage.includes("err_connection") ||
+    lowerMessage.includes("internal server error")
+  ) {
+    return "일시적으로 분석 요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+  }
+
+  if (rawMessage.length > 90) {
+    return "분석 요청을 처리하지 못했습니다. 이미지를 다시 선택한 뒤 분석을 요청해 주세요.";
+  }
+
+  return rawMessage;
 }
 
 function AnalysisCapturePage() {
@@ -209,6 +233,21 @@ function AnalysisCapturePage() {
 
   const selectedMethodLabel = selectedMethod === "webcam" ? "웹캠 촬영" : "이미지 업로드";
   const fileSizeLabel = getFileSizeLabel(selectedFile);
+  const canStartAnalysis = Boolean(selectedFile) && !isSubmitting;
+  const startButtonLabel = !isLoggedIn
+    ? "로그인 후 분석하기"
+    : isSubmitting
+      ? "분석 요청 중"
+      : selectedFile
+        ? "이미지로 분석 시작"
+        : selectedMethod === "webcam"
+          ? "촬영 후 분석 시작"
+          : "이미지 선택 후 분석 시작";
+  const startHelpText = selectedFile
+    ? "이미지가 준비되었습니다. 분석을 시작하면 결과 화면으로 이동합니다."
+    : selectedMethod === "webcam"
+      ? "웹캠을 켜고 얼굴 이미지를 촬영하면 분석 시작 버튼이 활성화됩니다."
+      : "JPG 또는 PNG 이미지를 선택하면 분석 시작 버튼이 활성화됩니다.";
 
   const resetSelectedImage = () => {
     setSelectedFile(null);
@@ -249,14 +288,14 @@ function AnalysisCapturePage() {
     if (!file) {
       setSelectedFile(null);
       setSelectedFileName("");
-      setUploadError("분석에 사용할 이미지 파일을 선택해주세요.");
+      setUploadError("이미지를 다시 선택한 뒤 분석을 요청해 주세요.");
       return;
     }
 
     if (!allowedImageTypes.includes(file.type)) {
       setSelectedFile(null);
       setSelectedFileName("");
-      setUploadError("JPG 또는 PNG 형식의 이미지만 업로드할 수 있습니다.");
+      setUploadError("JPG 또는 PNG 형식의 얼굴 이미지를 선택해 주세요.");
       event.target.value = "";
       return;
     }
@@ -374,7 +413,7 @@ function AnalysisCapturePage() {
         videoRef.current.srcObject = null;
       }
     } catch (error) {
-      setUploadError(error.message || "웹캠 촬영 이미지를 처리하지 못했습니다.");
+      setUploadError(error.message || "촬영 이미지를 처리하지 못했습니다. 다시 촬영해 주세요.");
     }
   };
 
@@ -389,8 +428,8 @@ function AnalysisCapturePage() {
     if (!selectedFile) {
       setUploadError(
         selectedMethod === "webcam"
-          ? "웹캠을 켜고 얼굴 이미지를 촬영해주세요."
-          : "이미지 파일을 먼저 선택해주세요.",
+          ? "웹캠을 켜고 얼굴 이미지를 촬영한 뒤 분석을 요청해 주세요."
+          : "이미지를 다시 선택한 뒤 분석을 요청해 주세요.",
       );
       return;
     }
@@ -442,25 +481,14 @@ function AnalysisCapturePage() {
         },
       });
     } catch (error) {
-      const rawMessage = error.message || "";
-      const fallbackMessage =
-        "이미지 분석 요청을 처리하지 못했습니다. 백엔드 서버와 AI 서버 실행 상태를 확인한 뒤 다시 시도해주세요.";
-
-      const message =
-        rawMessage === "Failed to fetch" ||
-        rawMessage.includes("NetworkError") ||
-        rawMessage.includes("ERR_CONNECTION")
-          ? fallbackMessage
-          : rawMessage || fallbackMessage;
-
       saveAnalysisProgress({
         status: "failed",
         label: "분석 요청 확인 필요",
-        description: "분석 요청 처리 중 문제가 발생했습니다. 서버 실행 상태를 확인해주세요.",
+        description: "분석 요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
         progress: 0,
       });
 
-      setUploadError(message);
+      setUploadError(getAnalysisRequestErrorMessage(error));
     } finally {
       setIsSubmitting(false);
     }
@@ -473,13 +501,14 @@ function AnalysisCapturePage() {
           .sf-capture-page {
             display: grid;
             gap: 16px;
+            padding-top: 8px;
           }
 
           .sf-capture-hero {
             display: grid;
-            grid-template-columns: minmax(0, 0.86fr) minmax(420px, 1.14fr);
+            grid-template-columns: minmax(0, 0.92fr) minmax(440px, 1.08fr);
             gap: 18px;
-            align-items: stretch;
+            align-items: start;
           }
 
           .sf-capture-hero.is-webcam-mode {
@@ -563,9 +592,19 @@ function AnalysisCapturePage() {
           .sf-capture-intro h1 {
             margin: 16px 0 12px;
             color: #0f172a;
-            font-size: clamp(32px, 4.2vw, 48px);
+            font-size: clamp(32px, 3.6vw, 44px);
             line-height: 1.08;
             letter-spacing: -0.07em;
+            word-break: keep-all;
+          }
+
+          .sf-capture-title-line {
+            display: block;
+            white-space: nowrap;
+          }
+
+          .sf-capture-intro h1 .sf-gradient-text {
+            white-space: nowrap;
           }
 
           .sf-capture-intro p {
@@ -585,6 +624,7 @@ function AnalysisCapturePage() {
           }
 
           .sf-method-card {
+            position: relative;
             display: grid;
             grid-template-columns: 48px 1fr;
             gap: 13px;
@@ -597,6 +637,15 @@ function AnalysisCapturePage() {
             cursor: pointer;
             transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
             text-align: left;
+          }
+
+          .sf-method-card.is-recommended-method {
+            border-color: rgba(22, 125, 127, 0.24);
+            background: linear-gradient(135deg, #ffffff 0%, #f0fdfa 100%);
+          }
+
+          .sf-method-card.is-support-method {
+            background: #f8fafc;
           }
 
           .sf-method-card:hover,
@@ -616,6 +665,29 @@ function AnalysisCapturePage() {
             color: #0f172a;
             font-size: 14px;
             letter-spacing: -0.035em;
+          }
+
+          .sf-method-badge {
+            display: inline-flex;
+            align-items: center;
+            width: fit-content;
+            margin-top: 6px;
+            padding: 4px 7px;
+            border-radius: 999px;
+            font-size: 10.5px;
+            font-weight: 950;
+            line-height: 1;
+            white-space: nowrap;
+          }
+
+          .sf-method-badge.is-recommended {
+            color: #167d7f;
+            background: rgba(22, 125, 127, 0.1);
+          }
+
+          .sf-method-badge.is-support {
+            color: #64748b;
+            background: #e2e8f0;
           }
 
           .sf-method-copy small {
@@ -675,7 +747,9 @@ function AnalysisCapturePage() {
           }
 
           .sf-capture-upload-card {
-            padding: 24px;
+            padding: 26px;
+            display: flex;
+            flex-direction: column;
           }
 
           .sf-upload-top {
@@ -723,11 +797,16 @@ function AnalysisCapturePage() {
             background: rgba(20, 184, 166, 0.1);
           }
 
+          .sf-status-pill.is-recommended {
+            color: #167d7f;
+            background: rgba(22, 125, 127, 0.1);
+          }
+
           .sf-upload-zone {
             position: relative;
             display: grid;
             place-items: center;
-            min-height: 220px;
+            min-height: 240px;
             overflow: hidden;
             border-radius: 28px;
             border: 1px dashed rgba(22, 125, 127, 0.35);
@@ -790,12 +869,12 @@ function AnalysisCapturePage() {
           .sf-upload-preview {
             position: relative;
             width: 100%;
-            min-height: 220px;
+            min-height: 240px;
           }
 
           .sf-upload-preview img {
             width: 100%;
-            height: 220px;
+            height: 240px;
             object-fit: cover;
             display: block;
           }
@@ -811,7 +890,7 @@ function AnalysisCapturePage() {
           .sf-webcam-panel {
             position: relative;
             width: 100%;
-            min-height: 220px;
+            min-height: 240px;
             overflow: hidden;
             border-radius: 28px;
             background: #0f172a;
@@ -827,7 +906,7 @@ function AnalysisCapturePage() {
 
           .sf-webcam-panel video {
             width: 100%;
-            height: 220px;
+            height: 240px;
             object-fit: cover;
             display: block;
             opacity: 0;
@@ -982,6 +1061,8 @@ function AnalysisCapturePage() {
             grid-template-columns: 1fr;
             gap: 10px;
             align-items: center;
+            margin-top: 4px;
+            padding-top: 4px;
           }
 
           .sf-upload-actions .sf-button {
@@ -989,9 +1070,24 @@ function AnalysisCapturePage() {
             align-items: center !important;
             justify-content: center !important;
             height: 54px;
-            min-height: 54px;
+            min-height: 58px;
             padding: 0 24px 2px;
             line-height: 1;
+            box-shadow: 0 18px 38px rgba(22, 125, 127, 0.2);
+          }
+
+          .sf-upload-actions .sf-button:disabled {
+            box-shadow: none;
+          }
+
+          .sf-start-help {
+            margin: 0;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 800;
+            line-height: 1.55;
+            text-align: center;
+            word-break: keep-all;
           }
 
           .sf-upload-actions .sf-button .sf-action-label {
@@ -1012,9 +1108,27 @@ function AnalysisCapturePage() {
 
           .sf-capture-bottom {
             display: grid;
-            grid-template-columns: minmax(0, 0.9fr) minmax(420px, 1.1fr);
-            gap: 16px;
+            grid-template-columns: minmax(0, 0.72fr) minmax(420px, 1.28fr);
+            gap: 14px;
             align-items: stretch !important;
+          }
+
+          .sf-capture-guide-card {
+            box-shadow: none;
+            background:
+              radial-gradient(circle at 100% 0%, rgba(22, 125, 127, 0.05), transparent 34%),
+              #f8fafc;
+            border: 1px solid rgba(203, 213, 225, 0.9);
+          }
+
+          .sf-capture-guide-card .sf-card-label {
+            color: #64748b;
+          }
+
+          .sf-capture-guide-card .sf-badge {
+            color: #475569;
+            background: #e2e8f0;
+            border-color: #cbd5e1;
           }
 
           .sf-capture-flow-card,
@@ -1022,7 +1136,7 @@ function AnalysisCapturePage() {
             display: flex;
             flex-direction: column;
             min-height: 100%;
-            padding: 18px;
+            padding: 16px;
             align-self: stretch !important;
           }
 
@@ -1114,47 +1228,46 @@ function AnalysisCapturePage() {
 
           .sf-guide-list {
             display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 8px;
             flex: 1;
           }
 
           .sf-guide-row {
             display: grid;
-            grid-template-columns: 42px 1fr;
-            gap: 12px;
+            grid-template-columns: 30px 1fr;
+            gap: 10px;
             align-items: center;
-            min-height: 66px;
-            padding: 11px 12px;
-            border-radius: 18px;
-            border: 1px solid rgba(22, 125, 127, 0.14);
-            background:
-              radial-gradient(circle at 96% 18%, rgba(34, 197, 200, 0.08), transparent 34%),
-              linear-gradient(135deg, #ffffff 0%, #f8fafc 58%, #f0fdfa 100%);
+            min-height: 58px;
+            padding: 9px 10px;
+            border-radius: 14px;
+            border: 1px solid rgba(226, 232, 240, 0.95);
+            background: rgba(255, 255, 255, 0.72);
           }
 
           .sf-guide-row > .sf-icon-tile {
-            width: 42px;
-            height: 42px;
-            min-width: 42px;
-            min-height: 42px;
+            width: 30px;
+            height: 30px;
+            min-width: 30px;
+            min-height: 30px;
             margin: 0;
             align-self: center;
             justify-self: center;
-            border-radius: 15px;
+            border-radius: 999px;
             display: grid !important;
             place-items: center !important;
             line-height: 0 !important;
             color: #167d7f;
-            background: linear-gradient(135deg, #f2fbfb 0%, #ffffff 52%, #ecfeff 100%);
-            border: 1px solid rgba(226, 232, 240, 0.9);
+            background: rgba(22, 125, 127, 0.08);
+            border: 1px solid rgba(22, 125, 127, 0.12);
           }
 
           .sf-guide-row > .sf-icon-tile svg {
             display: block;
-            width: 18px !important;
-            height: 18px !important;
-            min-width: 18px;
-            min-height: 18px;
+            width: 15px !important;
+            height: 15px !important;
+            min-width: 15px;
+            min-height: 15px;
             margin: 0;
             transform: none;
             stroke-width: 2.15;
@@ -1212,9 +1325,14 @@ function AnalysisCapturePage() {
               font-size: 34px;
             }
 
+            .sf-capture-title-line {
+              white-space: normal;
+            }
+
             .sf-capture-methods,
             .sf-upload-meta,
-            .sf-flow-grid {
+            .sf-flow-grid,
+            .sf-guide-list {
               grid-template-columns: 1fr;
             }
 
@@ -1223,8 +1341,8 @@ function AnalysisCapturePage() {
             .sf-upload-preview img,
             .sf-webcam-panel,
             .sf-webcam-panel video {
-              min-height: 210px;
-              height: 210px;
+              min-height: 220px;
+              height: 220px;
             }
 
             .sf-capture-hero.is-webcam-mode .sf-webcam-panel,
@@ -1255,20 +1373,19 @@ function AnalysisCapturePage() {
               <Badge>피부 분석 준비</Badge>
 
               <h1>
-                사진 업로드와 웹캠으로
-                <br />
-                <span className="sf-gradient-text">피부 분석을 시작하세요</span>
+                <span className="sf-capture-title-line">사진 업로드와 웹캠으로</span>
+                <span className="sf-capture-title-line sf-gradient-text">피부 분석을 시작하세요</span>
               </h1>
 
               <p>
-                스마트폰 이미지 업로드와 웹캠 촬영을 같은 분석 흐름으로 연결합니다.
-                얼굴 영역 확인 후 색소침착과 주름 중심의 결과 화면으로 이어집니다.
+                얼굴 이미지를 업로드하거나 웹캠으로 촬영해 색소침착·주름 지표를 분석합니다.
+                분석 결과는 피부 관리 참고 정보와 추천 화면에 활용됩니다.
               </p>
 
               <div className="sf-capture-methods" aria-label="입력 방식 선택">
                 <button
                   type="button"
-                  className={`sf-method-card ${selectedMethod === "upload" ? "is-active" : ""}`}
+                  className={`sf-method-card is-recommended-method ${selectedMethod === "upload" ? "is-active" : ""}`}
                   onClick={handleSelectUpload}
                   disabled={isSubmitting}
                 >
@@ -1277,13 +1394,14 @@ function AnalysisCapturePage() {
                   </span>
                   <div className="sf-method-copy">
                     <strong>이미지 업로드</strong>
+                    <span className="sf-method-badge is-recommended">기본 권장</span>
                     <small>권장 방식 · 스마트폰 사진 사용</small>
                   </div>
                 </button>
 
                 <button
                   type="button"
-                  className={`sf-method-card ${selectedMethod === "webcam" ? "is-active" : ""}`}
+                  className={`sf-method-card is-support-method ${selectedMethod === "webcam" ? "is-active" : ""}`}
                   onClick={handleSelectWebcam}
                   disabled={isSubmitting}
                 >
@@ -1292,6 +1410,7 @@ function AnalysisCapturePage() {
                   </span>
                   <div className="sf-method-copy">
                     <strong>웹캠 촬영</strong>
+                    <span className="sf-method-badge is-support">보조 방식</span>
                     <small>보조 방식 · 기기 환경 확인 필요</small>
                   </div>
                 </button>
@@ -1304,7 +1423,7 @@ function AnalysisCapturePage() {
                 </div>
                 <div className="sf-note-row">
                   <ShieldCheck size={17} />
-                  <span>분석 결과는 피부 관리 참고 정보이며 의료적 판단 목적이 아닙니다.</span>
+                  <span>결과는 피부 관리 참고 정보이며 추천 화면과 함께 확인할 수 있습니다.</span>
                 </div>
               </div>
             </div>
@@ -1313,11 +1432,13 @@ function AnalysisCapturePage() {
           <Card className="sf-capture-upload-card">
             <div className="sf-upload-top">
               <div>
-                <span className="sf-card-label">선택한 입력 방식</span>
+                <span className="sf-card-label">
+                  {selectedMethod === "webcam" ? "보조 입력 방식" : "권장 입력 방식"}
+                </span>
                 <h2>{selectedMethodLabel}</h2>
               </div>
 
-              <span className={`sf-status-pill ${isLoggedIn ? "" : "is-locked"}`}>
+              <span className={`sf-status-pill ${isLoggedIn ? "is-recommended" : "is-locked"}`}>
                 {isLoggedIn ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
                 {isLoggedIn ? "분석 가능" : "로그인 필요"}
               </span>
@@ -1445,20 +1566,20 @@ function AnalysisCapturePage() {
             )}
 
             <div className="sf-upload-actions">
-              <Button full onClick={handleStartAnalysis} disabled={isSubmitting}>
+              <Button full onClick={handleStartAnalysis} disabled={!canStartAnalysis}>
                 {isSubmitting ? (
                   <>
-                    <span className="sf-action-label">얼굴 영역 확인 중</span>
+                    <span className="sf-action-label">{startButtonLabel}</span>
                     <Loader2 size={18} />
                   </>
                 ) : (
                   <>
-                    <span className="sf-action-label">{isLoggedIn ? "분석 시작" : "로그인 후 분석하기"}</span>
+                    <span className="sf-action-label">{startButtonLabel}</span>
                     <ArrowRight size={18} />
                   </>
                 )}
               </Button>
-
+              <p className="sf-start-help">{startHelpText}</p>
             </div>
           </Card>
         </section>
@@ -1468,9 +1589,9 @@ function AnalysisCapturePage() {
             <div className="sf-bottom-title-row">
               <div>
                 <span className="sf-card-label">분석 흐름</span>
-                <h2>3단계로 진행됩니다</h2>
+                <h2>입력 후 진행 흐름</h2>
               </div>
-              <Badge>짧은 흐름</Badge>
+              <Badge>진행 순서</Badge>
             </div>
 
             <div className="sf-flow-grid">
@@ -1496,10 +1617,10 @@ function AnalysisCapturePage() {
           <Card className="sf-capture-guide-card">
             <div className="sf-bottom-title-row">
               <div>
-                <span className="sf-card-label">분석 전 확인</span>
-                <h2>사진 품질 체크</h2>
+                <span className="sf-card-label">촬영 전 확인사항</span>
+                <h2>분석 전 체크</h2>
               </div>
-              <Badge>권장</Badge>
+              <Badge>확인</Badge>
             </div>
 
             <div className="sf-guide-list">
@@ -1514,16 +1635,6 @@ function AnalysisCapturePage() {
                   </div>
                 </div>
               ))}
-
-              <div className="sf-guide-row">
-                <span className="sf-icon-tile" aria-hidden="true">
-                  <Lightbulb size={18} />
-                </span>
-                <div>
-                  <strong>결과 활용 안내</strong>
-                  <span>이미지 품질과 조명에 따라 분석 결과가 달라질 수 있습니다.</span>
-                </div>
-              </div>
             </div>
           </Card>
         </section>
