@@ -1,4 +1,9 @@
 const { verifyToken } = require('../utils/token');
+const {
+    clearSessionActivity,
+    isSessionIdleExpired,
+    touchSessionActivity,
+} = require('../services/authSessionService');
 
 function authenticate(req, res, next) {
     // 프론트는 보호 API를 호출할 때 Authorization: Bearer <token> 형식으로 보내야 합니다.
@@ -11,7 +16,18 @@ function authenticate(req, res, next) {
 
     try {
         // 검증된 사용자 정보는 이후 controller/service에서 req.user로 사용합니다.
-        req.user = verifyToken(token);
+        const user = verifyToken(token);
+
+        if (isSessionIdleExpired(user)) {
+            clearSessionActivity(user);
+            return res.status(401).json({
+                code: 'AUTH_IDLE_TIMEOUT',
+                message: 'Login session expired. Please log in again.',
+            });
+        }
+
+        touchSessionActivity(user);
+        req.user = user;
         return next();
     } catch (error) {
         return res.status(401).json({ message: '유효하지 않거나 만료된 토큰입니다.' });
