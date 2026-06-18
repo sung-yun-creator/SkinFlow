@@ -2,7 +2,6 @@
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   ChevronDown,
-  Clock3,
   LogIn,
   LogOut,
   Settings,
@@ -668,13 +667,6 @@ function Header() {
                       <UserRound />
                     </span>
                     <span>마이페이지</span>
-                  </Link>
-
-                  <Link className="sf-profile-item" to="/history" role="menuitem" onClick={closeProfileMenu}>
-                    <span className="sf-profile-item-icon" aria-hidden="true">
-                      <Clock3 />
-                    </span>
-                    <span>분석 이력</span>
                   </Link>
 
                   <Link
