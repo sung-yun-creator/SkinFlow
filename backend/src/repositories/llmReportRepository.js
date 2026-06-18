@@ -53,13 +53,13 @@ async function findCareGuidesByAnalysisId(userId, analysisId) {
         `
             SELECT
                 cg.care_guide_id,
-                cg.skin_grade_id,
+                cg.skin_condition_grade_id,
                 cg.guide_title,
                 cg.guide_content,
                 cg.created_at
             FROM t_care_guide cg
             INNER JOIN t_skin_analysis sa
-                ON sa.skin_grade_id = cg.skin_grade_id
+                ON sa.skin_grade_id = cg.skin_condition_grade_id
             WHERE sa.user_id = ?
                 AND sa.skin_analysis_id = ?
             ORDER BY cg.care_guide_id ASC
