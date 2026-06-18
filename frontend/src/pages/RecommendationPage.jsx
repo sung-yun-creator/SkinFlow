@@ -189,7 +189,7 @@ function RecommendationPage() {
     pore: 20,
     wrinkle: 10,
   };
-  const allowedKeywords = [
+ const allowedKeywords = [
   "피부",
   "스킨케어",
   "화장품",
@@ -204,6 +204,20 @@ function RecommendationPage() {
   "운동",
   "선크림",
   "자외선",
+
+  "레티놀",
+  "비타민c",
+  "비타민",
+  "세라마이드",
+  "나이아신아마이드",
+  "클렌징",
+  "세안",
+  "장벽",
+  "피부장벽",
+  "잡티",
+  "기미",
+  "탄력",
+  "노화",
 ];
 
 const isSkinRelatedQuestion = (text) => {
