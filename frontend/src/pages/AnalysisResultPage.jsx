@@ -783,6 +783,7 @@ function AnalysisResultPage() {
         </section>
 
         <section className="sf-result-lower-grid">
+          {hasDisplayableMetrics && (
           <div className="sf-result-next-card">
             <div className="sf-result-card-head">
               <div>
@@ -815,6 +816,7 @@ function AnalysisResultPage() {
               })}
             </div>
           </div>
+          )}
 
           <aside className="sf-result-notice-card">
             <div className="sf-result-card-head">

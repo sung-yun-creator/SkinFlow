@@ -99,7 +99,17 @@ function getAnalysisStatus(analysisResult) {
     };
   }
 
-  if (analysisResult.saved) {
+  const status =
+    analysisResult.analysisStatus ??
+    analysisResult.analysis_status ??
+    analysisResult.latestStatus ??
+    analysisResult.latest_status ??
+    analysisResult.status;
+  const normalizedStatus = String(status || "").toLowerCase();
+  const normalizedCode = String(analysisResult.code || "").toLowerCase();
+  const pendingStates = ["ai_model_pending", "pending", "processing"];
+
+  if (analysisResult.saved === true && normalizedStatus === "completed") {
     return {
       isCompleted: true,
       isPending: false,
@@ -110,7 +120,11 @@ function getAnalysisStatus(analysisResult) {
     };
   }
 
-  if (analysisResult.code === "AI_MODEL_PENDING" || analysisResult.status === "pending") {
+  if (
+    analysisResult.saved === false ||
+    pendingStates.includes(normalizedStatus) ||
+    pendingStates.includes(normalizedCode)
+  ) {
     return {
       isCompleted: false,
       isPending: true,
@@ -652,9 +666,15 @@ function AnalysisLoadingPage() {
                 다른 이미지로 다시 분석 <RefreshCw size={18} />
               </Button>
             )}
-            <Button to="/history" variant="secondary" size="lg">
-              분석 이력 확인
-            </Button>
+            {analysisStatus.isCompleted ? (
+              <Button to="/history" variant="secondary" size="lg">
+                분석 이력 확인
+              </Button>
+            ) : (
+              <Button to="/dashboard" variant="secondary" size="lg">
+                대시보드로 이동
+              </Button>
+            )}
           </div>
         </Card>
 
