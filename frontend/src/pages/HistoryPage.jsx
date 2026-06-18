@@ -227,12 +227,42 @@ function getRecordDate(record) {
   return record?.analyzedAt || record?.analyzed_at || record?.createdAt || record?.created_at;
 }
 
+function getRecordTime(record) {
+  const dateValue = getRecordDate(record);
+
+  if (!dateValue) return null;
+
+  const time = new Date(dateValue).getTime();
+
+  return Number.isNaN(time) ? null : time;
+}
+
 function getRecordStatus(record) {
   return record?.analysisStatus || record?.analysis_status || record?.status;
 }
 
 function getRecordScore(record) {
   return record?.totalScore ?? record?.total_score ?? record?.totalSkinScore ?? record?.total_skin_score;
+}
+
+function filterHistoryRecords(records, keyword) {
+  const normalizedKeyword = keyword.trim().toLowerCase();
+
+  if (!normalizedKeyword) return records;
+
+  return records.filter((record) => {
+    const date = formatDate(getRecordDate(record), "").toLowerCase();
+    const summaryText = String(record.summary || "").toLowerCase();
+    const statusText = String(getRecordStatus(record) || "").toLowerCase();
+    const statusLabel = String(getStatusLabel(getRecordStatus(record)) || "").toLowerCase();
+
+    return (
+      date.includes(normalizedKeyword) ||
+      summaryText.includes(normalizedKeyword) ||
+      statusText.includes(normalizedKeyword) ||
+      statusLabel.includes(normalizedKeyword)
+    );
+  });
 }
 
 function HistoryPage() {
@@ -297,28 +327,46 @@ function HistoryPage() {
   });
   const hasRecords = records.length > 0;
   const canShowScoreDiff = hasLatestScore && summary.scoreDiff !== null && summary.scoreDiff !== undefined && summary.scoreDiff !== "";
+  const trimmedSearchText = searchText.trim();
 
-  const filteredRecords = useMemo(() => {
-    const keyword = searchText.trim().toLowerCase();
-
-    if (!keyword) return records;
-
-    return records.filter((record) => {
-      const date = formatDate(getRecordDate(record), "").toLowerCase();
-      const summaryText = String(record.summary || "").toLowerCase();
-      const statusText = String(record.status || "").toLowerCase();
-
-      return (
-        date.includes(keyword) ||
-        summaryText.includes(keyword) ||
-        statusText.includes(keyword)
-      );
-    });
-  }, [records, searchText]);
+  const filteredRecords = useMemo(
+    () => filterHistoryRecords(records, trimmedSearchText),
+    [records, trimmedSearchText]
+  );
   const displayedRecords = filteredRecords;
+  const hasSearchKeyword = trimmedSearchText !== "";
+  const hasSearchResults = filteredRecords.length > 0;
+  const selectedDetailId = getRecordId(selectedDetail);
+  const isSelectedDetailVisible =
+    Boolean(selectedDetail) &&
+    filteredRecords.some((record) => getRecordId(record) === selectedDetailId);
+  const visibleSelectedDetail = isSelectedDetailVisible ? selectedDetail : null;
 
   const trendItems = useMemo(() => {
-    const source = records.slice(-4);
+    const withOrder = records.map((record, index) => ({
+      record,
+      index,
+      time: getRecordTime(record),
+    }));
+    const hasDatedRecords = withOrder.some((item) => item.time !== null);
+    const source = hasDatedRecords
+      ? withOrder
+        .slice()
+        .sort((a, b) => {
+          if (a.time !== null && b.time !== null) return b.time - a.time;
+          if (a.time !== null) return -1;
+          if (b.time !== null) return 1;
+          return b.index - a.index;
+        })
+        .slice(0, 4)
+        .sort((a, b) => {
+          if (a.time !== null && b.time !== null) return a.time - b.time;
+          if (a.time !== null) return -1;
+          if (b.time !== null) return 1;
+          return a.index - b.index;
+        })
+        .map((item) => item.record)
+      : records.slice(-4);
 
     return source.map((record, index) => {
       const recordScore = getRecordScore(record);
@@ -340,14 +388,14 @@ function HistoryPage() {
     ...trendItems.filter((item) => item.hasScore).map((item) => item.score),
     100
   );
-  const selectedDetailStatus = getRecordStatus(selectedDetail);
-  const selectedDetailScore = getRecordScore(selectedDetail);
+  const selectedDetailStatus = getRecordStatus(visibleSelectedDetail);
+  const selectedDetailScore = getRecordScore(visibleSelectedDetail);
   const canShowSelectedDetailScore =
-    Boolean(selectedDetail) &&
+    Boolean(visibleSelectedDetail) &&
     shouldShowAnalysisScore({
       score: selectedDetailScore,
       status: selectedDetailStatus,
-      saved: selectedDetail?.saved,
+      saved: visibleSelectedDetail?.saved,
     });
   const llmReportBody = llmReport?.report || {};
   const safeLlmDisclaimer = getSafeLlmDisclaimer(llmReportBody.disclaimer);
@@ -472,12 +520,32 @@ function HistoryPage() {
     return [...new Set(items)].slice(0, 4);
   }
 
-  function handleCloseDetail() {
+  function clearSelectedDetailState() {
     setSelectedDetail(null);
     setDetailError("");
     setLlmReport(null);
     setLlmReportError("");
     setIsLlmReportLoading(false);
+  }
+
+  function handleSearchTextChange(nextSearchText) {
+    setSearchText(nextSearchText);
+
+    if (!selectedDetail) return;
+
+    const nextFilteredRecords = filterHistoryRecords(records, nextSearchText);
+    const nextSelectedDetailId = getRecordId(selectedDetail);
+    const isSelectedVisible = nextFilteredRecords.some(
+      (record) => getRecordId(record) === nextSelectedDetailId
+    );
+
+    if (!isSelectedVisible) {
+      clearSelectedDetailState();
+    }
+  }
+
+  function handleCloseDetail() {
+    clearSelectedDetailState();
   }
 
 
@@ -2042,14 +2110,14 @@ function HistoryPage() {
                 <input
                   type="text"
                   value={searchText}
-                  onChange={(event) => setSearchText(event.target.value)}
+                  onChange={(event) => handleSearchTextChange(event.target.value)}
                   placeholder="날짜 또는 키워드 검색"
                 />
               </label>
             </div>
 
-            <div className={`sf-record-list${filteredRecords.length > 4 ? " is-expanded" : ""}`}>
-              {filteredRecords.length > 0 ? (
+            <div className={`sf-record-list${displayedRecords.length > 4 ? " is-expanded" : ""}`}>
+              {hasSearchResults ? (
                 displayedRecords.map((record, index) => {
                   const recordId = getRecordId(record);
                   const recordScore = getRecordScore(record);
@@ -2093,6 +2161,14 @@ function HistoryPage() {
                     </div>
                   );
                 })
+              ) : hasSearchKeyword ? (
+                <div className="sf-empty-card">
+                  <span className="sf-icon-tile" aria-hidden="true">
+                    <Search size={21} />
+                  </span>
+                  <strong>검색 조건에 맞는 분석 이력이 없습니다</strong>
+                  <p>검색어를 줄이거나 날짜/상태 정보를 다시 확인해 주세요.</p>
+                </div>
               ) : (
                 <div className="sf-empty-card">
                   <span className="sf-icon-tile" aria-hidden="true">
@@ -2113,12 +2189,12 @@ function HistoryPage() {
           </Card>
         </section>
 
-        {selectedDetail && (
+        {visibleSelectedDetail && (
           <section className="sf-history-detail-section">
                 <div className="sf-detail-card">
                   <div className="sf-card-title-row">
                     <div>
-                      <small>{formatDate(getRecordDate(selectedDetail))}</small>
+                      <small>{formatDate(getRecordDate(visibleSelectedDetail))}</small>
                       <h2>상세 분석 정보</h2>
                     </div>
                     <div className="sf-detail-header-actions">
@@ -2139,7 +2215,7 @@ function HistoryPage() {
                       <span>종합 점수</span>
                       <strong>
                         {canShowSelectedDetailScore
-                          ? formatScore(getRecordScore(selectedDetail), "점수 없음")
+                          ? formatScore(getRecordScore(visibleSelectedDetail), "점수 없음")
                           : "점수 없음"}
                       </strong>
                     </div>
@@ -2147,7 +2223,7 @@ function HistoryPage() {
                       <span>색소침착</span>
                       <strong>
                         {canShowSelectedDetailScore
-                          ? getMetricScore(selectedDetail.metrics, "색소")
+                          ? getMetricScore(visibleSelectedDetail.metrics, "색소")
                           : "점수 없음"}
                       </strong>
                     </div>
@@ -2155,7 +2231,7 @@ function HistoryPage() {
                       <span>주름</span>
                       <strong>
                         {canShowSelectedDetailScore
-                          ? getMetricScore(selectedDetail.metrics, "주름")
+                          ? getMetricScore(visibleSelectedDetail.metrics, "주름")
                           : "점수 없음"}
                       </strong>
                     </div>
@@ -2167,7 +2243,7 @@ function HistoryPage() {
                       <strong>분석 결과 기반으로 확인할 항목</strong>
                     </div>
                     <div className="sf-detail-insight-list">
-                      {getHistoryDetailInsightItems(selectedDetail).map((item) => (
+                      {getHistoryDetailInsightItems(visibleSelectedDetail).map((item) => (
                         <div className="sf-detail-insight-item" key={item.title}>
                           <span>{item.title}</span>
                           <p>{item.text}</p>
@@ -2181,9 +2257,9 @@ function HistoryPage() {
                       <span>연결된 추천</span>
                       <strong>추천 화면에서 이어서 확인할 수 있어요</strong>
                     </div>
-                    <p>{selectedDetail.statusDescription || selectedDetail.summary || "상세 분석 설명이 없습니다."}</p>
+                    <p>{visibleSelectedDetail.statusDescription || visibleSelectedDetail.summary || "상세 분석 설명이 없습니다."}</p>
                     <div className="sf-detail-recommend-chips">
-                      {getHistoryDetailRecommendationItems(selectedDetail.recommendations).map((item) => (
+                      {getHistoryDetailRecommendationItems(visibleSelectedDetail.recommendations).map((item) => (
                         <span key={item}>{item}</span>
                       ))}
                     </div>
