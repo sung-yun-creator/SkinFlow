@@ -130,20 +130,20 @@ function createCapturedImageFile(blob) {
 
 const uploadGuideItems = [
   {
-    title: "정면 얼굴이 잘 보이는 사진",
+    title: "정면 얼굴이 보이도록 촬영",
     description: "얼굴이 중앙에 오고 이마와 양볼이 함께 보이도록 맞춰주세요.",
   },
   {
-    title: "밝은 환경",
-    description: "강한 역광이나 너무 어두운 조명은 피해주세요.",
+    title: "밝은 환경에서 촬영",
+    description: "너무 어둡거나 강한 역광이 있는 환경은 피해주세요.",
   },
   {
-    title: "앞머리·마스크 줄이기",
-    description: "이마와 볼을 가리는 앞머리, 마스크, 손은 잠시 치워주세요.",
+    title: "얼굴 가림 요소 줄이기",
+    description: "머리카락, 마스크, 손이 얼굴을 가리지 않도록 정리해 주세요.",
   },
   {
-    title: "얼굴 그림자 줄이기",
-    description: "한쪽 얼굴만 어둡게 보이면 밝은 방향으로 위치를 조정해주세요.",
+    title: "그림자 줄이기",
+    description: "한쪽 얼굴만 어둡게 보이면 밝은 방향으로 위치를 조정해 주세요.",
   },
 ];
 
@@ -172,6 +172,27 @@ function getFileSizeLabel(file) {
   }
 
   return `${Math.max(1, Math.round(file.size / 1024))}KB`;
+}
+
+function getAnalysisRequestErrorMessage(error) {
+  const rawMessage = String(error?.message || "");
+  const lowerMessage = rawMessage.toLowerCase();
+
+  if (
+    !rawMessage ||
+    rawMessage === "Failed to fetch" ||
+    lowerMessage.includes("networkerror") ||
+    lowerMessage.includes("err_connection") ||
+    lowerMessage.includes("internal server error")
+  ) {
+    return "일시적으로 분석 요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+  }
+
+  if (rawMessage.length > 90) {
+    return "분석 요청을 처리하지 못했습니다. 이미지를 다시 선택한 뒤 분석을 요청해 주세요.";
+  }
+
+  return rawMessage;
 }
 
 function AnalysisCapturePage() {
@@ -212,6 +233,21 @@ function AnalysisCapturePage() {
 
   const selectedMethodLabel = selectedMethod === "webcam" ? "웹캠 촬영" : "이미지 업로드";
   const fileSizeLabel = getFileSizeLabel(selectedFile);
+  const canStartAnalysis = Boolean(selectedFile) && !isSubmitting;
+  const startButtonLabel = !isLoggedIn
+    ? "로그인 후 분석하기"
+    : isSubmitting
+      ? "분석 요청 중"
+      : selectedFile
+        ? "이 이미지로 분석 시작"
+        : selectedMethod === "webcam"
+          ? "촬영 후 분석 시작"
+          : "이미지 선택 후 분석 시작";
+  const startHelpText = selectedFile
+    ? "이미지가 준비되었습니다. 분석을 요청하면 얼굴 영역 확인 후 다음 화면으로 이동합니다."
+    : selectedMethod === "webcam"
+      ? "웹캠을 켜고 얼굴 이미지를 촬영하면 분석 시작 버튼이 활성화됩니다."
+      : "JPG 또는 PNG 이미지를 선택하면 분석 시작 버튼이 활성화됩니다.";
 
   const resetSelectedImage = () => {
     setSelectedFile(null);
@@ -252,14 +288,14 @@ function AnalysisCapturePage() {
     if (!file) {
       setSelectedFile(null);
       setSelectedFileName("");
-      setUploadError("분석에 사용할 이미지 파일을 선택해주세요.");
+      setUploadError("이미지를 다시 선택한 뒤 분석을 요청해 주세요.");
       return;
     }
 
     if (!allowedImageTypes.includes(file.type)) {
       setSelectedFile(null);
       setSelectedFileName("");
-      setUploadError("JPG 또는 PNG 형식의 이미지만 업로드할 수 있습니다.");
+      setUploadError("JPG 또는 PNG 형식의 얼굴 이미지를 선택해 주세요.");
       event.target.value = "";
       return;
     }
@@ -377,7 +413,7 @@ function AnalysisCapturePage() {
         videoRef.current.srcObject = null;
       }
     } catch (error) {
-      setUploadError(error.message || "웹캠 촬영 이미지를 처리하지 못했습니다.");
+      setUploadError(error.message || "촬영 이미지를 처리하지 못했습니다. 다시 촬영해 주세요.");
     }
   };
 
@@ -392,8 +428,8 @@ function AnalysisCapturePage() {
     if (!selectedFile) {
       setUploadError(
         selectedMethod === "webcam"
-          ? "웹캠을 켜고 얼굴 이미지를 촬영해주세요."
-          : "이미지 파일을 먼저 선택해주세요.",
+          ? "웹캠을 켜고 얼굴 이미지를 촬영한 뒤 분석을 요청해 주세요."
+          : "이미지를 다시 선택한 뒤 분석을 요청해 주세요.",
       );
       return;
     }
@@ -445,25 +481,14 @@ function AnalysisCapturePage() {
         },
       });
     } catch (error) {
-      const rawMessage = error.message || "";
-      const fallbackMessage =
-        "이미지 분석 요청을 처리하지 못했습니다. 서비스 연결 상태를 확인한 뒤 다시 시도해주세요.";
-
-      const message =
-        rawMessage === "Failed to fetch" ||
-        rawMessage.includes("NetworkError") ||
-        rawMessage.includes("ERR_CONNECTION")
-          ? fallbackMessage
-          : rawMessage || fallbackMessage;
-
       saveAnalysisProgress({
         status: "failed",
         label: "분석 요청 확인 필요",
-        description: "분석 요청 처리 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요.",
+        description: "분석 요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
         progress: 0,
       });
 
-      setUploadError(message);
+      setUploadError(getAnalysisRequestErrorMessage(error));
     } finally {
       setIsSubmitting(false);
     }
@@ -723,6 +748,8 @@ function AnalysisCapturePage() {
 
           .sf-capture-upload-card {
             padding: 26px;
+            display: flex;
+            flex-direction: column;
           }
 
           .sf-upload-top {
@@ -779,7 +806,7 @@ function AnalysisCapturePage() {
             position: relative;
             display: grid;
             place-items: center;
-            min-height: 220px;
+            min-height: 240px;
             overflow: hidden;
             border-radius: 28px;
             border: 1px dashed rgba(22, 125, 127, 0.35);
@@ -842,12 +869,12 @@ function AnalysisCapturePage() {
           .sf-upload-preview {
             position: relative;
             width: 100%;
-            min-height: 220px;
+            min-height: 240px;
           }
 
           .sf-upload-preview img {
             width: 100%;
-            height: 220px;
+            height: 240px;
             object-fit: cover;
             display: block;
           }
@@ -863,7 +890,7 @@ function AnalysisCapturePage() {
           .sf-webcam-panel {
             position: relative;
             width: 100%;
-            min-height: 220px;
+            min-height: 240px;
             overflow: hidden;
             border-radius: 28px;
             background: #0f172a;
@@ -879,7 +906,7 @@ function AnalysisCapturePage() {
 
           .sf-webcam-panel video {
             width: 100%;
-            height: 220px;
+            height: 240px;
             object-fit: cover;
             display: block;
             opacity: 0;
@@ -1047,6 +1074,20 @@ function AnalysisCapturePage() {
             padding: 0 24px 2px;
             line-height: 1;
             box-shadow: 0 18px 38px rgba(22, 125, 127, 0.2);
+          }
+
+          .sf-upload-actions .sf-button:disabled {
+            box-shadow: none;
+          }
+
+          .sf-start-help {
+            margin: 0;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 800;
+            line-height: 1.55;
+            text-align: center;
+            word-break: keep-all;
           }
 
           .sf-upload-actions .sf-button .sf-action-label {
@@ -1300,8 +1341,8 @@ function AnalysisCapturePage() {
             .sf-upload-preview img,
             .sf-webcam-panel,
             .sf-webcam-panel video {
-              min-height: 210px;
-              height: 210px;
+              min-height: 220px;
+              height: 220px;
             }
 
             .sf-capture-hero.is-webcam-mode .sf-webcam-panel,
@@ -1337,8 +1378,8 @@ function AnalysisCapturePage() {
               </h1>
 
               <p>
-                스마트폰 이미지 업로드와 웹캠 촬영을 같은 분석 흐름으로 연결합니다.
-                얼굴 영역 확인 후 색소침착과 주름 중심의 결과 화면으로 이어집니다.
+                얼굴 이미지를 업로드하거나 웹캠으로 촬영해 색소침착·주름 지표를 분석합니다.
+                분석 결과는 피부 관리 참고 정보와 추천 화면에 활용됩니다.
               </p>
 
               <div className="sf-capture-methods" aria-label="입력 방식 선택">
@@ -1382,7 +1423,7 @@ function AnalysisCapturePage() {
                 </div>
                 <div className="sf-note-row">
                   <ShieldCheck size={17} />
-                  <span>분석 결과는 피부 관리 참고 정보이며 의료적 판단 목적이 아닙니다.</span>
+                  <span>결과는 피부 관리 참고 정보이며 추천 화면과 함께 확인할 수 있습니다.</span>
                 </div>
               </div>
             </div>
@@ -1525,20 +1566,20 @@ function AnalysisCapturePage() {
             )}
 
             <div className="sf-upload-actions">
-              <Button full onClick={handleStartAnalysis} disabled={isSubmitting}>
+              <Button full onClick={handleStartAnalysis} disabled={!canStartAnalysis}>
                 {isSubmitting ? (
                   <>
-                    <span className="sf-action-label">얼굴 영역 확인 중</span>
+                    <span className="sf-action-label">{startButtonLabel}</span>
                     <Loader2 size={18} />
                   </>
                 ) : (
                   <>
-                    <span className="sf-action-label">{isLoggedIn ? "이 이미지로 분석 시작" : "로그인 후 분석하기"}</span>
+                    <span className="sf-action-label">{startButtonLabel}</span>
                     <ArrowRight size={18} />
                   </>
                 )}
               </Button>
-
+              <p className="sf-start-help">{startHelpText}</p>
             </div>
           </Card>
         </section>
