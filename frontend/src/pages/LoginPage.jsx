@@ -37,7 +37,7 @@ function LoginPage() {
     event.preventDefault();
 
     if (!form.email || !form.password) {
-      setLoginError("이메일과 비밀번호를 모두 입력해주세요.");
+      setLoginError("이메일과 비밀번호를 입력해 주세요.");
       return;
     }
 
@@ -57,7 +57,7 @@ function LoginPage() {
       setLoginError(
         getAuthErrorMessage(
           error,
-          "로그인에 실패했습니다. 이메일 또는 비밀번호를 확인해주세요."
+          "이메일 또는 비밀번호를 확인해 주세요."
         )
       );
     } finally {
@@ -73,17 +73,16 @@ function LoginPage() {
     <PageLayout showBottomNav={false}>
       <section className="auth-page">
         <div className="auth-copy">
-          <Badge>SkinFlow Account</Badge>
+          <Badge>계정 로그인</Badge>
 
           <h1>
-            나만의 피부 분석 이력을
+            피부 분석 결과와
             <br />
-            안전하게 관리하세요
+            맞춤 추천을 이어서 확인하세요
           </h1>
 
           <p>
-            로그인하면 최근 피부 분석 결과, 맞춤 성분·제품 추천, 식습관 가이드와
-            분석 이력을 한곳에서 확인할 수 있습니다.
+            로그인 후 분석 이력과 관리 가이드를 안전하게 확인할 수 있습니다.
           </p>
 
           <div className="auth-benefit-list">
@@ -106,7 +105,7 @@ function LoginPage() {
           <div className="auth-card-header">
             <Badge variant="primary">로그인</Badge>
             <h2>SkinFlow에 오신 것을 환영합니다</h2>
-            <p>이메일과 비밀번호를 입력해 서비스를 시작하세요.</p>
+            <p>이메일과 비밀번호로 SkinFlow 관리 흐름을 이어가세요.</p>
           </div>
 
           <form className="auth-form" onSubmit={handleSubmit}>
@@ -152,7 +151,7 @@ function LoginPage() {
                 wordBreak: "keep-all",
               }}
             >
-              계정 정보가 기억나지 않으면 팀 관리자에게 문의해주세요.
+              로그인 정보가 기억나지 않으면 팀 관리자에게 문의해 주세요.
             </p>
 
             <button className="auth-submit-button" type="submit" disabled={isLoading}>

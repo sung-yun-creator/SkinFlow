@@ -67,7 +67,7 @@ function SignupPage() {
 
   async function handleCheckEmail() {
     if (!form.email) {
-      setSignupError("이메일을 입력해주세요.");
+      setSignupError("이메일을 입력해 주세요.");
       return;
     }
 
@@ -79,13 +79,13 @@ function SignupPage() {
       await checkEmail(form.email);
 
       setEmailChecked(true);
-      setSignupMessage("사용 가능한 이메일입니다.");
+      setSignupMessage("사용 가능한 이메일입니다. 인증번호를 받아 주세요.");
     } catch (error) {
       console.error("이메일 중복 확인 API 호출 실패:", error);
       setSignupError(
         getAuthErrorMessage(
           error,
-          "이메일 중복 확인에 실패했습니다. 잠시 후 다시 시도해주세요."
+          "이메일 확인을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요."
         )
       );
       setEmailChecked(false);
@@ -96,7 +96,7 @@ function SignupPage() {
 
   async function handleSendEmailCode() {
     if (!emailChecked) {
-      setSignupError("먼저 이메일 중복 확인을 진행해주세요.");
+      setSignupError("이메일 중복 확인을 먼저 진행해 주세요.");
       return;
     }
 
@@ -108,13 +108,13 @@ function SignupPage() {
       await sendEmailCode(form.email);
 
       setCodeSent(true);
-      setSignupMessage("이메일 인증번호를 발송했습니다.");
+      setSignupMessage("인증번호를 발송했습니다. 이메일을 확인해 주세요.");
     } catch (error) {
       console.error("이메일 인증번호 발송 API 호출 실패:", error);
       setSignupError(
         getAuthErrorMessage(
           error,
-          "인증번호 발송에 실패했습니다. 잠시 후 다시 시도해주세요."
+          "인증번호를 보내지 못했습니다. 잠시 후 다시 시도해 주세요."
         )
       );
       setCodeSent(false);
@@ -125,7 +125,7 @@ function SignupPage() {
 
   async function handleVerifyEmailCode() {
     if (!form.code) {
-      setSignupError("인증번호를 입력해주세요.");
+      setSignupError("인증번호를 입력해 주세요.");
       return;
     }
 
@@ -140,13 +140,13 @@ function SignupPage() {
       });
 
       setCodeVerified(true);
-      setSignupMessage("이메일 인증이 완료되었습니다.");
+      setSignupMessage("인증번호 확인이 완료되었습니다.");
     } catch (error) {
       console.error("이메일 인증번호 확인 API 호출 실패:", error);
       setSignupError(
         getAuthErrorMessage(
           error,
-          "인증번호 확인에 실패했습니다. 인증번호를 다시 확인해주세요."
+          "인증번호를 확인하지 못했습니다. 다시 확인해 주세요."
         )
       );
       setCodeVerified(false);
@@ -166,27 +166,27 @@ function SignupPage() {
       !form.birthDate ||
       !form.skinType
     ) {
-      setSignupError("회원가입에 필요한 정보를 모두 입력해주세요.");
+      setSignupError("필수 정보를 입력해 주세요.");
       return;
     }
 
     if (!emailChecked) {
-      setSignupError("이메일 중복 확인을 먼저 진행해주세요.");
+      setSignupError("이메일 중복 확인을 먼저 진행해 주세요.");
       return;
     }
 
     if (!codeSent) {
-      setSignupError("이메일 인증번호 발송을 먼저 진행해주세요.");
+      setSignupError("인증번호 받기를 먼저 진행해 주세요.");
       return;
     }
 
     if (!codeVerified) {
-      setSignupError("이메일 인증을 완료한 후 회원가입을 진행해주세요.");
+      setSignupError("인증번호 확인을 완료해 주세요.");
       return;
     }
 
     if (!form.agree) {
-      setSignupError("서비스 이용약관과 개인정보 처리방침에 동의해주세요.");
+      setSignupError("약관 동의가 필요합니다.");
       return;
     }
 
@@ -214,7 +214,7 @@ function SignupPage() {
       setSignupError(
         getAuthErrorMessage(
           error,
-          "회원가입에 실패했습니다. 입력 정보를 확인한 후 다시 시도해주세요."
+          "회원가입을 완료하지 못했습니다. 입력 정보를 확인해 주세요."
         )
       );
     } finally {
@@ -230,7 +230,7 @@ function SignupPage() {
     <PageLayout showBottomNav={false}>
       <section className="auth-page signup-page">
         <div className="auth-copy">
-          <Badge>Personal Skin Care</Badge>
+          <Badge>개인 맞춤 피부 관리</Badge>
 
           <h1>
             피부 분석부터 추천까지
@@ -239,8 +239,7 @@ function SignupPage() {
           </h1>
 
           <p>
-            기본 피부 정보를 등록하면 SkinFlow가 피부 분석 결과를 이해하기 쉬운
-            흐름으로 정리하고 맞춤 관리 방향을 제공합니다.
+            이메일 인증 후 분석 이력과 추천 정보를 안전하게 관리할 수 있습니다.
           </p>
 
           <div className="auth-preview-panel">
@@ -252,13 +251,28 @@ function SignupPage() {
               <span>피부 분석, 추천 결과, 식습관 가이드, 분석 이력 관리</span>
             </div>
           </div>
+
+          <div className="auth-benefit-list signup-benefit-list">
+            <div className="auth-benefit-item">
+              <ShieldCheck size={20} />
+              <span>이메일 인증으로 계정 흐름 확인</span>
+            </div>
+            <div className="auth-benefit-item">
+              <ShieldCheck size={20} />
+              <span>분석 결과와 추천 정보를 한 계정에서 관리</span>
+            </div>
+            <div className="auth-benefit-item">
+              <ShieldCheck size={20} />
+              <span>색소침착·주름 중심 관리 가이드 확인</span>
+            </div>
+          </div>
         </div>
 
         <Card className="auth-card signup-card">
           <div className="auth-card-header">
             <Badge variant="primary">회원가입</Badge>
             <h2>SkinFlow 계정 만들기</h2>
-            <p>피부 분석 이력을 관리하기 위한 기본 정보를 입력해주세요.</p>
+            <p>이메일 확인과 인증번호 확인을 순서대로 진행해 주세요.</p>
           </div>
 
           <form className="auth-form" onSubmit={handleSubmit}>
@@ -299,7 +313,7 @@ function SignupPage() {
                 onClick={handleSendEmailCode}
                 disabled={isLoading || !emailChecked}
               >
-                인증번호 발송
+                인증번호 받기
               </button>
             </div>
 
@@ -406,7 +420,7 @@ function SignupPage() {
             </label>
 
             <button className="auth-submit-button" type="submit" disabled={isLoading}>
-              {isLoading ? "처리 중..." : "회원가입 완료하기"}
+              {isLoading ? "처리 중..." : "회원가입 완료"}
               <ArrowRight size={18} />
             </button>
           </form>

@@ -11,6 +11,7 @@ import RecommendationPage from "./pages/RecommendationPage";
 import DietGuidePage from "./pages/DietGuidePage";
 import HistoryPage from "./pages/HistoryPage";
 import MyPage from "./pages/MyPage";
+import SettingsPage from "./pages/SettingsPage";
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
       <Route path="/diet-guide" element={<DietGuidePage />} />
       <Route path="/history" element={<HistoryPage />} />
       <Route path="/mypage" element={<MyPage />} />
+      <Route path="/settings" element={<SettingsPage />} />
     </Routes>
   );
 }

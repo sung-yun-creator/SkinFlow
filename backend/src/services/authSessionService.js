@@ -29,8 +29,9 @@ function isSessionIdleExpired(payload, now = Date.now()) {
         return true;
     }
 
-    const lastActivityAt =
-        sessionActivityByUserId.get(sessionKey) || getPayloadIssuedAt(payload);
+    const storedActivityAt = sessionActivityByUserId.get(sessionKey) || 0;
+    const issuedAt = getPayloadIssuedAt(payload) || 0;
+    const lastActivityAt = Math.max(storedActivityAt, issuedAt);
 
     if (!lastActivityAt) {
         return true;

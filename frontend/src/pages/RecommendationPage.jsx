@@ -70,16 +70,39 @@ function hasText(value) {
   return typeof value === "string" && value.trim() !== "";
 }
 
+function getIngredientDisplayName(item) {
+  const displayName = item?.name ?? item?.ingredientName ?? item?.title ?? "";
+
+  return typeof displayName === "string" ? displayName : String(displayName);
+}
+
+function getUniqueDisplayIngredients(items) {
+  if (!Array.isArray(items)) return [];
+
+  const seenNames = new Set();
+
+  return items.filter((item) => {
+    const displayName = getIngredientDisplayName(item).trim();
+    const normalizedName = displayName.toLowerCase();
+
+    if (!normalizedName) return true;
+    if (seenNames.has(normalizedName)) return false;
+
+    seenNames.add(normalizedName);
+    return true;
+  });
+}
+
 function getVisibleMatchedIngredients(item) {
   return Array.isArray(item?.matchedIngredients)
     ? item.matchedIngredients.filter((ingredient) => hasText(ingredient?.name)).slice(0, 3)
     : [];
 }
 
-function getFocusMetricName(...summaries) {
+function getFocusMetricName(hasRecommendationData, ...summaries) {
   const focusMetric = summaries.find((summary) => summary?.focusMetric?.name)?.focusMetric;
 
-  return focusMetric?.name || "분석 대기";
+  return focusMetric?.name || (hasRecommendationData ? "색소침착 · 주름 기준" : "추천 기준 확인");
 }
 
 function getSummaryStatus(summary) {
@@ -101,7 +124,7 @@ function getRecommendationSourceState(summary, itemCount = 0) {
   if (!summary && itemCount === 0) {
     return {
       tone: "empty",
-      label: "추천 데이터 없음",
+      label: "추천 정보",
       message: "분석 후 추천 정보가 표시됩니다.",
     };
   }
@@ -122,7 +145,7 @@ function getRecommendationSourceState(summary, itemCount = 0) {
   if (!hasItems || ["empty", "none", "null"].includes(sourceText)) {
     return {
       tone: "empty",
-      label: "추천 데이터 없음",
+      label: "추천 정보",
       message: summary?.message || "분석 후 추천 정보가 표시됩니다.",
     };
   }
@@ -130,39 +153,35 @@ function getRecommendationSourceState(summary, itemCount = 0) {
   if (!isCompleted || isSavedFalse) {
     return {
       tone: "reference",
-      label: "분석 전 참고",
+      label: "추천 정보",
       message: summary?.message || "분석 완료 전에는 참고 정보로만 확인해 주세요.",
     };
   }
 
-  if (
-    isFallback ||
-    !sourceText ||
-    ["default", "fallback", "reference", "static", "seed", "unknown"].includes(sourceText)
-  ) {
+  if (isFallback || ["default", "fallback", "reference", "static", "seed"].includes(sourceText)) {
     return {
       tone: "reference",
-      label: "기본 참고",
-      message: summary?.message || "기본 참고 정보입니다. 최신 분석 후 관리 방향과 함께 확인해 주세요.",
+      label: "기본 관리 추천",
+      message: summary?.message || "색소침착 · 주름 기준의 기본 참고 정보입니다. 최신 분석 후 관리 방향과 함께 확인해 주세요.",
     };
   }
 
   if (isCompleted && ["latest", "latest_analysis", "analysis", "personalized", "result", "completed"].includes(sourceText)) {
     return {
       tone: "personalized",
-      label: "최근 분석 기반",
+      label: "최근 분석 결과 기반",
       message: summary?.message || "최근 분석 결과를 바탕으로 참고할 수 있는 추천입니다.",
     };
   }
 
   return {
     tone: "reference",
-    label: "기준 확인 중",
+    label: "추천 정보",
     message: summary?.message || "추천 기준을 확인 중입니다. 참고 정보로 활용해 주세요.",
   };
 }
 
-function RecommendationSectionState({ type, message }) {
+function RecommendationSectionState({ type, title, message }) {
   const isLoading = type === "loading";
   const isError = type === "error";
 
@@ -171,6 +190,7 @@ function RecommendationSectionState({ type, message }) {
       <span className="sf-section-state-icon" aria-hidden="true">
         {isLoading ? <LoaderCircle size={20} /> : <AlertCircle size={20} />}
       </span>
+      {title && <strong>{title}</strong>}
       <p>{message}</p>
     </div>
   );
@@ -339,9 +359,11 @@ const isSkinRelatedQuestion = (text) => {
   }, [loadRecommendations]);
 
   const summary = productSummary || ingredientSummary;
+  const visibleIngredients = useMemo(() => getUniqueDisplayIngredients(ingredients), [ingredients]);
+  const hasRecommendationData = visibleIngredients.length > 0 || products.length > 0;
   const ingredientSourceState = useMemo(
-    () => getRecommendationSourceState(ingredientSummary, ingredients.length),
-    [ingredientSummary, ingredients.length],
+    () => getRecommendationSourceState(ingredientSummary, visibleIngredients.length),
+    [ingredientSummary, visibleIngredients.length],
   );
   const productSourceState = useMemo(
     () => getRecommendationSourceState(productSummary, products.length),
@@ -352,29 +374,29 @@ const isSkinRelatedQuestion = (text) => {
       return ingredientSourceState.tone === "personalized" ? ingredientSourceState : productSourceState;
     }
 
-    if (ingredients.length || products.length) {
+    if (visibleIngredients.length || products.length) {
       return ingredientSourceState.tone !== "empty" ? ingredientSourceState : productSourceState;
     }
 
     return ingredientSourceState;
-  }, [ingredientSourceState, ingredients.length, productSourceState, products.length]);
+  }, [ingredientSourceState, productSourceState, products.length, visibleIngredients.length]);
 
   const summaryItems = useMemo(
     () => [
       {
         label: "중점 지표",
-        value: getFocusMetricName(productSummary, ingredientSummary),
+        value: getFocusMetricName(hasRecommendationData, productSummary, ingredientSummary),
       },
       {
         label: "추천 성분",
-        value: formatCount(ingredientSummary?.recommendationCount ?? ingredients.length),
+        value: formatCount(visibleIngredients.length),
       },
       {
         label: "추천 제품",
         value: formatCount(productSummary?.recommendationCount ?? products.length),
       },
     ],
-    [ingredientSummary, ingredients.length, productSummary, products.length],
+    [hasRecommendationData, ingredientSummary, productSummary, products.length, visibleIngredients.length],
   );
 
   const summaryNote = useMemo(() => {
@@ -386,7 +408,7 @@ const isSkinRelatedQuestion = (text) => {
       return "추천 정보를 불러오지 못했습니다. 로그인 상태와 서버 실행 여부를 확인해 주세요.";
     }
 
-    if (!ingredients.length && !products.length) {
+    if (!visibleIngredients.length && !products.length) {
       return sourceState.message;
     }
 
@@ -401,7 +423,7 @@ const isSkinRelatedQuestion = (text) => {
     }
 
     return sourceState.message;
-  }, [ingredientError, ingredients.length, isLoading, productError, products.length, sourceState, summary]);
+  }, [ingredientError, isLoading, productError, products.length, sourceState, summary, visibleIngredients.length]);
 
   const statusLabel = isLoading ? "불러오는 중" : ingredientError && productError ? "연결 확인" : sourceState.label;
 
@@ -615,6 +637,14 @@ const isSkinRelatedQuestion = (text) => {
           align-items: flex-start;
         }
 
+        .sf-panel-note {
+          margin: 5px 0 0;
+          color: #64748b;
+          font-size: 12px;
+          line-height: 1.45;
+          word-break: keep-all;
+        }
+
         .sf-panel-accent {
           width: 4px;
           height: 22px;
@@ -681,24 +711,6 @@ const isSkinRelatedQuestion = (text) => {
           flex: 0 0 auto;
           transform: none;
           stroke-width: 2.05;
-        }
-
-        .sf-product-thumb {
-          width: 50px;
-          height: 50px;
-          min-width: 50px;
-          min-height: 50px;
-          overflow: hidden;
-          border: 1px solid rgba(226, 232, 240, 0.9);
-          border-radius: 17px;
-          background: #f8fafc;
-        }
-
-        .sf-product-thumb img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          display: block;
         }
 
         .sf-ingredient-main,
@@ -942,6 +954,15 @@ const isSkinRelatedQuestion = (text) => {
           text-decoration: underline;
         }
 
+        .sf-product-link-note {
+          margin-top: 5px;
+          color: #94a3b8;
+          font-size: 11px;
+          font-weight: 800;
+          line-height: 1.45;
+          word-break: keep-all;
+        }
+
         .sf-section-state {
           display: grid;
           justify-items: center;
@@ -993,11 +1014,30 @@ const isSkinRelatedQuestion = (text) => {
           word-break: keep-all;
         }
 
+<<<<<<< HEAD
         .sf-chat-message.user {
           align-self: flex-end;
           color: #ffffff;
           background: #167d7f;
           border-bottom-right-radius: 6px;
+=======
+        .sf-section-state strong {
+          display: block;
+          margin: 0;
+          color: #0f172a;
+          font-size: 15px;
+          font-weight: 950;
+          letter-spacing: -0.035em;
+        }
+
+        @keyframes sf-spin {
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
+>>>>>>> main
         }
 
         .sf-chat-message.bot {
@@ -1082,8 +1122,7 @@ const isSkinRelatedQuestion = (text) => {
             padding-top: 2px;
           }
 
-          .sf-icon-tile,
-          .sf-product-thumb {
+          .sf-icon-tile {
             width: 48px;
             height: 48px;
             min-width: 48px;
@@ -1109,7 +1148,7 @@ const isSkinRelatedQuestion = (text) => {
       <div className="sf-recommend-page">
         <section className="sf-recommend-hero">
           <Card className="sf-recommend-hero-card">
-            <Badge>Recommendation</Badge>
+            <Badge>추천</Badge>
             <h1>
               분석 결과에 맞춘
               <br />
@@ -1124,8 +1163,8 @@ const isSkinRelatedQuestion = (text) => {
               <Button to="/diet-guide" size="lg">
                 식습관 가이드 보기 <Leaf size={18} />
               </Button>
-              <Button to="/analysis/result" variant="secondary" size="lg">
-                분석 결과 다시 보기
+              <Button to="/history" variant="secondary" size="lg">
+                분석 이력에서 확인
               </Button>
               <Button variant="secondary" size="lg" onClick={loadRecommendations} disabled={isLoading}>
                 추천 다시 불러오기
@@ -1166,7 +1205,7 @@ const isSkinRelatedQuestion = (text) => {
               <div className="sf-panel-heading">
                 <span className="sf-panel-accent" />
                 <div>
-                  <span className="sf-recommend-label">Functional Ingredients</span>
+                  <span className="sf-recommend-label">기능성 성분</span>
                   <h2>기능성 성분 추천</h2>
                 </div>
               </div>
@@ -1179,21 +1218,26 @@ const isSkinRelatedQuestion = (text) => {
               <RecommendationSectionState type="loading" message="기능성 성분 추천을 불러오는 중입니다." />
             ) : ingredientError ? (
               <RecommendationSectionState type="error" message={ingredientError} />
-            ) : ingredients.length === 0 ? (
-              <RecommendationSectionState type="empty" message="표시할 성분 추천 데이터가 없습니다." />
+            ) : visibleIngredients.length === 0 ? (
+              <RecommendationSectionState
+                type="empty"
+                title="표시할 성분 추천이 아직 없습니다"
+                message="최근 분석 결과가 저장되면 색소침착·주름 지표를 기준으로 추천 성분을 확인할 수 있습니다."
+              />
             ) : (
               <div className="sf-recommend-list">
-                {ingredients.map((item) => {
+                {visibleIngredients.map((item) => {
                   const matchScore = getRecommendationMatchScore(item);
+                  const ingredientName = getIngredientDisplayName(item);
 
                   return (
-                    <article className="sf-ingredient-card" key={item.id || item.name}>
+                    <article className="sf-ingredient-card" key={item.id || ingredientName}>
                       <span className="sf-icon-tile" aria-hidden="true">
                         <FlaskConical size={22} />
                       </span>
 
                       <div className="sf-ingredient-main">
-                        <h3>{item.name}</h3>
+                        <h3>{ingredientName}</h3>
                         <p>{item.description}</p>
                         <div className="sf-tag-row">
                           {item.tags.map((tag) => (
@@ -1220,8 +1264,9 @@ const isSkinRelatedQuestion = (text) => {
               <div className="sf-panel-heading">
                 <span className="sf-panel-accent is-product" />
                 <div>
-                  <span className="sf-recommend-label">Cosmetic Products</span>
+                  <span className="sf-recommend-label">화장품 제품</span>
                   <h2>화장품 제품 추천</h2>
+                  <p className="sf-panel-note">제품 상세 정보가 아닌 대표 성분 기준의 참고 검색 연결입니다.</p>
                 </div>
               </div>
               <span className={`sf-source-pill is-${productSourceState.tone}`}>
@@ -1234,7 +1279,11 @@ const isSkinRelatedQuestion = (text) => {
             ) : productError ? (
               <RecommendationSectionState type="error" message={productError} />
             ) : products.length === 0 ? (
-              <RecommendationSectionState type="empty" message="표시할 제품 추천 데이터가 없습니다." />
+              <RecommendationSectionState
+                type="empty"
+                title="표시할 제품 추천이 아직 없습니다"
+                message="추천 성분과 연결된 제품 정보가 준비되면 이 화면에서 확인할 수 있습니다."
+              />
             ) : (
               <div className="sf-recommend-list">
                 {products.map((item) => {
@@ -1243,15 +1292,9 @@ const isSkinRelatedQuestion = (text) => {
 
                   return (
                     <article className="sf-product-card" key={item.id || item.name}>
-                      {item.imageUrl ? (
-                        <span className="sf-product-thumb" aria-hidden="true">
-                          <img src={item.imageUrl} alt="" />
-                        </span>
-                      ) : (
-                        <span className="sf-icon-tile" aria-hidden="true">
-                          <PackageCheck size={22} />
-                        </span>
-                      )}
+                      <span className="sf-icon-tile" aria-hidden="true">
+                        <PackageCheck size={22} />
+                      </span>
 
                       <div className="sf-product-main">
                         <span className="sf-product-brand">{item.brand}</span>
@@ -1288,14 +1331,17 @@ const isSkinRelatedQuestion = (text) => {
                           ))}
                         </div>
                         {item.productUrl && (
-                          <a
-                            className="sf-product-link"
-                            href={item.productUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            올리브영에서 보기 <ExternalLink size={13} />
-                          </a>
+                          <>
+                            <a
+                              className="sf-product-link"
+                              href={item.productUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              성분 검색 결과 보기 <ExternalLink size={13} />
+                            </a>
+                            <p className="sf-product-link-note">대표 성분 기준으로 연결됩니다.</p>
+                          </>
                         )}
                       </div>
 

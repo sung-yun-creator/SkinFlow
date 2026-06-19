@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   CalendarDays,
-  CheckCircle2,
   Clock,
   History,
   LineChart,
@@ -168,8 +167,10 @@ function getRecommendationText(recommendations) {
     )
     .filter(Boolean);
 
-  return textList.length > 0
-    ? textList.join(" · ")
+  const uniqueTextList = [...new Set(textList)];
+
+  return uniqueTextList.length > 0
+    ? uniqueTextList.join(" · ")
     : "이 분석 이력에 연결된 추천 요약이 없습니다.";
 }
 
@@ -226,12 +227,42 @@ function getRecordDate(record) {
   return record?.analyzedAt || record?.analyzed_at || record?.createdAt || record?.created_at;
 }
 
+function getRecordTime(record) {
+  const dateValue = getRecordDate(record);
+
+  if (!dateValue) return null;
+
+  const time = new Date(dateValue).getTime();
+
+  return Number.isNaN(time) ? null : time;
+}
+
 function getRecordStatus(record) {
   return record?.analysisStatus || record?.analysis_status || record?.status;
 }
 
 function getRecordScore(record) {
   return record?.totalScore ?? record?.total_score ?? record?.totalSkinScore ?? record?.total_skin_score;
+}
+
+function filterHistoryRecords(records, keyword) {
+  const normalizedKeyword = keyword.trim().toLowerCase();
+
+  if (!normalizedKeyword) return records;
+
+  return records.filter((record) => {
+    const date = formatDate(getRecordDate(record), "").toLowerCase();
+    const summaryText = String(record.summary || "").toLowerCase();
+    const statusText = String(getRecordStatus(record) || "").toLowerCase();
+    const statusLabel = String(getStatusLabel(getRecordStatus(record)) || "").toLowerCase();
+
+    return (
+      date.includes(normalizedKeyword) ||
+      summaryText.includes(normalizedKeyword) ||
+      statusText.includes(normalizedKeyword) ||
+      statusLabel.includes(normalizedKeyword)
+    );
+  });
 }
 
 function HistoryPage() {
@@ -296,27 +327,46 @@ function HistoryPage() {
   });
   const hasRecords = records.length > 0;
   const canShowScoreDiff = hasLatestScore && summary.scoreDiff !== null && summary.scoreDiff !== undefined && summary.scoreDiff !== "";
+  const trimmedSearchText = searchText.trim();
 
-  const filteredRecords = useMemo(() => {
-    const keyword = searchText.trim().toLowerCase();
-
-    if (!keyword) return records;
-
-    return records.filter((record) => {
-      const date = formatDate(getRecordDate(record), "").toLowerCase();
-      const summaryText = String(record.summary || "").toLowerCase();
-      const statusText = String(record.status || "").toLowerCase();
-
-      return (
-        date.includes(keyword) ||
-        summaryText.includes(keyword) ||
-        statusText.includes(keyword)
-      );
-    });
-  }, [records, searchText]);
+  const filteredRecords = useMemo(
+    () => filterHistoryRecords(records, trimmedSearchText),
+    [records, trimmedSearchText]
+  );
+  const displayedRecords = filteredRecords;
+  const hasSearchKeyword = trimmedSearchText !== "";
+  const hasSearchResults = filteredRecords.length > 0;
+  const selectedDetailId = getRecordId(selectedDetail);
+  const isSelectedDetailVisible =
+    Boolean(selectedDetail) &&
+    filteredRecords.some((record) => getRecordId(record) === selectedDetailId);
+  const visibleSelectedDetail = isSelectedDetailVisible ? selectedDetail : null;
 
   const trendItems = useMemo(() => {
-    const source = records.slice(-4);
+    const withOrder = records.map((record, index) => ({
+      record,
+      index,
+      time: getRecordTime(record),
+    }));
+    const hasDatedRecords = withOrder.some((item) => item.time !== null);
+    const source = hasDatedRecords
+      ? withOrder
+        .slice()
+        .sort((a, b) => {
+          if (a.time !== null && b.time !== null) return b.time - a.time;
+          if (a.time !== null) return -1;
+          if (b.time !== null) return 1;
+          return b.index - a.index;
+        })
+        .slice(0, 4)
+        .sort((a, b) => {
+          if (a.time !== null && b.time !== null) return a.time - b.time;
+          if (a.time !== null) return -1;
+          if (b.time !== null) return 1;
+          return a.index - b.index;
+        })
+        .map((item) => item.record)
+      : records.slice(-4);
 
     return source.map((record, index) => {
       const recordScore = getRecordScore(record);
@@ -338,14 +388,14 @@ function HistoryPage() {
     ...trendItems.filter((item) => item.hasScore).map((item) => item.score),
     100
   );
-  const selectedDetailStatus = getRecordStatus(selectedDetail);
-  const selectedDetailScore = getRecordScore(selectedDetail);
+  const selectedDetailStatus = getRecordStatus(visibleSelectedDetail);
+  const selectedDetailScore = getRecordScore(visibleSelectedDetail);
   const canShowSelectedDetailScore =
-    Boolean(selectedDetail) &&
+    Boolean(visibleSelectedDetail) &&
     shouldShowAnalysisScore({
       score: selectedDetailScore,
       status: selectedDetailStatus,
-      saved: selectedDetail?.saved,
+      saved: visibleSelectedDetail?.saved,
     });
   const llmReportBody = llmReport?.report || {};
   const safeLlmDisclaimer = getSafeLlmDisclaimer(llmReportBody.disclaimer);
@@ -399,6 +449,105 @@ function HistoryPage() {
       setIsLlmReportLoading(false);
     }
   }
+
+  function getHistoryDetailMetricLabel(metric) {
+    return (
+      metric?.name ||
+      metric?.metricName ||
+      metric?.metric_name ||
+      metric?.label ||
+      metric?.code ||
+      metric?.metricCode ||
+      "피부 지표"
+    );
+  }
+
+  function getHistoryDetailMetricScore(metric) {
+    const value =
+      metric?.score ??
+      metric?.metricScore ??
+      metric?.metric_score ??
+      metric?.value ??
+      metric?.metricValue ??
+      metric?.metric_value;
+
+    const numberValue = Number(value);
+    return Number.isFinite(numberValue) ? Math.round(numberValue) : null;
+  }
+
+  function getHistoryDetailLowestMetric(detail) {
+    const metrics = Array.isArray(detail?.metrics) ? detail.metrics : [];
+
+    return metrics
+      .map((metric) => ({
+        label: getHistoryDetailMetricLabel(metric),
+        score: getHistoryDetailMetricScore(metric),
+      }))
+      .filter((metric) => Number.isFinite(metric.score))
+      .sort((a, b) => a.score - b.score)[0];
+  }
+
+  function getHistoryDetailInsightItems(detail) {
+    const lowestMetric = getHistoryDetailLowestMetric(detail);
+    const totalScore = Number(detail?.totalScore ?? detail?.total_skin_score ?? detail?.score);
+    const totalScoreText = Number.isFinite(totalScore) ? `${Math.round(totalScore)}점` : "최근 분석 결과";
+
+    return [
+      {
+        title: "현재 상태",
+        text: `${totalScoreText} 기준으로 색소침착과 주름 지표를 함께 확인한 결과입니다.`,
+      },
+      {
+        title: "우선 관리 항목",
+        text: lowestMetric
+          ? `${lowestMetric.label} 지표를 먼저 확인하고, 관리 가이드와 추천 정보를 함께 참고해보세요.`
+          : "점수가 낮은 지표부터 관리 우선순위를 잡아보세요.",
+      },
+      {
+        title: "다음 행동",
+        text: "맞춤 추천과 식습관 가이드를 함께 확인하면 분석 이후 관리 흐름을 이어갈 수 있습니다.",
+      },
+    ];
+  }
+
+  function getHistoryDetailRecommendationItems(recommendations) {
+    const text = getRecommendationText(recommendations);
+    const items = text
+      .split("·")
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    return [...new Set(items)].slice(0, 4);
+  }
+
+  function clearSelectedDetailState() {
+    setSelectedDetail(null);
+    setDetailError("");
+    setLlmReport(null);
+    setLlmReportError("");
+    setIsLlmReportLoading(false);
+  }
+
+  function handleSearchTextChange(nextSearchText) {
+    setSearchText(nextSearchText);
+
+    if (!selectedDetail) return;
+
+    const nextFilteredRecords = filterHistoryRecords(records, nextSearchText);
+    const nextSelectedDetailId = getRecordId(selectedDetail);
+    const isSelectedVisible = nextFilteredRecords.some(
+      (record) => getRecordId(record) === nextSelectedDetailId
+    );
+
+    if (!isSelectedVisible) {
+      clearSelectedDetailState();
+    }
+  }
+
+  function handleCloseDetail() {
+    clearSelectedDetailState();
+  }
+
 
   return (
     <PageLayout>
@@ -630,29 +779,49 @@ function HistoryPage() {
 
         .sf-history-grid {
           display: grid;
-          grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+          grid-template-columns: minmax(300px, 0.74fr) minmax(0, 1.26fr);
           gap: 18px;
           align-items: stretch;
         }
 
+
         .sf-history-card {
           display: flex;
           flex-direction: column;
+          height: 100%;
           min-height: 100%;
           padding: 24px;
         }
 
+        .sf-history-trend-card {
+          padding-bottom: 22px;
+        }
+
+        .sf-history-record-card {
+          padding-bottom: 22px;
+        }
+
         .sf-trend-chart {
-          margin-top: 18px;
+          flex: 1;
+          min-height: 300px;
+          margin: 18px 0 14px;
           display: grid;
-          gap: 12px;
+          grid-template-rows: repeat(4, minmax(58px, 1fr));
+          gap: 14px;
+        }
+
+        .sf-history-grid.is-expanded .sf-trend-chart {
+          flex: initial;
+          grid-template-rows: repeat(4, minmax(58px, auto));
         }
 
         .sf-trend-row {
           display: grid;
           grid-template-columns: 84px 1fr 48px;
           align-items: center;
-          gap: 12px;
+          gap: 14px;
+          min-height: 58px;
+          padding: 0 2px;
         }
 
         .sf-trend-row > span {
@@ -662,7 +831,7 @@ function HistoryPage() {
         }
 
         .sf-trend-bar {
-          height: 8px;
+          height: 11px;
           overflow: hidden;
           border-radius: 999px;
           background: #e2e8f0;
@@ -716,18 +885,49 @@ function HistoryPage() {
         .sf-record-list {
           display: grid;
           gap: 12px;
-          flex: 1;
+        }
+
+        .sf-record-toggle-button {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 40px;
+          padding: 0 16px;
+          border: 1px solid rgba(22, 125, 127, 0.18);
+          border-radius: 999px;
+          color: #167d7f;
+          background: rgba(22, 125, 127, 0.07);
+          cursor: pointer;
+          font-size: 13px;
+          font-weight: 950;
+          transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+        }
+
+        .sf-record-toggle-button:hover {
+          transform: translateY(-1px);
+          border-color: rgba(22, 125, 127, 0.3);
+          background: rgba(22, 125, 127, 0.1);
         }
 
         .sf-record-card {
           display: grid;
-          grid-template-columns: 48px minmax(0, 1fr) auto;
-          align-items: center;
+          grid-template-columns: 44px minmax(0, 1fr) 104px;
+          align-items: stretch;
           gap: 14px;
-          padding: 16px;
+          min-height: 94px;
+          padding: 14px 16px;
           border-radius: 20px;
           background: #f8fafc;
           border: 1px solid rgba(226, 232, 240, 0.9);
+        }
+
+        .sf-record-card > .sf-icon-tile {
+          align-self: center;
+        }
+
+        .sf-record-content {
+          align-self: center;
+          min-width: 0;
         }
 
         .sf-record-content small {
@@ -743,6 +943,9 @@ function HistoryPage() {
           color: #0f172a;
           font-size: 15px;
           letter-spacing: -0.035em;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
 
         .sf-record-content p {
@@ -754,9 +957,12 @@ function HistoryPage() {
         }
 
         .sf-record-side {
-          display: grid;
-          justify-items: end;
-          gap: 8px;
+          width: 104px;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-end;
+          justify-content: center;
+          gap: 10px;
         }
 
         .sf-score-badge,
@@ -786,7 +992,9 @@ function HistoryPage() {
 
         .sf-record-actions {
           display: flex;
+          justify-content: flex-end;
           gap: 8px;
+          width: 100%;
         }
 
         .sf-text-button {
@@ -797,6 +1005,23 @@ function HistoryPage() {
           background: transparent;
           font-size: 12px;
           font-weight: 950;
+        }
+
+
+        .sf-record-actions .sf-text-button {
+          min-width: 74px;
+          min-height: 30px;
+          padding: 0 11px;
+          border: 1px solid rgba(22, 125, 127, 0.18);
+          border-radius: 999px;
+          color: #167d7f;
+          background: rgba(22, 125, 127, 0.075);
+          box-shadow: 0 8px 18px rgba(22, 125, 127, 0.08);
+        }
+
+        .sf-record-actions .sf-text-button:hover {
+          background: rgba(22, 125, 127, 0.12);
+          transform: translateY(-1px);
         }
 
         .sf-empty-card,
@@ -820,6 +1045,10 @@ function HistoryPage() {
         .sf-empty-card {
           min-height: 238px;
           align-content: center;
+        }
+
+        .sf-history-trend-card .sf-empty-card {
+          min-height: 176px;
         }
 
         .sf-empty-card p,
@@ -926,53 +1155,756 @@ function HistoryPage() {
         }
 
         .sf-history-bottom {
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 18px;
+          display: block;
         }
 
-        .sf-guide-list {
+        .sf-history-tip {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin: 6px 0 0;
+          padding: 13px 15px;
+          border-radius: 18px;
+          color: #475569;
+          background: rgba(248, 250, 252, 0.92);
+          border: 1px solid rgba(226, 232, 240, 0.9);
+          font-size: 12px;
+          font-weight: 800;
+          line-height: 1.5;
+          word-break: keep-all;
+        }
+
+        .sf-history-tip svg {
+          flex: 0 0 auto;
+          color: #167d7f;
+        }
+
+
+        .sf-record-list.is-expanded {
+          max-height: 420px;
+          overflow-y: auto;
+          padding-right: 6px;
+        }
+
+        .sf-record-list.is-expanded::-webkit-scrollbar {
+          width: 6px;
+        }
+
+        .sf-record-list.is-expanded::-webkit-scrollbar-thumb {
+          border-radius: 999px;
+          background: rgba(22, 125, 127, 0.28);
+        }
+
+        .sf-history-detail-section {
+          display: grid;
+          grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+          gap: 16px;
+          align-items: start;
+        }
+
+        .sf-history-detail-section .sf-detail-card,
+        .sf-history-detail-section .sf-llm-report-card {
+          margin-top: 0;
+          height: auto;
+          min-height: 0;
+          background: #ffffff;
+          border-style: solid;
+          border-color: rgba(226, 232, 240, 0.94);
+          box-shadow: 0 18px 44px rgba(15, 23, 42, 0.055);
+        }
+
+
+        .sf-detail-card {
+          align-content: start;
+          padding: 24px;
+          border-radius: 24px;
+          background: linear-gradient(180deg, #ffffff 0%, #fbfdfe 100%);
+        }
+
+        .sf-detail-card .sf-card-title-row {
+          padding-bottom: 14px;
+          border-bottom: 1px solid rgba(226, 232, 240, 0.86);
+        }
+
+        .sf-detail-metrics {
           display: grid;
           grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 12px;
-          margin-top: 18px;
+          gap: 10px;
+          margin: 16px 0 12px;
         }
 
-        .sf-guide-card {
-          min-height: 132px;
+        .sf-detail-metrics > div {
+          min-height: auto;
           padding: 16px;
-          border-radius: 20px;
+          border-radius: 18px;
           background: #f8fafc;
-          border: 1px solid rgba(226, 232, 240, 0.9);
+          border: 1px solid rgba(226, 232, 240, 0.92);
+          box-shadow: none;
         }
 
-        .sf-guide-card strong {
+        .sf-detail-metrics span {
+          color: #64748b;
+          font-size: 11px;
+          font-weight: 900;
+        }
+
+        .sf-detail-metrics strong {
           display: block;
-          margin-top: 12px;
+          margin-top: 6px;
           color: #0f172a;
-          font-size: 14px;
+          font-size: 20px;
+          font-weight: 950;
           letter-spacing: -0.035em;
         }
 
-        .sf-guide-card p {
-          margin: 6px 0 0;
-          color: #64748b;
-          font-size: 12px;
-          line-height: 1.48;
+        .sf-detail-card > p {
+          margin: 10px 0 0;
+          padding: 12px 14px;
+          border-radius: 16px;
+          color: #475569;
+          background: rgba(22, 125, 127, 0.055);
+          border: 1px solid rgba(22, 125, 127, 0.08);
+          font-size: 13px;
+          line-height: 1.65;
           word-break: keep-all;
         }
+
+        .sf-detail-card > p:last-child {
+          background: #ffffff;
+          border-style: dashed;
+          border-color: rgba(148, 163, 184, 0.35);
+        }
+
+
+        .sf-history-detail-section {
+          display: grid;
+          grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+          gap: 16px;
+          align-items: start;
+        }
+
+        .sf-history-detail-section .sf-detail-card,
+        .sf-history-detail-section .sf-llm-report-card {
+          margin-top: 0;
+          height: auto;
+          min-height: 0;
+          align-self: start;
+          background: #ffffff;
+          border-style: solid;
+          border-color: rgba(226, 232, 240, 0.94);
+          box-shadow: 0 18px 44px rgba(15, 23, 42, 0.055);
+        }
+
+        .sf-detail-card {
+          padding: 24px;
+          border-radius: 26px;
+          background:
+            radial-gradient(circle at 100% 0%, rgba(22, 125, 127, 0.06), transparent 36%),
+            #ffffff;
+          border: 1px solid rgba(226, 232, 240, 0.94);
+          text-align: left;
+          justify-items: stretch;
+          gap: 16px;
+        }
+
+        .sf-detail-card .sf-card-title-row {
+          align-items: center;
+          padding-bottom: 14px;
+          border-bottom: 1px solid rgba(226, 232, 240, 0.86);
+        }
+
+        .sf-detail-header-actions {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .sf-detail-close-button {
+          min-height: 30px;
+          padding: 0 12px;
+          border: 1px solid rgba(148, 163, 184, 0.28);
+          border-radius: 999px;
+          color: #475569;
+          background: #ffffff;
+          cursor: pointer;
+          font-size: 12px;
+          font-weight: 950;
+          transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+        }
+
+        .sf-detail-close-button:hover {
+          transform: translateY(-1px);
+          border-color: rgba(22, 125, 127, 0.24);
+          color: #167d7f;
+          background: rgba(22, 125, 127, 0.06);
+        }
+
+        .sf-detail-metrics {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 12px;
+          margin: 2px 0 0;
+        }
+
+        .sf-detail-metrics > div {
+          min-height: 96px;
+          padding: 16px;
+          border-radius: 20px;
+          background:
+            linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+          border: 1px solid rgba(226, 232, 240, 0.94);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+        }
+
+        .sf-detail-metrics span {
+          display: block;
+          color: #64748b;
+          font-size: 11px;
+          font-weight: 950;
+        }
+
+        .sf-detail-metrics strong {
+          display: block;
+          margin-top: 8px;
+          color: #0f172a;
+          font-size: 22px;
+          font-weight: 950;
+          letter-spacing: -0.05em;
+        }
+
+        .sf-detail-summary-text,
+        .sf-detail-recommend-text {
+          margin: 0;
+          padding: 14px 16px;
+          border-radius: 18px;
+          color: #475569;
+          font-size: 13px;
+          line-height: 1.65;
+          word-break: keep-all;
+        }
+
+        .sf-detail-summary-text {
+          background: rgba(22, 125, 127, 0.055);
+          border: 1px solid rgba(22, 125, 127, 0.09);
+        }
+
+        .sf-detail-recommend-text {
+          background: #f8fafc;
+          border: 1px dashed rgba(148, 163, 184, 0.38);
+        }
+
+        .sf-detail-recommend-text::before {
+          content: "연결된 추천";
+          display: block;
+          margin-bottom: 6px;
+          color: #64748b;
+          font-size: 11px;
+          font-weight: 950;
+        }
+
+        .sf-detail-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          padding-top: 2px;
+        }
+
+
+        /* history-detail-final-polish:start */
+        .sf-history-detail-section {
+          display: grid;
+          grid-template-columns: minmax(360px, 0.92fr) minmax(0, 1.08fr);
+          gap: 18px;
+          align-items: start;
+          margin-top: 18px;
+        }
+
+        .sf-history-detail-section .sf-detail-card,
+        .sf-history-detail-section .sf-llm-report-card {
+          margin-top: 0;
+          height: auto !important;
+          min-height: 0;
+          align-self: start;
+          border: 1px solid rgba(226, 232, 240, 0.92);
+          border-radius: 28px;
+          background: #ffffff;
+          box-shadow: 0 22px 54px rgba(15, 23, 42, 0.07);
+        }
+
+        .sf-detail-card {
+          position: relative;
+          overflow: hidden;
+          padding: 28px;
+          background:
+            radial-gradient(circle at 92% 0%, rgba(22, 125, 127, 0.10), transparent 34%),
+            linear-gradient(180deg, #ffffff 0%, #fbfefe 100%);
+        }
+
+        .sf-detail-card::before {
+          content: "";
+          position: absolute;
+          top: 0;
+          left: 24px;
+          right: 24px;
+          height: 3px;
+          border-radius: 999px;
+          background: linear-gradient(90deg, #167d7f, rgba(22, 125, 127, 0.12));
+        }
+
+        .sf-detail-card .sf-card-title-row {
+          position: relative;
+          z-index: 1;
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 16px;
+          padding-bottom: 18px;
+          border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+        }
+
+        .sf-detail-card .sf-card-title-row h2 {
+          margin-top: 6px;
+          color: #0f172a;
+          font-size: 24px;
+          font-weight: 950;
+          letter-spacing: -0.055em;
+        }
+
+        .sf-detail-card .sf-card-title-row span:first-child {
+          color: #475569;
+          font-size: 12px;
+          font-weight: 900;
+          letter-spacing: 0.01em;
+        }
+
+        .sf-detail-header-actions {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          flex-shrink: 0;
+        }
+
+        .sf-detail-header-actions .sf-status-badge {
+          min-height: 32px;
+          padding: 0 12px;
+          color: #167d7f;
+          background: rgba(22, 125, 127, 0.08);
+          border: 1px solid rgba(22, 125, 127, 0.08);
+        }
+
+        .sf-detail-close-button {
+          min-height: 32px;
+          padding: 0 13px;
+          border: 1px solid rgba(148, 163, 184, 0.28);
+          border-radius: 999px;
+          color: #475569;
+          background: rgba(255, 255, 255, 0.9);
+          cursor: pointer;
+          font-size: 12px;
+          font-weight: 950;
+          transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+        }
+
+        .sf-detail-close-button:hover {
+          transform: translateY(-1px);
+          border-color: rgba(22, 125, 127, 0.28);
+          color: #167d7f;
+          background: rgba(22, 125, 127, 0.07);
+        }
+
+        .sf-detail-metrics {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 12px;
+          margin: 18px 0 0;
+        }
+
+        .sf-detail-metrics > div {
+          position: relative;
+          min-height: 112px;
+          padding: 18px;
+          border-radius: 22px;
+          background:
+            linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+          border: 1px solid rgba(226, 232, 240, 0.95);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+        }
+
+        .sf-detail-metrics > div::after {
+          content: "";
+          position: absolute;
+          right: 16px;
+          bottom: 16px;
+          width: 28px;
+          height: 28px;
+          border-radius: 12px;
+          background: rgba(22, 125, 127, 0.08);
+        }
+
+        .sf-detail-metrics span {
+          display: block;
+          color: #64748b;
+          font-size: 11px;
+          font-weight: 950;
+        }
+
+        .sf-detail-metrics strong {
+          display: block;
+          margin-top: 10px;
+          color: #0f172a;
+          font-size: 25px;
+          font-weight: 950;
+          letter-spacing: -0.06em;
+        }
+
+        .sf-detail-summary-text,
+        .sf-detail-recommend-text {
+          position: relative;
+          margin: 0;
+          padding: 16px 18px;
+          border-radius: 20px;
+          color: #475569;
+          font-size: 13px;
+          line-height: 1.72;
+          word-break: keep-all;
+        }
+
+        .sf-detail-summary-text {
+          margin-top: 16px;
+          background: rgba(22, 125, 127, 0.055);
+          border: 1px solid rgba(22, 125, 127, 0.1);
+        }
+
+        .sf-detail-summary-text::before {
+          content: "상태 요약";
+          display: block;
+          margin-bottom: 6px;
+          color: #167d7f;
+          font-size: 11px;
+          font-weight: 950;
+        }
+
+        .sf-detail-recommend-text {
+          margin-top: 12px;
+          background: #f8fafc;
+          border: 1px dashed rgba(148, 163, 184, 0.4);
+        }
+
+        .sf-detail-recommend-text::before {
+          content: "연결된 추천";
+          display: block;
+          margin-bottom: 6px;
+          color: #64748b;
+          font-size: 11px;
+          font-weight: 950;
+        }
+
+        .sf-detail-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          margin-top: 16px;
+        }
+
+        .sf-detail-actions a,
+        .sf-detail-actions button {
+          min-height: 38px;
+          border-radius: 999px;
+          font-weight: 950;
+          box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+        }
+
+        .sf-llm-report-card {
+          padding: 26px;
+          background:
+            radial-gradient(circle at 100% 0%, rgba(15, 23, 42, 0.035), transparent 32%),
+            #ffffff;
+        }
+
+        .sf-llm-report-card .sf-card-title-row {
+          padding-bottom: 16px;
+          border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+        }
+
+        .sf-llm-report-card h2 {
+          color: #0f172a;
+          font-size: 22px;
+          font-weight: 950;
+          letter-spacing: -0.045em;
+        }
+
+        .sf-llm-report-card .sf-status-badge {
+          color: #475569;
+          background: #f1f5f9;
+          border: 1px solid rgba(226, 232, 240, 0.92);
+        }
+
+        .sf-llm-report-card p,
+        .sf-llm-report-card li {
+          color: #475569;
+          line-height: 1.75;
+          word-break: keep-all;
+        }
+
+        .sf-llm-report-card section,
+        .sf-llm-report-card article,
+        .sf-llm-report-card .sf-report-block {
+          border-radius: 20px;
+        }
+
+
+        /* history-detail-content-polish:start */
+        .sf-detail-insight-panel,
+        .sf-detail-recommend-panel {
+          margin-top: 14px;
+          padding: 18px;
+          border-radius: 22px;
+          border: 1px solid rgba(226, 232, 240, 0.92);
+          background: rgba(248, 250, 252, 0.72);
+        }
+
+        .sf-detail-insight-panel {
+          background:
+            linear-gradient(180deg, rgba(22, 125, 127, 0.07) 0%, rgba(248, 250, 252, 0.76) 100%);
+          border-color: rgba(22, 125, 127, 0.12);
+        }
+
+        .sf-detail-panel-heading {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          margin-bottom: 14px;
+        }
+
+        .sf-detail-panel-heading span {
+          color: #167d7f;
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.01em;
+        }
+
+        .sf-detail-panel-heading strong {
+          color: #0f172a;
+          font-size: 15px;
+          font-weight: 950;
+          letter-spacing: -0.035em;
+        }
+
+        .sf-detail-insight-list {
+          display: grid;
+          gap: 10px;
+        }
+
+        .sf-detail-insight-item {
+          display: grid;
+          grid-template-columns: 96px minmax(0, 1fr);
+          gap: 12px;
+          align-items: start;
+          padding: 12px 14px;
+          border-radius: 16px;
+          background: rgba(255, 255, 255, 0.78);
+          border: 1px solid rgba(226, 232, 240, 0.82);
+        }
+
+        .sf-detail-insight-item span {
+          color: #0f766e;
+          font-size: 12px;
+          font-weight: 950;
+        }
+
+        .sf-detail-insight-item p {
+          margin: 0;
+          color: #475569;
+          font-size: 13px;
+          line-height: 1.65;
+          word-break: keep-all;
+        }
+
+        .sf-detail-recommend-panel > p {
+          margin: 0 0 12px;
+          color: #475569;
+          font-size: 13px;
+          line-height: 1.68;
+          word-break: keep-all;
+        }
+
+        .sf-detail-recommend-chips {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+
+        .sf-detail-recommend-chips span {
+          display: inline-flex;
+          align-items: center;
+          min-height: 30px;
+          padding: 0 12px;
+          border-radius: 999px;
+          color: #0f766e;
+          background: rgba(22, 125, 127, 0.08);
+          border: 1px solid rgba(22, 125, 127, 0.12);
+          font-size: 12px;
+          font-weight: 900;
+        }
+
+        .sf-detail-summary-text,
+        .sf-detail-recommend-text {
+          display: none;
+        }
+
+        .sf-llm-report-card {
+          padding: 28px;
+          border-radius: 28px;
+          background:
+            radial-gradient(circle at 100% 0%, rgba(22, 125, 127, 0.055), transparent 34%),
+            #ffffff;
+        }
+
+        .sf-llm-report-card .sf-card-title-row {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 16px;
+          padding-bottom: 18px;
+          margin-bottom: 16px;
+          border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+        }
+
+        .sf-llm-report-card .sf-card-title-row h2 {
+          margin-top: 4px;
+          font-size: 23px;
+          font-weight: 950;
+          letter-spacing: -0.05em;
+          color: #0f172a;
+        }
+
+        .sf-llm-report-card .sf-card-title-row span:first-child {
+          color: #167d7f;
+          font-size: 12px;
+          font-weight: 950;
+        }
+
+        .sf-llm-report-card .sf-status-badge {
+          min-height: 32px;
+          padding: 0 12px;
+          border-radius: 999px;
+          color: #475569;
+          background: #f1f5f9;
+          border: 1px solid rgba(226, 232, 240, 0.9);
+          white-space: nowrap;
+        }
+
+        .sf-llm-report-card section,
+        .sf-llm-report-card article,
+        .sf-llm-report-card .sf-report-block {
+          padding: 18px;
+          border-radius: 20px;
+          background: #f8fafc;
+          border: 1px solid rgba(226, 232, 240, 0.92);
+        }
+
+        .sf-llm-report-card section + section,
+        .sf-llm-report-card article + article,
+        .sf-llm-report-card .sf-report-block + .sf-report-block {
+          margin-top: 12px;
+        }
+
+        .sf-llm-report-card h3,
+        .sf-llm-report-card h4 {
+          margin: 0 0 9px;
+          color: #0f172a;
+          font-size: 13px;
+          font-weight: 950;
+          letter-spacing: -0.025em;
+        }
+
+        .sf-llm-report-card p {
+          margin: 0;
+          color: #475569;
+          font-size: 14px;
+          line-height: 1.82;
+          word-break: keep-all;
+        }
+
+        .sf-llm-report-card ul {
+          margin: 0;
+          padding-left: 18px;
+        }
+
+        .sf-llm-report-card li {
+          color: #475569;
+          font-size: 14px;
+          line-height: 1.85;
+          word-break: keep-all;
+        }
+
+        .sf-llm-report-card li + li {
+          margin-top: 5px;
+        }
+
+        @media (max-width: 720px) {
+          .sf-detail-insight-item {
+            grid-template-columns: 1fr;
+          }
+
+          .sf-llm-report-card {
+            padding: 22px;
+          }
+        }
+        /* history-detail-content-polish:end */
+
+
+        @media (max-width: 980px) {
+          .sf-history-detail-section {
+            grid-template-columns: 1fr;
+          }
+
+          .sf-detail-card,
+          .sf-llm-report-card {
+            border-radius: 24px;
+          }
+        }
+
+        @media (max-width: 720px) {
+          .sf-detail-card {
+            padding: 22px;
+          }
+
+          .sf-detail-card .sf-card-title-row {
+            flex-direction: column;
+          }
+
+          .sf-detail-header-actions {
+            width: 100%;
+            justify-content: space-between;
+          }
+
+          .sf-detail-metrics {
+            grid-template-columns: 1fr;
+          }
+        }
+        /* history-detail-final-polish:end */
 
 
         @media (max-width: 980px) {
           .sf-history-hero,
           .sf-history-grid,
-          .sf-history-bottom,
-          .sf-history-main-card {
+          .sf-history-main-card,
+          .sf-history-detail-section {
             grid-template-columns: 1fr;
           }
 
+          .sf-history-card {
+            height: 100%;
+          }
+
+          .sf-trend-chart {
+            flex: initial;
+            grid-template-rows: none;
+          }
+
           .sf-score-preview {
-            min-height: auto;
+            min-height: 100%;
           }
 
           .sf-guide-list {
@@ -1008,11 +1940,18 @@ function HistoryPage() {
 
           .sf-record-card {
             grid-template-columns: 48px 1fr;
+            min-height: 100%;
           }
 
           .sf-record-side {
             grid-column: 2;
+            width: 100%;
+            align-items: flex-start;
             justify-items: start;
+          }
+
+          .sf-record-actions {
+            justify-content: flex-start;
           }
 
           .sf-trend-row {
@@ -1026,7 +1965,7 @@ function HistoryPage() {
           <div className="sf-history-main-card">
             <div>
               <span className="sf-history-eyebrow">
-                <History size={15} /> Analysis History
+                <History size={15} /> 분석 이력
               </span>
 
               <h1>
@@ -1036,8 +1975,8 @@ function HistoryPage() {
               </h1>
 
               <p>
-                분석 이력을 통해 종합 점수, 색소침착, 주름 지표를 다시 확인하고
-                추천과 관리 가이드로 이어지는 흐름을 확인합니다.
+                날짜별 분석 기록에서 종합 점수, 색소침착, 주름 지표와
+                연결된 추천 흐름을 상세하게 다시 확인할 수 있습니다.
               </p>
 
               <div className="sf-history-actions">
@@ -1068,8 +2007,8 @@ function HistoryPage() {
           <Card className="sf-history-summary-card">
             <div className="sf-card-title-row">
               <div>
-                <small>History Summary</small>
-                <h2>분석 이력 요약</h2>
+                <small>상세 이력 요약</small>
+                <h2>지난 분석 상세 이력</h2>
               </div>
               <span className="sf-icon-tile" aria-hidden="true">
                 <Trophy size={21} />
@@ -1110,10 +2049,10 @@ function HistoryPage() {
         </section>
 
         <section className="sf-history-grid">
-          <Card className="sf-history-card">
+          <Card className="sf-history-card sf-history-trend-card">
             <div className="sf-card-title-row">
               <div>
-                <small>Trend</small>
+                <small>점수 흐름</small>
                 <h2>종합 점수 변화</h2>
               </div>
               <Badge>{hasRecords ? "기록 있음" : "분석 전"}</Badge>
@@ -1157,11 +2096,11 @@ function HistoryPage() {
             </p>
           </Card>
 
-          <Card className="sf-history-card">
+          <Card className="sf-history-card sf-history-record-card">
             <div className="sf-record-toolbar">
               <div className="sf-card-title-row" style={{ marginBottom: 0 }}>
                 <div>
-                  <small>Records</small>
+                  <small>분석 기록</small>
                   <h2>날짜별 분석 기록</h2>
                 </div>
               </div>
@@ -1171,15 +2110,15 @@ function HistoryPage() {
                 <input
                   type="text"
                   value={searchText}
-                  onChange={(event) => setSearchText(event.target.value)}
+                  onChange={(event) => handleSearchTextChange(event.target.value)}
                   placeholder="날짜 또는 키워드 검색"
                 />
               </label>
             </div>
 
-            <div className="sf-record-list">
-              {filteredRecords.length > 0 ? (
-                filteredRecords.map((record, index) => {
+            <div className={`sf-record-list${displayedRecords.length > 4 ? " is-expanded" : ""}`}>
+              {hasSearchResults ? (
+                displayedRecords.map((record, index) => {
                   const recordId = getRecordId(record);
                   const recordScore = getRecordScore(record);
                   const recordStatus = getRecordStatus(record);
@@ -1209,7 +2148,6 @@ function HistoryPage() {
                         <span className="sf-score-badge">
                           {canShowRecordScore ? formatScore(recordScore, "점수 없음") : "점수 없음"}
                         </span>
-                        <span className="sf-status-badge">{getStatusLabel(recordStatus)}</span>
                         <div className="sf-record-actions">
                           <button
                             type="button"
@@ -1223,6 +2161,14 @@ function HistoryPage() {
                     </div>
                   );
                 })
+              ) : hasSearchKeyword ? (
+                <div className="sf-empty-card">
+                  <span className="sf-icon-tile" aria-hidden="true">
+                    <Search size={21} />
+                  </span>
+                  <strong>검색 조건에 맞는 분석 이력이 없습니다</strong>
+                  <p>검색어를 줄이거나 날짜/상태 정보를 다시 확인해 주세요.</p>
+                </div>
               ) : (
                 <div className="sf-empty-card">
                   <span className="sf-icon-tile" aria-hidden="true">
@@ -1237,17 +2183,31 @@ function HistoryPage() {
               )}
             </div>
 
+
             {detailError && <p className="sf-error-line" style={{ marginTop: 12 }}>{detailError}</p>}
 
-            {selectedDetail && (
-              <>
+          </Card>
+        </section>
+
+        {visibleSelectedDetail && (
+          <section className="sf-history-detail-section">
                 <div className="sf-detail-card">
                   <div className="sf-card-title-row">
                     <div>
-                      <small>{formatDate(getRecordDate(selectedDetail))}</small>
+                      <small>{formatDate(getRecordDate(visibleSelectedDetail))}</small>
                       <h2>상세 분석 정보</h2>
                     </div>
-                    <span className="sf-status-badge">{getStatusLabel(selectedDetailStatus)}</span>
+                    <div className="sf-detail-header-actions">
+                      <span className="sf-status-badge">{getStatusLabel(selectedDetailStatus)}</span>
+                      <button
+                        type="button"
+                        className="sf-detail-close-button"
+                        onClick={handleCloseDetail}
+                        aria-label="상세 분석 정보 닫기"
+                      >
+                        닫기
+                      </button>
+                    </div>
                   </div>
 
                   <div className="sf-detail-metrics">
@@ -1255,7 +2215,7 @@ function HistoryPage() {
                       <span>종합 점수</span>
                       <strong>
                         {canShowSelectedDetailScore
-                          ? formatScore(getRecordScore(selectedDetail), "점수 없음")
+                          ? formatScore(getRecordScore(visibleSelectedDetail), "점수 없음")
                           : "점수 없음"}
                       </strong>
                     </div>
@@ -1263,7 +2223,7 @@ function HistoryPage() {
                       <span>색소침착</span>
                       <strong>
                         {canShowSelectedDetailScore
-                          ? getMetricScore(selectedDetail.metrics, "색소")
+                          ? getMetricScore(visibleSelectedDetail.metrics, "색소")
                           : "점수 없음"}
                       </strong>
                     </div>
@@ -1271,20 +2231,54 @@ function HistoryPage() {
                       <span>주름</span>
                       <strong>
                         {canShowSelectedDetailScore
-                          ? getMetricScore(selectedDetail.metrics, "주름")
+                          ? getMetricScore(visibleSelectedDetail.metrics, "주름")
                           : "점수 없음"}
                       </strong>
                     </div>
                   </div>
 
-                  <p>{selectedDetail.statusDescription || selectedDetail.summary || "상세 분석 설명이 없습니다."}</p>
-                  <p>{getRecommendationText(selectedDetail.recommendations)}</p>
+                  <div className="sf-detail-insight-panel">
+                    <div className="sf-detail-panel-heading">
+                      <span>관리 포인트</span>
+                      <strong>분석 결과 기반으로 확인할 항목</strong>
+                    </div>
+                    <div className="sf-detail-insight-list">
+                      {getHistoryDetailInsightItems(visibleSelectedDetail).map((item) => (
+                        <div className="sf-detail-insight-item" key={item.title}>
+                          <span>{item.title}</span>
+                          <p>{item.text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="sf-detail-recommend-panel">
+                    <div className="sf-detail-panel-heading">
+                      <span>연결된 추천</span>
+                      <strong>추천 화면에서 이어서 확인할 수 있어요</strong>
+                    </div>
+                    <p>{visibleSelectedDetail.statusDescription || visibleSelectedDetail.summary || "상세 분석 설명이 없습니다."}</p>
+                    <div className="sf-detail-recommend-chips">
+                      {getHistoryDetailRecommendationItems(visibleSelectedDetail.recommendations).map((item) => (
+                        <span key={item}>{item}</span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="sf-detail-actions">
+                    <Button to="/recommendations" variant="secondary" size="sm">
+                      맞춤 추천 보기
+                    </Button>
+                    <Button to="/diet-guide" variant="secondary" size="sm">
+                      식습관 가이드 보기
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="sf-llm-report-card">
                   <div className="sf-llm-report-head">
                     <div>
-                      <small>AI Summary Report</small>
+                      <small>AI 요약 리포트</small>
                       <h3>AI 요약 리포트</h3>
                     </div>
                     <span className="sf-status-badge">
@@ -1361,49 +2355,17 @@ function HistoryPage() {
                     </>
                   )}
                 </div>
-              </>
-            )}
-          </Card>
-        </section>
+          </section>
+        )}
 
         <section className="sf-history-bottom">
-          <Card className="sf-history-card">
-            <div className="sf-card-title-row">
-              <div>
-                <small>Guide</small>
-                <h2>이력 관리 안내</h2>
-              </div>
-              <span className="sf-icon-tile" aria-hidden="true">
-                <CheckCircle2 size={21} />
-              </span>
-            </div>
-
-            <div className="sf-guide-list">
-              <div className="sf-guide-card">
-                <span className="sf-icon-tile" aria-hidden="true">
-                  <Clock size={21} />
-                </span>
-                <strong>동일한 조건</strong>
-                <p>비슷한 시간대와 조명에서 분석하면 비교가 더 안정적입니다.</p>
-              </div>
-
-              <div className="sf-guide-card">
-                <span className="sf-icon-tile" aria-hidden="true">
-                  <LineChart size={21} />
-                </span>
-                <strong>변화 흐름</strong>
-                <p>점수 하나보다 장기적인 흐름을 함께 확인하는 것이 좋습니다.</p>
-              </div>
-
-              <div className="sf-guide-card">
-                <span className="sf-icon-tile" aria-hidden="true">
-                  <Sparkles size={21} />
-                </span>
-                <strong>추천 연결</strong>
-                <p>이력은 성분, 제품, 식습관 가이드를 다시 확인하는 기준입니다.</p>
-              </div>
-            </div>
-          </Card>
+          <p className="sf-history-tip">
+            <Clock size={16} />
+            <span>
+              같은 촬영 조건에서 분석하면 점수 흐름을 더 안정적으로 비교할 수 있으며,
+              상세 보기를 통해 과거 분석 결과와 추천 내용을 다시 확인할 수 있습니다.
+            </span>
+          </p>
         </section>
       </div>
     </PageLayout>

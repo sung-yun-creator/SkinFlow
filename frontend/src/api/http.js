@@ -1,3 +1,5 @@
+import { clearLoginSession } from "./authSession";
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
 class ApiError extends Error {
@@ -28,6 +30,27 @@ function createApiError(response, data) {
     result: data?.result || null,
     data,
   });
+}
+
+function redirectToLogin() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (window.location.pathname !== "/login") {
+    window.location.assign("/login");
+  }
+}
+
+function handleUnauthorizedResponse(response, data) {
+  if (response.status !== 401) {
+    return;
+  }
+
+  if (data?.code === "AUTH_IDLE_TIMEOUT" || response.status === 401) {
+    clearLoginSession();
+    redirectToLogin();
+  }
 }
 
 async function request(path, options = {}) {
@@ -68,6 +91,7 @@ async function request(path, options = {}) {
     : null;
 
   if (!response.ok) {
+    handleUnauthorizedResponse(response, data);
     throw createApiError(response, data);
   }
 
