@@ -4,8 +4,8 @@ import { sendChatMessage } from "../../api/chatApi";
 import { AUTH_STORAGE_KEYS } from "../../api/authSession";
 
 const QUICK_QUESTIONS = [
-  "레티놀은 매일 사용해도 되나요?",
-  "지성 피부 보습은 어떻게 해야 하나요?",
+  "색소침착 관리는 어떻게 해야 하나요?",
+  "주름 관리에 레티놀을 써도 되나요?",
   "선크림은 얼마나 자주 발라야 하나요?",
 ];
 
