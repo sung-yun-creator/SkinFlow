@@ -1014,14 +1014,13 @@ const isSkinRelatedQuestion = (text) => {
           word-break: keep-all;
         }
 
-<<<<<<< HEAD
         .sf-chat-message.user {
           align-self: flex-end;
           color: #ffffff;
           background: #167d7f;
           border-bottom-right-radius: 6px;
-=======
-        .sf-section-state strong {
+      }
+          .sf-section-state strong {
           display: block;
           margin: 0;
           color: #0f172a;
@@ -1037,7 +1036,6 @@ const isSkinRelatedQuestion = (text) => {
           to {
             transform: rotate(360deg);
           }
->>>>>>> main
         }
 
         .sf-chat-message.bot {
