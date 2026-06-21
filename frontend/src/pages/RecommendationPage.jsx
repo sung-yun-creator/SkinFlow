@@ -571,6 +571,42 @@ function RecommendationPage() {
           box-shadow: 0 16px 34px rgba(15, 23, 42, 0.075);
         }
 
+        .sf-product-card {
+          grid-template-columns: 64px minmax(0, 1fr) auto;
+          align-items: start;
+        }
+
+        .sf-product-visual {
+          width: 64px;
+          height: 64px;
+          min-width: 64px;
+          min-height: 64px;
+          overflow: hidden;
+          border-radius: 20px;
+          display: grid;
+          place-items: center;
+          color: #167d7f;
+          background:
+            radial-gradient(circle at 30% 18%, rgba(22, 125, 127, 0.14), transparent 34%),
+            linear-gradient(135deg, #f8fafc 0%, #ffffff 48%, #ecfeff 100%);
+          border: 1px solid rgba(226, 232, 240, 0.92);
+          box-shadow: 0 10px 24px rgba(15, 23, 42, 0.055);
+        }
+
+        .sf-product-visual img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+        }
+
+        .sf-product-visual svg {
+          display: block;
+          width: 24px;
+          height: 24px;
+          stroke-width: 2.05;
+        }
+
         .sf-icon-tile {
           width: 50px;
           height: 50px;
@@ -850,6 +886,18 @@ function RecommendationPage() {
             min-height: auto;
           }
 
+          .sf-product-card {
+            grid-template-columns: 56px minmax(0, 1fr);
+          }
+
+          .sf-product-visual {
+            width: 56px;
+            height: 56px;
+            min-width: 56px;
+            min-height: 56px;
+            border-radius: 18px;
+          }
+
           .sf-match-score {
             grid-column: 2;
             align-items: flex-start;
@@ -1013,8 +1061,19 @@ function RecommendationPage() {
 
                   return (
                     <article className="sf-product-card" key={item.id || item.name}>
-                      <span className="sf-icon-tile" aria-hidden="true">
-                        <PackageCheck size={22} />
+                      <span className="sf-product-visual" aria-hidden="true">
+                        {item.imageUrl ? (
+                          <img
+                            src={item.imageUrl}
+                            alt=""
+                            loading="lazy"
+                            onError={(event) => {
+                              event.currentTarget.style.display = "none";
+                            }}
+                          />
+                        ) : (
+                          <PackageCheck size={24} />
+                        )}
                       </span>
 
                       <div className="sf-product-main">

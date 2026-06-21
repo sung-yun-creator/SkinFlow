@@ -6,8 +6,10 @@ import {
   ClipboardList,
   FlaskConical,
   History,
+  Leaf,
   LineChart,
   LoaderCircle,
+  PackageCheck,
   ScanFace,
   X,
   Sparkles,
@@ -85,13 +87,23 @@ function clearStoredAnalysisProgress() {
 const valueCards = [
   {
     icon: ScanFace,
-    title: "AI 피부 분석",
-    description: "얼굴 이미지로 색소침착과 주름 흐름을 간결하게 확인합니다.",
+    title: "색소침착·주름 분석",
+    description: "얼굴 이미지 기반으로 핵심 피부 지표를 한 화면에서 확인합니다.",
   },
   {
     icon: FlaskConical,
-    title: "맞춤 추천 연결",
-    description: "분석 결과를 성분, 제품, 식습관 가이드로 자연스럽게 이어줍니다.",
+    title: "성분 추천",
+    description: "분석 결과와 연결된 기능성 성분을 관리 참고 정보로 정리합니다.",
+  },
+  {
+    icon: PackageCheck,
+    title: "제품 추천",
+    description: "추천 성분과 연결되는 화장품 제품 정보를 카드 형태로 확인합니다.",
+  },
+  {
+    icon: Leaf,
+    title: "식습관 가이드",
+    description: "피부 관리 방향에 맞춘 생활 가이드를 실천 항목으로 제공합니다.",
   },
   {
     icon: History,
@@ -285,6 +297,29 @@ function LandingPage() {
             flex-wrap: wrap;
             gap: 12px;
             margin-top: 32px;
+          }
+
+          .sf-landing-feature-strip {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            max-width: 560px;
+            margin-top: 22px;
+          }
+
+          .sf-landing-feature-strip span {
+            display: inline-flex;
+            align-items: center;
+            min-height: 34px;
+            padding: 0 12px;
+            border-radius: 999px;
+            color: #0f172a;
+            background: rgba(255, 255, 255, 0.76);
+            border: 1px solid rgba(226, 232, 240, 0.92);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.045);
+            font-size: 12px;
+            font-weight: 900;
+            white-space: nowrap;
           }
 
           .sf-landing-stats {
@@ -550,7 +585,7 @@ function LandingPage() {
 
           .sf-value-grid {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: repeat(5, minmax(0, 1fr));
             gap: 18px;
           }
 
@@ -873,7 +908,7 @@ function LandingPage() {
             }
 
             .sf-value-grid {
-              grid-template-columns: 1fr;
+              grid-template-columns: repeat(2, minmax(0, 1fr));
             }
 
             .sf-process-line {
@@ -931,6 +966,11 @@ function LandingPage() {
               width: 100%;
             }
 
+            .sf-landing-feature-strip span {
+              flex: 1 1 calc(50% - 8px);
+              justify-content: center;
+            }
+
             .sf-landing-auth-actions {
               gap: 6px;
             }
@@ -954,6 +994,10 @@ function LandingPage() {
             }
 
             .sf-report-metrics {
+              grid-template-columns: 1fr;
+            }
+
+            .sf-value-grid {
               grid-template-columns: 1fr;
             }
 
@@ -1061,9 +1105,9 @@ function LandingPage() {
             </span>
 
             <h1>
-              AI가 분석하는
+              AI 기반 피부 분석 및
               <br />
-              <span className="sf-gradient-text">나만의 피부 리포트</span>
+              <span className="sf-gradient-text">통합 라이프케어 솔루션</span>
             </h1>
 
             <p>
@@ -1078,6 +1122,15 @@ function LandingPage() {
               <Button to={secondaryCtaTo} variant="secondary" size="lg">
                 {secondaryCtaText}
               </Button>
+            </div>
+
+            <div className="sf-landing-feature-strip" aria-label="SkinFlow 핵심 기능">
+              <span>색소침착 분석</span>
+              <span>주름 분석</span>
+              <span>성분 추천</span>
+              <span>제품 추천</span>
+              <span>식습관 가이드</span>
+              <span>분석 이력 관리</span>
             </div>
 
             <div className="sf-landing-stats">
