@@ -742,9 +742,9 @@ function AnalysisResultPage() {
           <div className="sf-result-face-card">
             <Badge>{heroBadge}</Badge>
             <h1>
-              분석 결과를
+              분석 결과를 바탕으로
               <br />
-              <span className="sf-result-gradient-text">바탕으로 맞춤 관리를 이어가세요</span>
+              <span className="sf-result-gradient-text">맞춤 관리를 이어가세요</span>
             </h1>
             <p>
               {hasDisplayableMetrics
