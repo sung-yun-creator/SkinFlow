@@ -168,7 +168,7 @@ function DietGuidePage() {
   const checkedVisibleCount = visibleActionIds.filter((id) => checkedActionIds.includes(id)).length;
   const guideCount = summary?.guideCount ?? guides.length;
   const totalScore = summary?.totalScore ?? summary?.total_skin_score;
-  const hasTotalScore = totalScore !== null && totalScore !== undefined && totalScore !== "";
+  const hasTotalScore = isLatestGuide && totalScore !== null && totalScore !== undefined && totalScore !== "";
   const primaryAction = isLatestGuide
     ? { to: "/recommendations", label: "추천 화면으로 이동" }
     : { to: "/analysis/capture", label: "피부 분석 시작하기" };
@@ -257,12 +257,33 @@ function DietGuidePage() {
           word-break: keep-all;
         }
 
-        .sf-diet-actions {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 10px;
-          margin-top: 22px;
-        }
+          .sf-diet-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 22px;
+          }
+
+          .sf-diet-mini-flow {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 18px;
+          }
+
+          .sf-diet-mini-flow span {
+            display: inline-flex;
+            align-items: center;
+            min-height: 32px;
+            padding: 0 11px;
+            border-radius: 999px;
+            color: #0f172a;
+            background: rgba(255, 255, 255, 0.78);
+            border: 1px solid rgba(226, 232, 240, 0.88);
+            font-size: 12px;
+            font-weight: 900;
+            white-space: nowrap;
+          }
 
         .sf-diet-summary {
           min-height: 260px;
@@ -829,6 +850,11 @@ function DietGuidePage() {
             grid-template-columns: 1fr;
           }
 
+          .sf-diet-mini-flow span {
+            flex: 1 1 calc(50% - 8px);
+            justify-content: center;
+          }
+
           .sf-diet-source-grid {
             grid-template-columns: 1fr;
           }
@@ -883,6 +909,13 @@ function DietGuidePage() {
               <p>
                 {heroDescription}
               </p>
+
+              <div className="sf-diet-mini-flow" aria-label="식습관 가이드 구성">
+                <span>분석 결과 기반</span>
+                <span>생활 루틴</span>
+                <span>실천 체크</span>
+                <span>기본 관리 가이드</span>
+              </div>
             </div>
 
             <div className="sf-diet-actions">
@@ -959,7 +992,7 @@ function DietGuidePage() {
 
                 {visibleActionItems.length > 0 && (
                   <div className="sf-check-count">
-                    <span className="sf-diet-label">확인한 항목</span>
+                    <span className="sf-diet-label">실천 체크</span>
                     <strong>
                       {checkedVisibleCount} / {visibleActionItems.length}
                     </strong>

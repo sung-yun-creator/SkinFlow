@@ -145,7 +145,7 @@ const nextCards = [
   {
     icon: Sparkles,
     title: "기능성 성분 추천",
-    description: "색소침착·주름 결과를 기준으로 관리에 참고할 성분을 연결합니다.",
+    description: "색소침착·주름 분석 결과를 기준으로 관리에 참고할 성분을 연결합니다.",
     to: "/recommendations",
     badge: "추천",
   },
@@ -221,7 +221,7 @@ function AnalysisResultPage() {
         : "실제 분석 결과 대기";
 
   const summaryText = hasDisplayableMetrics
-    ? analysisResult.summary || "색소침착과 주름 지표를 기준으로 산출한 분석 결과입니다."
+    ? analysisResult.summary || "색소침착과 주름 지표를 기준으로 정리한 분석 결과입니다."
     : isPending
       ? analysisResult.message || "AI 모델 분석 결과가 아직 준비되지 않았습니다."
       : hasSavedResult
@@ -559,6 +559,10 @@ function AnalysisResultPage() {
             padding: 22px;
           }
 
+          .sf-result-next-card.is-wide {
+            grid-column: 1 / -1;
+          }
+
           .sf-result-card-head {
             display: flex;
             align-items: flex-start;
@@ -611,6 +615,19 @@ function AnalysisResultPage() {
             color: #cbd5e1;
             font-size: 12px;
             font-weight: 950;
+          }
+
+          .sf-result-next-support {
+            margin-top: 14px;
+            padding: 14px;
+            border-radius: 18px;
+            color: #475569;
+            background: rgba(22, 125, 127, 0.07);
+            border: 1px solid rgba(22, 125, 127, 0.12);
+            font-size: 13px;
+            font-weight: 800;
+            line-height: 1.55;
+            word-break: keep-all;
           }
 
           .sf-result-next-item h3 {
@@ -725,13 +742,13 @@ function AnalysisResultPage() {
           <div className="sf-result-face-card">
             <Badge>{heroBadge}</Badge>
             <h1>
-              피부 상태를
+              분석 결과를 바탕으로
               <br />
-              <span className="sf-result-gradient-text">한눈에 확인하세요</span>
+              <span className="sf-result-gradient-text">맞춤 관리를 이어가세요</span>
             </h1>
             <p>
               {hasDisplayableMetrics
-                ? "저장된 색소침착·주름 지표를 보기 쉽게 정리했습니다."
+                ? "저장된 색소침착·주름 지표를 종합 점수와 함께 보기 쉽게 정리했습니다."
                 : isPending
                   ? "AI 모델이 아직 실제 점수를 반환하지 않아 저장 보류 상태를 안내합니다."
                   : "분석 결과가 없을 때는 임의 점수를 표시하지 않고, 다음 행동을 안내합니다."}
@@ -806,16 +823,14 @@ function AnalysisResultPage() {
             <div className="sf-result-notice-item">
               <Info size={18} />
               <span>
-                SkinFlow의 분석 결과는 피부 관리 참고 정보이며, 의료적 판단이나
-                치료 목적의 정보가 아닙니다.
+                SkinFlow의 분석 결과는 피부 관리 참고 정보이며, 개인별 관리 방향을 돕기 위한 안내입니다.
               </span>
             </div>
           </div>
         </section>
 
         <section className="sf-result-lower-grid">
-          {hasDisplayableMetrics && (
-          <div className="sf-result-next-card">
+          <div className={`sf-result-next-card ${hasDisplayableMetrics ? "" : "is-wide"}`}>
             <div className="sf-result-card-head">
               <div>
                 <span className="sf-result-section-label">다음 확인 화면</span>
@@ -846,8 +861,12 @@ function AnalysisResultPage() {
                 );
               })}
             </div>
+            {!hasDisplayableMetrics && (
+              <div className="sf-result-next-support">
+                실제 분석 결과가 저장되면 성분 추천, 제품 추천, 식습관 가이드가 분석 결과 기반으로 이어집니다.
+              </div>
+            )}
           </div>
-          )}
 
           <aside className="sf-result-notice-card">
             <div className="sf-result-card-head">
