@@ -6,7 +6,6 @@ const chatRoutes = require('./routes/chatRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const historyRoutes = require('./routes/historyRoutes');
 const mypageRoutes = require('./routes/mypageRoutes');
-const chatRoutes = require('./routes/chatRoutes');
 const recommendationRoutes = require('./routes/recommendationRoutes');
 
 const app = express();
