@@ -1,5 +1,6 @@
 import Header from "./Header";
 import BottomNav from "./BottomNav";
+import ChatWidget from "../common/ChatWidget";
 
 function PageLayout({ children, showHeader = true, showBottomNav = true }) {
   return (
@@ -11,6 +12,7 @@ function PageLayout({ children, showHeader = true, showBottomNav = true }) {
       </main>
 
       {showBottomNav && <BottomNav />}
+      <ChatWidget />
     </div>
   );
 }

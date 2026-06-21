@@ -1,5 +1,11 @@
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from pydantic import BaseModel
 
+from chatbot_search_service import (
+    ChatbotSearchUnavailable,
+    get_chatbot_search_status,
+    search_chatbot_knowledge,
+)
 from privacy_image_service import build_privacy_masked_image
 from roi_service import extract_roi_with_retry
 from skin_model_service import predict_skin_condition
@@ -7,9 +13,42 @@ from skin_model_service import predict_skin_condition
 app = FastAPI(title="SkinFlow AI Server")
 
 
+class ChatbotSearchRequest(BaseModel):
+    query: str
+    top_k: int = 5
+
+
 @app.get("/health")
 def health_check():
-    return {"status": "ok", "service": "ai-server"}
+    return {
+        "status": "ok",
+        "service": "ai-server",
+        "chatbot": get_chatbot_search_status(),
+    }
+
+
+@app.get("/chatbot/health")
+def chatbot_health_check():
+    return get_chatbot_search_status()
+
+
+@app.post("/chatbot/search")
+def search_chatbot(request: ChatbotSearchRequest):
+    query = request.query.strip()
+
+    if not query:
+        raise HTTPException(status_code=400, detail="query is required")
+
+    try:
+        results = search_chatbot_knowledge(query, request.top_k)
+    except ChatbotSearchUnavailable as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+
+    return {
+        "success": True,
+        "query": query,
+        "results": results,
+    }
 
 
 @app.post("/analyze-skin")

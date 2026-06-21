@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const analysisRoutes = require('./routes/analysisRoutes');
 const authRoutes = require('./routes/authRoutes');
+const chatRoutes = require('./routes/chatRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const historyRoutes = require('./routes/historyRoutes');
 const mypageRoutes = require('./routes/mypageRoutes');
@@ -22,6 +23,7 @@ app.get('/', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/analysis', analysisRoutes);
+app.use('/api/chat', chatRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/history', historyRoutes);
 app.use('/api/mypage', mypageRoutes);
