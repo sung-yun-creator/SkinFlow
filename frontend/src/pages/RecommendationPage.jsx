@@ -1130,19 +1130,19 @@ const productSearchUrl = `https://www.oliveyoung.co.kr/store/search/getSearchMai
                           ))}
                         </div>
                         <>
-  <a
-    className="sf-product-link"
-    href={productSearchUrl}
-    target="_blank"
-    rel="noopener noreferrer"
-  >
-    제품 검색 결과 보기 ↗ <ExternalLink size={13} />
-  </a>
+                     <a
+                  className="sf-product-link"
+                  href={productSearchUrl}
+                 target="_blank"
+                 rel="noopener noreferrer"
+                        >
+                제품 검색 결과 보기 ↗ <ExternalLink size={13} />
+                           </a>
 
-  <p className="sf-product-link-note">
-    제품명 기준으로 검색 결과가 연결됩니다.
-  </p>
-</>
+                          <p className="sf-product-link-note">
+                        제품명 기준으로 검색 결과가 연결됩니다.
+                    </p>
+                    </>
                       </div>
 
                       <div className={`sf-match-score ${hasMatchScore(matchScore) ? "" : "is-pending"}`}>
