@@ -1335,6 +1335,15 @@ const isSkinRelatedQuestion = (text) => {
                 {products.map((item) => {
                   const matchScore = getRecommendationMatchScore(item);
                   const matchedIngredients = getVisibleMatchedIngredients(item);
+                 const oliveKeyword = `${item.brand ?? ""} ${String(item.name ?? "")
+  .replace(/\[[^\]]*\]/g, "")
+  .replace(/세럼|앰플|크림|토너|로션|에센스/g, "")
+  .trim()
+  .split(/\s+/)
+  .slice(0, 3)
+  .join(" ")}`.trim();
+
+const productSearchUrl = `https://www.oliveyoung.co.kr/store/search/getSearchMain.do?query=${encodeURIComponent(oliveKeyword)}`;
 
                   return (
                     <article className="sf-product-card" key={item.id || item.name}>
@@ -1355,7 +1364,17 @@ const isSkinRelatedQuestion = (text) => {
 
                       <div className="sf-product-main">
                         <span className="sf-product-brand">{item.brand}</span>
-                        <h3>{item.name}</h3>
+                      
+                       <h3>
+                     <a
+                     href={productSearchUrl}
+                     target="_blank"
+                     rel="noopener noreferrer"
+                    className="sf-product-title-link"
+                    >
+                   {item.name}
+                    </a>
+                  </h3>
                         <p>{item.description}</p>
                         {matchedIngredients.length > 0 && (
                           <div className="sf-product-detail">
@@ -1387,19 +1406,20 @@ const isSkinRelatedQuestion = (text) => {
                             </span>
                           ))}
                         </div>
-                        {item.productUrl && (
-                          <>
-                            <a
-                              className="sf-product-link"
-                              href={item.productUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              성분 검색 결과 보기 <ExternalLink size={13} />
-                            </a>
-                            <p className="sf-product-link-note">대표 성분 기준으로 연결됩니다.</p>
-                          </>
-                        )}
+                        <>
+  <a
+    className="sf-product-link"
+    href={productSearchUrl}
+    target="_blank"
+    rel="noopener noreferrer"
+  >
+    제품 검색 결과 보기 ↗ <ExternalLink size={13} />
+  </a>
+
+  <p className="sf-product-link-note">
+    제품명 기준으로 검색 결과가 연결됩니다.
+  </p>
+</>
                       </div>
 
                       <div className={`sf-match-score ${hasMatchScore(matchScore) ? "" : "is-pending"}`}>
