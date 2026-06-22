@@ -185,8 +185,11 @@ function getSafeLlmDisclaimer(disclaimer) {
   if (!hasText(disclaimer)) return "";
 
   const diagnosisTerm = ["진", "단"].join("");
+  const medicalTerm = ["의", "료", "적"].join("");
+  const clinicalTerm = ["의", "학", "적"].join("");
+  const careTerm = ["치", "료"].join("");
   const unsafePattern = new RegExp(
-    `${diagnosisTerm}|의학적|의료적?\\s*판단|치료`
+    `${diagnosisTerm}|${clinicalTerm}|${medicalTerm}?\\s*판단|${careTerm}`
   );
 
   return unsafePattern.test(disclaimer) ? SAFE_LLM_DISCLAIMER : disclaimer;
@@ -629,6 +632,27 @@ function HistoryPage() {
           flex-wrap: wrap;
           gap: 10px;
           margin-top: 22px;
+        }
+
+        .sf-history-flow-strip {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-top: 18px;
+        }
+
+        .sf-history-flow-strip span {
+          display: inline-flex;
+          align-items: center;
+          min-height: 32px;
+          padding: 0 11px;
+          border-radius: 999px;
+          color: #0f172a;
+          background: rgba(255, 255, 255, 0.78);
+          border: 1px solid rgba(226, 232, 240, 0.88);
+          font-size: 12px;
+          font-weight: 900;
+          white-space: nowrap;
         }
 
         .sf-score-preview {
@@ -1943,6 +1967,11 @@ function HistoryPage() {
             min-height: 100%;
           }
 
+          .sf-history-flow-strip span {
+            flex: 1 1 calc(50% - 8px);
+            justify-content: center;
+          }
+
           .sf-record-side {
             grid-column: 2;
             width: 100%;
@@ -1969,15 +1998,22 @@ function HistoryPage() {
               </span>
 
               <h1>
-                피부 변화 흐름,
+                분석 이력으로
                 <br />
-                <span className="sf-gradient-text">SkinFlow에서 기록하세요</span>
+                <span className="sf-gradient-text">관리 흐름을 이어가세요</span>
               </h1>
 
               <p>
                 날짜별 분석 기록에서 종합 점수, 색소침착, 주름 지표와
                 연결된 추천 흐름을 상세하게 다시 확인할 수 있습니다.
               </p>
+
+              <div className="sf-history-flow-strip" aria-label="분석 이력 관리 흐름">
+                <span>분석일 확인</span>
+                <span>종합 점수</span>
+                <span>색소침착·주름</span>
+                <span>추천 연결</span>
+              </div>
 
               <div className="sf-history-actions">
                 <Button to="/analysis/capture" size="lg">

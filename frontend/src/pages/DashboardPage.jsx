@@ -54,6 +54,15 @@ const quickActions = [
   },
 ];
 
+const hubHighlights = [
+  "색소침착 분석",
+  "주름 분석",
+  "성분 추천",
+  "제품 추천",
+  "식습관 가이드",
+  "분석 이력",
+];
+
 function hasRecommendationKeyword(value) {
   return /recommendation/i.test(value);
 }
@@ -402,8 +411,8 @@ function DashboardPage() {
     : "첫 피부 분석을";
   const heroHighlight = hasAnalysisHistory ? "관리 흐름을 이어가세요" : "시작해 보세요";
   const heroDescription = hasAnalysisHistory
-    ? "색소침착·주름 지표와 추천 정보를 한 화면에서 확인할 수 있습니다."
-    : "얼굴 이미지를 기반으로 색소침착·주름 지표를 분석하고 관리 가이드를 확인할 수 있습니다.";
+    ? "색소침착·주름 지표와 추천 정보를 서비스 허브에서 한 번에 확인할 수 있습니다."
+    : "얼굴 이미지를 기반으로 색소침착·주름 지표를 분석하고 추천과 관리 가이드로 이어갈 수 있습니다.";
   const primaryHeroAction = hasAnalysisHistory
     ? { to: "/recommendations", label: "추천 확인" }
     : { to: "/analysis/capture", label: "피부 분석 시작" };
@@ -496,6 +505,27 @@ function DashboardPage() {
             flex-wrap: wrap;
             gap: 10px;
             margin-top: 24px;
+          }
+
+          .dashboard-hub-strip {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 20px;
+          }
+
+          .dashboard-hub-strip span {
+            display: inline-flex;
+            align-items: center;
+            min-height: 32px;
+            padding: 0 11px;
+            border-radius: 999px;
+            color: #0f172a;
+            background: rgba(255, 255, 255, 0.78);
+            border: 1px solid rgba(226, 232, 240, 0.88);
+            font-size: 12px;
+            font-weight: 900;
+            white-space: nowrap;
           }
 
           .dashboard-primary-cta .sf-button {
@@ -595,6 +625,12 @@ function DashboardPage() {
             border-radius: 22px;
             background: linear-gradient(135deg, rgba(22, 125, 127, 0.08), rgba(248, 250, 252, 0.9));
             border: 1px solid rgba(226, 232, 240, 0.85);
+          }
+
+          .dashboard-score-box.is-muted {
+            background:
+              radial-gradient(circle at 100% 0%, rgba(100, 116, 139, 0.06), transparent 32%),
+              #f8fafc;
           }
 
           .dashboard-score-ring-compact {
@@ -863,6 +899,11 @@ function DashboardPage() {
               width: 100%;
             }
 
+            .dashboard-hub-strip span {
+              flex: 1 1 calc(50% - 8px);
+              justify-content: center;
+            }
+
             .dashboard-kpi-row,
             .dashboard-score-box,
             .dashboard-quick-grid {
@@ -916,6 +957,12 @@ function DashboardPage() {
                 )}
               </div>
 
+              <div className="dashboard-hub-strip" aria-label="대시보드 주요 기능">
+                {hubHighlights.map((item) => (
+                  <span key={item}>{item}</span>
+                ))}
+              </div>
+
               {dashboardError && (
                 <div className="dashboard-error-note">
                   <AlertCircle size={18} />
@@ -952,7 +999,7 @@ function DashboardPage() {
               </span>
             </div>
 
-            <div className="dashboard-score-box">
+            <div className={`dashboard-score-box ${hasLatestAnalysisScore ? "" : "is-muted"}`}>
               <div
                 className="dashboard-score-ring-compact"
                 style={{ "--score-value": `${hasLatestAnalysisScore ? latestScore : 0}%` }}
