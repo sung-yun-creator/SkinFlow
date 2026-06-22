@@ -10,11 +10,3 @@ async function sendChatMessage(message, analysisResult = null) {
 export {
   sendChatMessage,
 };
-
-export const sendChatMessage = async (message) => {
-  const response = await axios.post("http://localhost:3000/api/chat", {
-    message,
-  });
-
-  return response.data;
-};

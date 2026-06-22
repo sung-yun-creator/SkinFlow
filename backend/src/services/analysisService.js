@@ -1,4 +1,4 @@
-const DEFAULT_AI_SERVER_URL = 'http://localhost:8000';
+const DEFAULT_AI_SERVER_URL = 'http://127.0.0.1:8000';
 const DEFAULT_AI_SERVER_TIMEOUT_MS = 30000;
 const analysisRepository = require('../repositories/analysisRepository');
 const { findGradeByScore } = require('../constants/analysisReference');
@@ -70,7 +70,7 @@ async function requestAiServer(path, file) {
 }
 
 async function extractRoi(file) {
-    return requestAiServer('/extract-roi', file);
+    return requestAiServer('/analyze-skin', file);
 }
 
 function toStoredRois(roiResult) {
