@@ -13,7 +13,7 @@ const ANALYSIS_GRADES = [
     },
     {
         code: 'risk',
-        name: '위험',
+        name: '관리 필요',
         description: '집중적인 관리가 필요한 상태입니다.',
         minScore: 0,
     },

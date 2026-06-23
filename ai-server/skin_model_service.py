@@ -100,7 +100,7 @@ def _get_status_name(status_code: str) -> str:
     status_names = {
         "good": "양호",
         "caution": "주의",
-        "risk": "위험",
+        "risk": "관리 필요",
     }
     return status_names.get(status_code, "주의")
 
