@@ -4,6 +4,7 @@ import {
   CalendarDays,
   Clock,
   History,
+  Info,
   LineChart,
   Search,
   Sparkles,
@@ -26,6 +27,12 @@ const defaultHistoryData = {
   },
   records: [],
 };
+
+const scoreGradeLegend = [
+  { label: "양호", color: "#167D7F", bg: "rgba(22, 125, 127, 0.11)" },
+  { label: "주의", color: "#F59E0B", bg: "rgba(245, 158, 11, 0.14)" },
+  { label: "관리필요", color: "#F43F5E", bg: "rgba(244, 63, 94, 0.12)" },
+];
 
 function normalizeHistoryData(data) {
   return {
@@ -96,13 +103,13 @@ function getStatusLabel(status) {
   const statusMap = {
     good: "양호",
     low: "양호",
-    normal: "보통",
+    normal: "주의",
     caution: "주의",
     medium: "주의",
-    risk: "관리 필요",
-    high: "관리 필요",
-    danger: "관리 필요",
-    severe: "집중 관리",
+    risk: "관리필요",
+    high: "관리필요",
+    danger: "관리필요",
+    severe: "관리필요",
     pending: "분석 대기",
     processing: "분석 중",
     analysis_pending: "분석 대기",
@@ -113,6 +120,76 @@ function getStatusLabel(status) {
   };
 
   return statusMap[normalizedStatus] || status;
+}
+
+
+function normalizeGradeLabel(status) {
+  const normalizedStatus = String(status || "").replace(/\s/g, "");
+
+  if (!normalizedStatus || normalizedStatus === "분석완료") {
+    return null;
+  }
+
+  if (normalizedStatus.includes("양호")) return "양호";
+  if (normalizedStatus.includes("주의") || normalizedStatus.includes("보통")) return "주의";
+  if (
+    normalizedStatus.includes("관리") ||
+    normalizedStatus.includes("위험") ||
+    normalizedStatus.includes("심각") ||
+    normalizedStatus.includes("집중")
+  ) {
+    return "관리필요";
+  }
+
+  return null;
+}
+
+function getScoreGradeMeta(score, status) {
+  const numericScore = getScoreNumber(score);
+  const label =
+    normalizeGradeLabel(status) ||
+    (numericScore === null ? "분석전" : numericScore >= 80 ? "양호" : numericScore >= 60 ? "주의" : "관리필요");
+
+  const gradeMap = {
+    양호: {
+      label: "양호",
+      description: "좋은 상태로 관리 흐름을 유지해도 됩니다.",
+      color: "#167D7F",
+      bg: "rgba(22, 125, 127, 0.11)",
+      barBg: "rgba(22, 125, 127, 0.16)",
+    },
+    주의: {
+      label: "주의",
+      description: "생활 습관과 관리 루틴을 한 번 더 체크해 보세요.",
+      color: "#F59E0B",
+      bg: "rgba(245, 158, 11, 0.14)",
+      barBg: "rgba(245, 158, 11, 0.18)",
+    },
+    관리필요: {
+      label: "관리필요",
+      description: "우선 관리 항목으로 보고 꾸준한 관리가 권장됩니다.",
+      color: "#F43F5E",
+      bg: "rgba(244, 63, 94, 0.12)",
+      barBg: "rgba(244, 63, 94, 0.16)",
+    },
+    분석전: {
+      label: "분석 전",
+      description: "첫 분석 후 상태 단계가 표시됩니다.",
+      color: "#64748B",
+      bg: "rgba(100, 116, 139, 0.10)",
+      barBg: "rgba(100, 116, 139, 0.16)",
+    },
+  };
+
+  return gradeMap[label] || gradeMap.분석전;
+}
+
+function getGradeStyle(meta) {
+  return {
+    "--grade-color": meta.color,
+    "--grade-bg": meta.bg,
+    "--grade-bar-bg": meta.barBg,
+  };
 }
 
 function getMetricName(metric) {
@@ -127,23 +204,71 @@ function getMetricName(metric) {
   );
 }
 
-function getMetricScore(metrics, keyword) {
-  if (!Array.isArray(metrics) || metrics.length === 0) return "분석 전";
+function getGradeStatusValue(source) {
+  const grade = source?.grade;
+
+  return (
+    (typeof grade === "string" ? grade : grade?.name || grade?.label || grade?.status) ||
+    source?.gradeName ||
+    source?.grade_name ||
+    source?.statusName ||
+    source?.status_name ||
+    source?.level ||
+    source?.name ||
+    source?.analysisStatus ||
+    source?.analysis_status ||
+    source?.status
+  );
+}
+
+function getSummaryGradeStatus(summary) {
+  return (
+    summary?.latestGrade?.name ||
+    summary?.latest_grade?.name ||
+    summary?.latestGradeName ||
+    summary?.latest_grade_name ||
+    getGradeStatusValue(summary) ||
+    summary?.latestStatus ||
+    summary?.latest_status
+  );
+}
+
+function getRecordGradeStatus(record) {
+  return getGradeStatusValue(record);
+}
+
+function getMetricScoreValue(metrics, keyword) {
+  if (!Array.isArray(metrics) || metrics.length === 0) return null;
 
   const matchedMetric = metrics.find((metric) => {
     const name = getMetricName(metric);
     return String(name).includes(keyword);
   });
 
-  const score =
+  return (
     matchedMetric?.metricScore ??
     matchedMetric?.metric_score ??
     matchedMetric?.score ??
     matchedMetric?.value ??
     matchedMetric?.metricValue ??
-    matchedMetric?.metric_value;
+    matchedMetric?.metric_value ??
+    null
+  );
+}
 
-  return formatScore(score);
+function getMetricGradeValue(metrics, keyword) {
+  if (!Array.isArray(metrics) || metrics.length === 0) return null;
+
+  const matchedMetric = metrics.find((metric) => {
+    const name = getMetricName(metric);
+    return String(name).includes(keyword);
+  });
+
+  return getGradeStatusValue(matchedMetric);
+}
+
+function getMetricScore(metrics, keyword) {
+  return formatScore(getMetricScoreValue(metrics, keyword));
 }
 
 function getRecommendationText(recommendations) {
@@ -321,6 +446,7 @@ function HistoryPage() {
     [historyData.records]
   );
   const latestStatus = summary.latestStatus ?? summary.latest_status;
+  const latestGradeStatus = getSummaryGradeStatus(summary);
   const latestRawScore = summary.latestTotalScore ?? summary.latest_total_score;
   const latestScore = getScoreNumber(latestRawScore);
   const hasLatestScore = shouldShowAnalysisScore({
@@ -328,6 +454,7 @@ function HistoryPage() {
     status: latestStatus,
     saved: summary.saved,
   });
+  const latestGradeMeta = getScoreGradeMeta(hasLatestScore ? latestRawScore : null, latestGradeStatus);
   const hasRecords = records.length > 0;
   const canShowScoreDiff = hasLatestScore && summary.scoreDiff !== null && summary.scoreDiff !== undefined && summary.scoreDiff !== "";
   const trimmedSearchText = searchText.trim();
@@ -383,6 +510,7 @@ function HistoryPage() {
         label: formatDate(getRecordDate(record), `${index + 1}회차`),
         score: canShowScore ? getScoreNumber(recordScore) : null,
         hasScore: canShowScore && hasScoreValue(recordScore),
+        gradeMeta: getScoreGradeMeta(canShowScore ? recordScore : null, getRecordGradeStatus(record)),
       };
     });
   }, [records]);
@@ -392,6 +520,7 @@ function HistoryPage() {
     100
   );
   const selectedDetailStatus = getRecordStatus(visibleSelectedDetail);
+  const selectedDetailGradeStatus = getRecordGradeStatus(visibleSelectedDetail);
   const selectedDetailScore = getRecordScore(visibleSelectedDetail);
   const canShowSelectedDetailScore =
     Boolean(visibleSelectedDetail) &&
@@ -400,6 +529,20 @@ function HistoryPage() {
       status: selectedDetailStatus,
       saved: visibleSelectedDetail?.saved,
     });
+  const selectedDetailTotalGradeMeta = getScoreGradeMeta(
+    canShowSelectedDetailScore ? selectedDetailScore : null,
+    selectedDetailGradeStatus
+  );
+  const selectedDetailPigmentationScore = getMetricScoreValue(visibleSelectedDetail?.metrics, "색소");
+  const selectedDetailWrinkleScore = getMetricScoreValue(visibleSelectedDetail?.metrics, "주름");
+  const selectedDetailPigmentationGradeMeta = getScoreGradeMeta(
+    canShowSelectedDetailScore ? selectedDetailPigmentationScore : null,
+    getMetricGradeValue(visibleSelectedDetail?.metrics, "색소")
+  );
+  const selectedDetailWrinkleGradeMeta = getScoreGradeMeta(
+    canShowSelectedDetailScore ? selectedDetailWrinkleScore : null,
+    getMetricGradeValue(visibleSelectedDetail?.metrics, "주름")
+  );
   const llmReportBody = llmReport?.report || {};
   const safeLlmDisclaimer = getSafeLlmDisclaimer(llmReportBody.disclaimer);
   const llmReportKeyPoints = Array.isArray(llmReportBody.keyPoints)
@@ -579,7 +722,7 @@ function HistoryPage() {
         .sf-history-main-card {
           padding: 28px;
           display: grid;
-          grid-template-columns: minmax(0, 1fr) 210px;
+          grid-template-columns: minmax(0, 1fr) minmax(250px, 0.46fr);
           gap: 24px;
           align-items: center;
           background:
@@ -629,9 +772,15 @@ function HistoryPage() {
 
         .sf-history-actions {
           display: flex;
-          flex-wrap: wrap;
+          flex-wrap: nowrap;
+          align-items: center;
           gap: 10px;
           margin-top: 22px;
+        }
+
+        .sf-history-actions .sf-button {
+          width: auto;
+          white-space: nowrap;
         }
 
         .sf-history-flow-strip {
@@ -656,17 +805,23 @@ function HistoryPage() {
         }
 
         .sf-score-preview {
-          min-height: 184px;
-          padding: 20px;
+          min-height: 232px;
+          padding: 18px;
           border-radius: 24px;
           border: 1px solid rgba(226, 232, 240, 0.95);
           background:
-            radial-gradient(circle at 100% 0%, rgba(22, 125, 127, 0.12), transparent 38%),
+            radial-gradient(circle at 100% 0%, var(--grade-bg), transparent 38%),
             #f8fafc;
           display: grid;
+          gap: 12px;
           align-content: center;
-          justify-items: center;
-          text-align: center;
+        }
+
+        .sf-score-preview-main {
+          display: grid;
+          grid-template-columns: 104px minmax(0, 1fr);
+          gap: 14px;
+          align-items: center;
         }
 
         .sf-score-ring {
@@ -678,7 +833,7 @@ function HistoryPage() {
           color: #0f172a;
           background:
             radial-gradient(circle, #ffffff 58%, transparent 60%),
-            conic-gradient(#167d7f 0 var(--score), #e2e8f0 var(--score) 100%);
+            conic-gradient(var(--grade-color, #167d7f) 0 var(--score), #e2e8f0 var(--score) 100%);
           box-shadow: inset 0 0 0 1px rgba(226, 232, 240, 0.7);
         }
 
@@ -687,12 +842,120 @@ function HistoryPage() {
           letter-spacing: -0.06em;
         }
 
-        .sf-score-preview span {
+        .sf-score-state-copy {
+          display: grid;
+          gap: 7px;
+          min-width: 0;
+        }
+
+        .sf-score-state-label,
+        .sf-score-date {
           display: block;
-          margin-top: 12px;
           color: #64748b;
           font-size: 12px;
           font-weight: 900;
+        }
+
+        .sf-score-state-copy .sf-grade-pill {
+          font-size: 14px;
+        }
+
+        .sf-score-state-copy p {
+          margin: 0;
+          color: #64748b;
+          font-size: 12px;
+          font-weight: 800;
+          line-height: 1.5;
+          word-break: keep-all;
+        }
+
+        .sf-score-preview .sf-status-bar {
+          width: 100%;
+        }
+
+        .sf-score-help {
+          display: flex;
+          align-items: center;
+          gap: 7px;
+          padding: 10px 11px;
+          border-radius: 15px;
+          color: #475569;
+          background: rgba(255, 255, 255, 0.76);
+          border: 1px solid rgba(226, 232, 240, 0.82);
+          font-size: 12px;
+          font-weight: 850;
+          line-height: 1.45;
+          word-break: keep-all;
+        }
+
+        .sf-score-help svg {
+          flex: 0 0 auto;
+          color: #167d7f;
+        }
+
+        .sf-grade-legend {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 7px;
+        }
+
+        .sf-grade-legend span {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          min-height: 24px;
+          padding: 0 9px;
+          border-radius: 999px;
+          color: var(--legend-color);
+          background: var(--legend-bg);
+          font-size: 11px;
+          font-weight: 950;
+          white-space: nowrap;
+        }
+
+        .sf-grade-legend i {
+          width: 7px;
+          height: 7px;
+          border-radius: 999px;
+          background: var(--legend-color);
+        }
+
+        .sf-grade-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          width: fit-content;
+          min-height: 28px;
+          padding: 0 11px;
+          border-radius: 999px;
+          color: var(--grade-color);
+          background: var(--grade-bg);
+          font-size: 12px;
+          font-weight: 950;
+          white-space: nowrap;
+        }
+
+        .sf-grade-pill::before {
+          content: "";
+          width: 7px;
+          height: 7px;
+          border-radius: 999px;
+          background: var(--grade-color);
+        }
+
+        .sf-status-bar {
+          height: 7px;
+          overflow: hidden;
+          border-radius: 999px;
+          background: var(--grade-bar-bg);
+        }
+
+        .sf-status-bar > span {
+          display: block;
+          width: 100%;
+          height: 100%;
+          border-radius: inherit;
+          background: var(--grade-color);
         }
 
         .sf-history-summary-card {
@@ -775,6 +1038,185 @@ function HistoryPage() {
           color: #0f172a;
           font-size: 18px;
           letter-spacing: -0.04em;
+        }
+
+        .sf-summary-count-item {
+          display: grid;
+          align-content: space-between;
+          gap: 12px;
+          min-height: 100%;
+          background:
+            radial-gradient(circle at 100% 0%, rgba(22, 125, 127, 0.11), transparent 34%),
+            #f8fafc;
+        }
+
+        .sf-summary-count-top {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+        }
+
+        .sf-summary-count-top span:first-child {
+          margin: 0;
+        }
+
+        .sf-summary-count-icon {
+          display: grid !important;
+          place-items: center;
+          width: 34px;
+          height: 34px;
+          border-radius: 13px;
+          color: #167d7f !important;
+          background: rgba(22, 125, 127, 0.09);
+          border: 1px solid rgba(22, 125, 127, 0.12);
+        }
+
+        .sf-summary-count-item strong {
+          margin-top: 0;
+          color: #0f172a;
+          font-size: 30px;
+          line-height: 1;
+          letter-spacing: -0.06em;
+        }
+
+        .sf-summary-count-item p {
+          margin: 0;
+          color: #64748b;
+          font-size: 12px;
+          font-weight: 800;
+          line-height: 1.5;
+          word-break: keep-all;
+        }
+
+        .sf-summary-count-strip {
+          display: grid;
+          grid-template-columns: 1.3fr 0.8fr 0.55fr;
+          gap: 6px;
+          height: 7px;
+        }
+
+        .sf-summary-count-strip span {
+          display: block;
+          margin: 0;
+          border-radius: 999px;
+          background: rgba(22, 125, 127, 0.18);
+        }
+
+        .sf-summary-count-strip span:first-child {
+          background: #167d7f;
+        }
+
+        .sf-summary-score-item {
+          display: grid;
+          gap: 12px;
+          background:
+            radial-gradient(circle at 100% 0%, var(--grade-bg), transparent 36%),
+            #f8fafc;
+        }
+
+        .sf-summary-score-main {
+          display: grid;
+          grid-template-columns: 76px minmax(0, 1fr);
+          gap: 12px;
+          align-items: center;
+        }
+
+        .sf-summary-score-ring {
+          width: 76px;
+          height: 76px;
+          border-radius: 999px;
+          display: grid;
+          place-items: center;
+          background:
+            radial-gradient(circle, #ffffff 56%, transparent 58%),
+            conic-gradient(var(--grade-color) 0 var(--score), #e2e8f0 var(--score) 100%);
+          box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+        }
+
+        .sf-summary-score-ring strong {
+          margin: 0;
+          color: #0f172a;
+          font-size: 20px;
+          line-height: 1;
+          letter-spacing: -0.05em;
+        }
+
+        .sf-summary-state-copy {
+          display: grid;
+          gap: 6px;
+          min-width: 0;
+        }
+
+        .sf-summary-state-copy small {
+          display: block;
+          color: #64748b;
+          font-size: 11px;
+          font-weight: 950;
+        }
+
+        .sf-summary-score-item p,
+        .sf-summary-guide-item p {
+          margin: 0;
+          color: #64748b;
+          font-size: 12px;
+          font-weight: 800;
+          line-height: 1.5;
+          word-break: keep-all;
+        }
+
+        .sf-summary-guide-item {
+          display: grid;
+          gap: 10px;
+          align-content: start;
+        }
+
+        .sf-summary-guide-item .sf-score-help {
+          padding: 10px 11px;
+          background: rgba(255, 255, 255, 0.76);
+        }
+
+        .sf-summary-guide-item .sf-grade-legend {
+          flex-wrap: nowrap;
+          gap: 6px;
+        }
+
+        .sf-summary-guide-item .sf-grade-legend span {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          min-height: 24px;
+          padding: 0 8px;
+          border-radius: 999px;
+          color: var(--legend-color);
+          background: var(--legend-bg);
+          font-size: 11px;
+          font-weight: 950;
+          white-space: nowrap;
+        }
+
+        .sf-summary-guide-item .sf-grade-legend i {
+          width: 7px;
+          height: 7px;
+          border-radius: 999px;
+          background: var(--legend-color);
+        }
+
+        .sf-summary-item .sf-grade-pill {
+          margin-top: 10px;
+          font-style: normal;
+        }
+
+        .sf-summary-state-copy .sf-grade-pill {
+          margin-top: 0;
+        }
+
+        .sf-summary-item .sf-status-bar {
+          margin-top: 12px;
+        }
+
+        .sf-summary-score-item .sf-status-bar {
+          margin-top: 0;
         }
 
         .sf-notice-line,
@@ -938,7 +1380,7 @@ function HistoryPage() {
           grid-template-columns: 44px minmax(0, 1fr) 104px;
           align-items: stretch;
           gap: 14px;
-          min-height: 94px;
+          min-height: 116px;
           padding: 14px 16px;
           border-radius: 20px;
           background: #f8fafc;
@@ -986,7 +1428,14 @@ function HistoryPage() {
           flex-direction: column;
           align-items: flex-end;
           justify-content: center;
-          gap: 10px;
+          gap: 7px;
+        }
+
+
+        .sf-record-side .sf-grade-pill {
+          min-height: 24px;
+          padding: 0 9px;
+          font-size: 11px;
         }
 
         .sf-score-badge,
@@ -1002,8 +1451,8 @@ function HistoryPage() {
         .sf-score-badge {
           min-width: 58px;
           padding: 7px 10px;
-          color: #167d7f;
-          background: rgba(22, 125, 127, 0.1);
+          color: var(--grade-color, #167d7f);
+          background: var(--grade-bg, rgba(22, 125, 127, 0.1));
           font-size: 13px;
         }
 
@@ -1034,7 +1483,7 @@ function HistoryPage() {
 
         .sf-record-actions .sf-text-button {
           min-width: 74px;
-          min-height: 30px;
+          min-height: 28px;
           padding: 0 11px;
           border: 1px solid rgba(22, 125, 127, 0.18);
           border-radius: 999px;
@@ -1581,6 +2030,41 @@ function HistoryPage() {
           letter-spacing: -0.06em;
         }
 
+
+        .sf-detail-metric-state {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          width: fit-content;
+          margin-top: 10px;
+          padding: 5px 9px;
+          border-radius: 999px;
+          color: var(--grade-color);
+          background: var(--grade-bg);
+          font-size: 11px;
+          font-weight: 950;
+        }
+
+        .sf-detail-state-label {
+          display: block;
+          margin-top: 12px;
+          color: #64748b;
+          font-size: 11px;
+          font-weight: 950;
+        }
+
+        .sf-detail-metric-state::before {
+          content: "";
+          width: 6px;
+          height: 6px;
+          border-radius: 999px;
+          background: var(--grade-color);
+        }
+
+        .sf-detail-metrics .sf-status-bar {
+          margin-top: 14px;
+        }
+
         .sf-detail-summary-text,
         .sf-detail-recommend-text {
           position: relative;
@@ -1947,6 +2431,10 @@ function HistoryPage() {
             font-size: 36px;
           }
 
+          .sf-history-actions {
+            flex-wrap: wrap;
+          }
+
           .sf-summary-grid,
           .sf-detail-metrics {
             grid-template-columns: 1fr;
@@ -2025,18 +2513,42 @@ function HistoryPage() {
               </div>
             </div>
 
-            <div className="sf-score-preview">
-              <div
-                className="sf-score-ring"
-                style={{ "--score": `${hasLatestScore ? latestScore : 0}%` }}
-              >
-                <strong>{hasLatestScore ? latestScore : "분석 전"}</strong>
+            <div className="sf-score-preview" style={getGradeStyle(latestGradeMeta)}>
+              <div className="sf-score-preview-main">
+                <div
+                  className="sf-score-ring"
+                  style={{ "--score": `${hasLatestScore ? latestScore : 0}%` }}
+                >
+                  <strong>{hasLatestScore ? latestScore : "분석 전"}</strong>
+                </div>
+                <div className="sf-score-state-copy">
+                  <span className="sf-score-state-label">현재 상태</span>
+                  <span className="sf-grade-pill">{latestGradeMeta.label}</span>
+                  <p>{latestGradeMeta.description}</p>
+                </div>
               </div>
-              <span>
+              <span className="sf-score-date">
                 {hasLatestScore && hasRecords
                   ? `최근 분석일 ${formatDate(summary.latestAnalyzedAt)}`
                   : "첫 분석 후 표시"}
               </span>
+              <div className="sf-status-bar" aria-hidden="true">
+                <span />
+              </div>
+              <div className="sf-score-help">
+                <Info size={15} />
+                <span>점수가 높을수록 현재 피부 상태가 양호하다는 의미입니다.</span>
+              </div>
+              <div className="sf-grade-legend" aria-label="피부 상태 단계 안내">
+                {scoreGradeLegend.map((item) => (
+                  <span
+                    key={item.label}
+                    style={{ "--legend-color": item.color, "--legend-bg": item.bg }}
+                  >
+                    <i aria-hidden="true" /> {item.label}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -2055,17 +2567,61 @@ function HistoryPage() {
             {historyError && <p className="sf-error-line">{historyError}</p>}
 
             <div className="sf-summary-grid">
-              <div className="sf-summary-item">
-                <span>총 분석 횟수</span>
+              <div className="sf-summary-item sf-summary-count-item">
+                <div className="sf-summary-count-top">
+                  <span>총 분석 횟수</span>
+                  <span className="sf-summary-count-icon" aria-hidden="true">
+                    <History size={16} />
+                  </span>
+                </div>
                 <strong>{summary.analysisCount ?? 0}회</strong>
+                <p>
+                  {Number(summary.analysisCount ?? 0) > 0
+                    ? "저장된 분석 이력 기준으로 누적된 기록입니다."
+                    : "첫 분석 후 기록이 누적됩니다."}
+                </p>
+                <div className="sf-summary-count-strip" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </div>
               </div>
-              <div className="sf-summary-item">
+              <div className="sf-summary-item sf-summary-score-item" style={getGradeStyle(latestGradeMeta)}>
                 <span>최근 종합 점수</span>
-                <strong>{hasLatestScore ? `${latestScore}점` : "분석 전"}</strong>
+                <div className="sf-summary-score-main">
+                  <div
+                    className="sf-summary-score-ring"
+                    style={{ "--score": `${hasLatestScore ? latestScore : 0}%` }}
+                  >
+                    <strong>{hasLatestScore ? latestScore : "분석 전"}</strong>
+                  </div>
+                  <div className="sf-summary-state-copy">
+                    <small>현재 상태</small>
+                    <em className="sf-grade-pill">{latestGradeMeta.label}</em>
+                  </div>
+                </div>
+                <p>{latestGradeMeta.description}</p>
+                <div className="sf-status-bar" aria-hidden="true">
+                  <span />
+                </div>
               </div>
-              <div className="sf-summary-item">
-                <span>최근 상태</span>
-                <strong>{getStatusLabel(latestStatus)}</strong>
+              <div className="sf-summary-item sf-summary-guide-item">
+                <span>상태 기준</span>
+                <strong>점수가 높을수록 양호</strong>
+                <div className="sf-score-help">
+                  <Info size={15} />
+                  <span>점수가 높을수록 현재 피부 상태가 양호하다는 의미입니다.</span>
+                </div>
+                <div className="sf-grade-legend" aria-label="피부 상태 단계 안내">
+                  {scoreGradeLegend.map((item) => (
+                    <span
+                      key={item.label}
+                      style={{ "--legend-color": item.color, "--legend-bg": item.bg }}
+                    >
+                      <i aria-hidden="true" /> {item.label}
+                    </span>
+                  ))}
+                </div>
               </div>
               <div className="sf-summary-item">
                 <span>점수 변화</span>
@@ -2104,6 +2660,7 @@ function HistoryPage() {
                         <span
                           style={{
                             width: `${Math.max(6, (item.score / maxTrendScore) * 100)}%`,
+                            background: item.gradeMeta.color,
                           }}
                         />
                       )}
@@ -2163,6 +2720,10 @@ function HistoryPage() {
                     status: recordStatus,
                     saved: record.saved,
                   });
+                  const recordGradeMeta = getScoreGradeMeta(
+                    canShowRecordScore ? recordScore : null,
+                    getRecordGradeStatus(record)
+                  );
 
                   return (
                     <div className="sf-record-card" key={recordId || index}>
@@ -2180,10 +2741,11 @@ function HistoryPage() {
                         </p>
                       </div>
 
-                      <div className="sf-record-side">
+                      <div className="sf-record-side" style={getGradeStyle(recordGradeMeta)}>
                         <span className="sf-score-badge">
                           {canShowRecordScore ? formatScore(recordScore, "점수 없음") : "점수 없음"}
                         </span>
+                        <span className="sf-grade-pill">{recordGradeMeta.label}</span>
                         <div className="sf-record-actions">
                           <button
                             type="button"
@@ -2247,29 +2809,44 @@ function HistoryPage() {
                   </div>
 
                   <div className="sf-detail-metrics">
-                    <div>
+                    <div style={getGradeStyle(selectedDetailTotalGradeMeta)}>
                       <span>종합 점수</span>
                       <strong>
                         {canShowSelectedDetailScore
                           ? formatScore(getRecordScore(visibleSelectedDetail), "점수 없음")
                           : "점수 없음"}
                       </strong>
+                      <small className="sf-detail-state-label">현재 상태</small>
+                      <em className="sf-detail-metric-state">{selectedDetailTotalGradeMeta.label}</em>
+                      <div className="sf-status-bar" aria-hidden="true">
+                        <span />
+                      </div>
                     </div>
-                    <div>
+                    <div style={getGradeStyle(selectedDetailPigmentationGradeMeta)}>
                       <span>색소침착</span>
                       <strong>
                         {canShowSelectedDetailScore
                           ? getMetricScore(visibleSelectedDetail.metrics, "색소")
                           : "점수 없음"}
                       </strong>
+                      <small className="sf-detail-state-label">현재 상태</small>
+                      <em className="sf-detail-metric-state">{selectedDetailPigmentationGradeMeta.label}</em>
+                      <div className="sf-status-bar" aria-hidden="true">
+                        <span />
+                      </div>
                     </div>
-                    <div>
+                    <div style={getGradeStyle(selectedDetailWrinkleGradeMeta)}>
                       <span>주름</span>
                       <strong>
                         {canShowSelectedDetailScore
                           ? getMetricScore(visibleSelectedDetail.metrics, "주름")
                           : "점수 없음"}
                       </strong>
+                      <small className="sf-detail-state-label">현재 상태</small>
+                      <em className="sf-detail-metric-state">{selectedDetailWrinkleGradeMeta.label}</em>
+                      <div className="sf-status-bar" aria-hidden="true">
+                        <span />
+                      </div>
                     </div>
                   </div>
 

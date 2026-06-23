@@ -30,6 +30,59 @@ function getMetricColor(code, index) {
   return index % 2 === 0 ? "#167D7F" : "#14B8A6";
 }
 
+function normalizeGradeLabel(status) {
+  const normalizedStatus = String(status || "").replace(/\s/g, "");
+
+  if (!normalizedStatus || normalizedStatus === "분석완료") {
+    return null;
+  }
+
+  if (normalizedStatus.includes("양호")) return "양호";
+  if (normalizedStatus.includes("주의")) return "주의";
+  if (
+    normalizedStatus.includes("관리") ||
+    normalizedStatus.includes("위험") ||
+    normalizedStatus.includes("심각") ||
+    normalizedStatus.includes("집중")
+  ) {
+    return "관리필요";
+  }
+
+  return null;
+}
+
+function getScoreGradeMeta(score, status) {
+  const label =
+    normalizeGradeLabel(status) ||
+    (score >= 80 ? "양호" : score >= 60 ? "주의" : "관리필요");
+
+  const gradeMap = {
+    양호: {
+      label: "양호",
+      description: "좋은 상태로 관리 흐름을 유지해도 됩니다.",
+      color: "#167D7F",
+      bg: "rgba(22, 125, 127, 0.11)",
+      barBg: "rgba(22, 125, 127, 0.16)",
+    },
+    주의: {
+      label: "주의",
+      description: "생활 습관과 관리 루틴을 한 번 더 체크해 보세요.",
+      color: "#F59E0B",
+      bg: "rgba(245, 158, 11, 0.14)",
+      barBg: "rgba(245, 158, 11, 0.18)",
+    },
+    관리필요: {
+      label: "관리필요",
+      description: "우선 관리 항목으로 보고 꾸준한 관리가 권장됩니다.",
+      color: "#F43F5E",
+      bg: "rgba(244, 63, 94, 0.12)",
+      barBg: "rgba(244, 63, 94, 0.16)",
+    },
+  };
+
+  return gradeMap[label] || gradeMap.관리필요;
+}
+
 function toScore(value) {
   if (value === null || value === undefined || value === "") {
     return null;
@@ -88,6 +141,7 @@ function buildMetricCards(analysisResult) {
       label: "종합 점수",
       value: totalScore,
       status: analysisResult.grade?.name || "분석 완료",
+      gradeMeta: getScoreGradeMeta(totalScore, analysisResult.grade?.name),
       color: "#167D7F",
     });
   }
@@ -109,11 +163,16 @@ function buildMetricCards(analysisResult) {
             return null;
           }
 
+          const metricStatus =
+            metric.grade?.name || metric.gradeName || metric.grade_name || "분석 완료";
+          const metricCode = metric.code || metric.metricCode || metric.metric_code;
+
           return {
-            label: metric.name || metric.metricName || metric.metric_name || metric.code || `지표 ${index + 1}`,
+            label: metric.name || metric.metricName || metric.metric_name || metricCode || `지표 ${index + 1}`,
             value: metricScore,
-            status: metric.grade?.name || metric.gradeName || metric.grade_name || "분석 완료",
-            color: getMetricColor(metric.code, index),
+            status: metricStatus,
+            gradeMeta: getScoreGradeMeta(metricScore, metricStatus),
+            color: getMetricColor(metricCode, index),
           };
         })
         .filter(Boolean),
@@ -427,25 +486,36 @@ function AnalysisResultPage() {
           }
 
           .sf-result-score-card {
-            min-height: 132px;
+            position: relative;
+            display: grid;
+            gap: 13px;
+            min-height: 168px;
             padding: 16px;
+            overflow: hidden;
             border-radius: 22px;
             border: 1px solid rgba(226, 232, 240, 0.88);
             background:
-              radial-gradient(circle at 100% 0%, rgba(22, 125, 127, 0.06), transparent 32%),
+              radial-gradient(circle at 100% 0%, var(--grade-bg), transparent 34%),
               #f8fafc;
           }
 
+          .sf-result-score-main {
+            display: grid;
+            grid-template-columns: 76px 1fr;
+            gap: 12px;
+            align-items: center;
+          }
+
           .sf-result-score-ring {
-            width: 72px;
-            height: 72px;
-            margin-bottom: 12px;
+            width: 76px;
+            height: 76px;
             border-radius: 999px;
             display: grid;
             place-items: center;
             background:
               radial-gradient(circle, #ffffff 56%, transparent 58%),
-              conic-gradient(var(--metric-color) 0 var(--metric-value), #e2e8f0 var(--metric-value) 100%);
+              conic-gradient(var(--grade-color) 0 var(--metric-value), #e2e8f0 var(--metric-value) 100%);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
           }
 
           .sf-result-score-ring strong {
@@ -455,18 +525,112 @@ function AnalysisResultPage() {
             letter-spacing: -0.05em;
           }
 
-          .sf-result-score-card span {
-            display: block;
+          .sf-result-score-status {
+            display: grid;
+            gap: 4px;
+            min-width: 0;
+          }
+
+          .sf-result-score-status span {
             color: #64748b;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 900;
+            letter-spacing: -0.02em;
+          }
+
+          .sf-result-score-status strong {
+            width: fit-content;
+            max-width: 100%;
+            padding: 6px 10px;
+            border-radius: 999px;
+            color: var(--grade-color);
+            background: var(--grade-bg);
+            font-size: 14px;
+            font-weight: 950;
+            letter-spacing: -0.035em;
+            white-space: nowrap;
+          }
+
+          .sf-result-status-bar {
+            height: 7px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: var(--grade-bar-bg);
+          }
+
+          .sf-result-status-bar span {
+            display: block;
+            width: 100%;
+            height: 100%;
+            border-radius: inherit;
+            background: var(--grade-color);
           }
 
           .sf-result-score-card h3 {
-            margin: 4px 0 0;
+            margin: 0;
             color: #0f172a;
             font-size: 15px;
             letter-spacing: -0.035em;
+          }
+
+          .sf-result-score-card p {
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 800;
+            line-height: 1.55;
+          }
+
+          .sf-result-score-help {
+            display: grid;
+            gap: 10px;
+            margin-top: -2px;
+            padding: 12px;
+            border-radius: 16px;
+            color: #475569;
+            background: rgba(248, 250, 252, 0.92);
+            border: 1px solid rgba(226, 232, 240, 0.88);
+            font-size: 12px;
+            font-weight: 850;
+            line-height: 1.5;
+            word-break: keep-all;
+          }
+
+          .sf-result-score-help-main {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+          }
+
+          .sf-result-score-help svg {
+            flex: 0 0 auto;
+            color: #167d7f;
+          }
+
+          .sf-result-grade-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+          }
+
+          .sf-result-grade-legend span {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            min-height: 24px;
+            padding: 0 9px;
+            border-radius: 999px;
+            color: var(--legend-color);
+            background: var(--legend-bg);
+            font-size: 11px;
+            font-weight: 950;
+            white-space: nowrap;
+          }
+
+          .sf-result-grade-legend i {
+            width: 7px;
+            height: 7px;
+            border-radius: 999px;
+            background: var(--legend-color);
           }
 
           .sf-result-empty-state {
@@ -781,23 +945,56 @@ function AnalysisResultPage() {
             </div>
 
             {hasDisplayableMetrics ? (
-              <div className="sf-result-score-grid">
+              <>
+                <div className="sf-result-score-grid">
                 {metricCards.map((metric) => (
-                  <div className="sf-result-score-card" key={metric.label}>
-                    <div
-                      className="sf-result-score-ring"
-                      style={{
-                        "--metric-color": metric.color,
-                        "--metric-value": `${metric.value}%`,
-                      }}
-                    >
-                      <strong>{metric.value}</strong>
+                  <div
+                    className="sf-result-score-card"
+                    key={metric.label}
+                    style={{
+                      "--grade-color": metric.gradeMeta.color,
+                      "--grade-bg": metric.gradeMeta.bg,
+                      "--grade-bar-bg": metric.gradeMeta.barBg,
+                    }}
+                  >
+                    <div className="sf-result-score-main">
+                      <div
+                        className="sf-result-score-ring"
+                        style={{ "--metric-value": `${metric.value}%` }}
+                      >
+                        <strong>{metric.value}</strong>
+                      </div>
+                      <div className="sf-result-score-status">
+                        <span>현재 상태</span>
+                        <strong>{metric.gradeMeta.label}</strong>
+                      </div>
                     </div>
-                    <span>{metric.status}</span>
                     <h3>{metric.label}</h3>
+                    <p>{metric.gradeMeta.description}</p>
+                    <div className="sf-result-status-bar" aria-hidden="true">
+                      <span />
+                    </div>
                   </div>
                 ))}
-              </div>
+                </div>
+                <div className="sf-result-score-help">
+                  <div className="sf-result-score-help-main">
+                    <Info size={15} />
+                    <span>점수가 높을수록 현재 피부 상태가 양호하다는 의미입니다.</span>
+                  </div>
+                  <div className="sf-result-grade-legend" aria-label="피부 상태 단계 안내">
+                    <span style={{ "--legend-color": "#167D7F", "--legend-bg": "rgba(22, 125, 127, 0.11)" }}>
+                      <i aria-hidden="true" /> 양호
+                    </span>
+                    <span style={{ "--legend-color": "#F59E0B", "--legend-bg": "rgba(245, 158, 11, 0.14)" }}>
+                      <i aria-hidden="true" /> 주의
+                    </span>
+                    <span style={{ "--legend-color": "#F43F5E", "--legend-bg": "rgba(244, 63, 94, 0.12)" }}>
+                      <i aria-hidden="true" /> 관리필요
+                    </span>
+                  </div>
+                </div>
+              </>
             ) : (
               <div className="sf-result-empty-state">
                 <span className="sf-result-icon-tile" aria-hidden="true">
