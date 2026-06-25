@@ -2,102 +2,125 @@ import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   ArrowRight,
-  Camera,
   CheckCircle2,
-  History,
-  Leaf,
   Sparkles,
 } from "lucide-react";
 import PageLayout from "../components/layout/PageLayout";
 import Button from "../components/common/Button";
-import Card from "../components/common/Card";
 import { getDashboard } from "../api/dashboardApi";
-import { shouldShowAnalysisScore, toAnalysisScoreNumber } from "../utils/analysisStatus";
+import { shouldShowAnalysisScore } from "../utils/analysisStatus";
 
-const quickActions = [
-  {
-    icon: Camera,
-    title: "피부 분석",
-    description: "새 분석은 사진 업로드로 바로 시작할 수 있습니다.",
-    to: "/analysis/capture",
-    variant: "primary",
-    step: "01",
-    stepLabel: "먼저 시작",
-    cta: "분석 시작",
-  },
-  {
-    icon: Sparkles,
-    title: "최근 추천 확인",
-    description: "최근 분석에 맞춘 성분과 제품 추천을 확인합니다.",
-    to: "/recommendations",
-    variant: "secondary",
-    step: "02",
-    cta: "추천 이어보기",
-  },
-  {
-    icon: Leaf,
-    title: "식습관 가이드",
-    description: "오늘 참고할 수 있는 관리 가이드를 확인합니다.",
-    to: "/diet-guide",
-    variant: "secondary",
-    step: "03",
-    cta: "가이드 보기",
-  },
-  {
-    icon: History,
-    title: "분석 이력",
-    description: "지난 결과와 변화 흐름을 다시 확인합니다.",
-    to: "/history",
-    variant: "secondary",
-    step: "04",
-    cta: "이력 보기",
-  },
-];
+const featureChips = ["색소침착 분석", "주름 분석", "맞춤 추천", "분석 이력"];
 
-const hubHighlights = [
-  "색소침착 분석",
-  "주름 분석",
-  "성분 추천",
-  "제품 추천",
-  "식습관 가이드",
-  "분석 이력",
-];
+function getDashboardErrorMessage(error) {
+  const rawMessage = String(error?.message || "").toLowerCase();
 
-function hasRecommendationKeyword(value) {
-  return /recommendation/i.test(value);
+  if (
+    !rawMessage ||
+    rawMessage.includes("internal server error") ||
+    rawMessage.includes("failed to fetch") ||
+    rawMessage.includes("networkerror") ||
+    rawMessage.includes("api 요청에 실패했습니다")
+  ) {
+    return "대시보드 정보를 불러오지 못했습니다. 로그인 상태와 서비스 연결 상태를 확인한 뒤 다시 시도해주세요.";
+  }
+
+  return "대시보드 정보를 불러오지 못했습니다. 잠시 후 다시 확인해 주세요.";
 }
 
-function normalizeActionTitle(value) {
-  if (typeof value !== "string") return "";
+function formatDate(dateValue, fallback = "분석 후 표시") {
+  if (!dateValue) return fallback;
 
-  const trimmedValue = value.trim();
+  const date = new Date(dateValue);
 
-  return hasRecommendationKeyword(trimmedValue) ? "최근 추천 확인" : trimmedValue;
+  if (Number.isNaN(date.getTime())) {
+    return fallback;
+  }
+
+  return date.toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
 }
 
-function normalizeActionDescription(value) {
-  if (typeof value !== "string") return "";
+function toScoreNumber(value) {
+  if (typeof value === "number" && Number.isFinite(value)) return Math.round(value);
 
-  const trimmedValue = value.trim();
+  if (typeof value === "string" && value.trim()) {
+    const parsedValue = Number(value);
 
-  return hasRecommendationKeyword(trimmedValue)
-    ? "최근 분석에 맞춘 추천을 이어서 확인합니다."
-    : trimmedValue;
+    if (Number.isFinite(parsedValue)) return Math.round(parsedValue);
+  }
+
+  return null;
 }
 
-function normalizeActionCta(value) {
-  if (typeof value !== "string") return "";
+function getMetricList(latestAnalysis) {
+  if (!latestAnalysis || typeof latestAnalysis !== "object") return [];
 
-  const trimmedValue = value.trim();
+  const candidates = [
+    latestAnalysis.metrics,
+    latestAnalysis.skinMetrics,
+    latestAnalysis.skin_metrics,
+    latestAnalysis.metricResults,
+    latestAnalysis.metric_results,
+  ];
 
-  return hasRecommendationKeyword(trimmedValue) ? "추천 확인" : trimmedValue;
+  const matchedList = candidates.find(Array.isArray);
+
+  return Array.isArray(matchedList) ? matchedList : [];
 }
 
-function normalizeRoutePath(path) {
-  return path?.slice(1) === "commendations" ? "/recommendations" : path;
+function getMetricScore(latestAnalysis, metricCodes) {
+  const metricList = getMetricList(latestAnalysis);
+
+  const matchedMetric = metricList.find((metric) => {
+    const rawCode = String(
+      metric?.code ||
+        metric?.metricCode ||
+        metric?.metric_code ||
+        metric?.type ||
+        metric?.name ||
+        metric?.metricName ||
+        metric?.metric_name ||
+        "",
+    ).toLowerCase();
+
+    return metricCodes.some((code) => rawCode.includes(code));
+  });
+
+  const score = toScoreNumber(
+    matchedMetric?.score ??
+      matchedMetric?.metricScore ??
+      matchedMetric?.metric_score ??
+      matchedMetric?.value ??
+      matchedMetric?.metricValue ??
+      matchedMetric?.metric_value,
+  );
+
+  return score;
 }
 
-function getDisplayText(value, fallback = "분석 후 표시됩니다") {
+function getScoreLabel(score) {
+  return typeof score === "number" ? `${score}점` : "분석 후 표시";
+}
+
+function getGradeLabel(score) {
+  if (typeof score !== "number") return "분석 후 표시";
+  if (score >= 80) return "양호";
+  if (score >= 60) return "주의";
+  return "관리 필요";
+}
+
+function getGradeClass(score) {
+  if (typeof score !== "number") return "is-empty";
+  if (score >= 80) return "is-good";
+  if (score >= 60) return "is-caution";
+  return "is-care";
+}
+
+function getDisplayText(value, fallback = "첫 분석 후 표시") {
   if (typeof value === "string" && value.trim()) return value.trim();
   if (typeof value === "number" && Number.isFinite(value)) return String(value);
 
@@ -124,204 +147,6 @@ function getDisplayText(value, fallback = "분석 후 표시됩니다") {
   }
 
   return fallback;
-}
-
-function getNextActionValue(nextAction, keys) {
-  if (!nextAction || typeof nextAction !== "object") return "";
-
-  const matchedValue = keys
-    .map((key) => nextAction[key])
-    .find((value) => typeof value === "string" && value.trim());
-
-  return matchedValue ? matchedValue.trim() : "";
-}
-
-function normalizeNextAction(nextAction) {
-  if (!nextAction || typeof nextAction !== "object") return null;
-
-  const to = normalizeRoutePath(getNextActionValue(nextAction, ["to", "path", "route", "url", "href"]));
-
-  if (!to || !to.startsWith("/")) return null;
-
-  const rawTitle = getNextActionValue(nextAction, ["title", "label", "name"]);
-  const rawDescription = getNextActionValue(nextAction, ["description", "summary", "message"]);
-  const rawCta = getNextActionValue(nextAction, ["cta", "buttonText", "button_text", "actionText"]);
-
-  return {
-    icon: Sparkles,
-    title: normalizeActionTitle(rawTitle) || "다음 관리 흐름",
-    description:
-      normalizeActionDescription(rawDescription) ||
-      "최근 분석 흐름에 맞춰 다음 화면으로 이어서 확인합니다.",
-    to,
-    variant: "primary",
-    step: "01",
-    stepLabel: "다음",
-    cta: normalizeActionCta(rawCta) || "이어보기",
-  };
-}
-
-function getDashboardActions(hasAnalysisHistory, nextAction) {
-  const normalizedNextAction = normalizeNextAction(nextAction);
-
-  if (!hasAnalysisHistory) {
-    return quickActions.map((item) => ({
-      ...item,
-      variant: item.to === "/analysis/capture" ? "primary" : "secondary",
-      stepLabel: item.to === "/analysis/capture" ? "먼저 시작" : item.stepLabel,
-    }));
-  }
-
-  const followUpActions = quickActions.map((item) => ({
-    ...item,
-    variant: item.to === "/analysis/capture" ? "secondary" : item.variant,
-    stepLabel:
-      item.to === "/recommendations"
-        ? "추천 확인"
-        : item.to === "/diet-guide"
-          ? "관리 가이드"
-          : item.to === "/history"
-            ? "이력 확인"
-            : "새 분석",
-  }));
-
-  if (!normalizedNextAction) {
-    return followUpActions.map((item) => ({
-      ...item,
-      variant: item.to === "/recommendations" ? "primary" : "secondary",
-    }));
-  }
-
-  const remainingActions = followUpActions.filter((item) => item.to !== normalizedNextAction.to);
-  return [normalizedNextAction, ...remainingActions].slice(0, 4);
-}
-
-function formatDate(dateValue) {
-  if (!dateValue) return "분석 전";
-
-  const date = new Date(dateValue);
-
-  if (Number.isNaN(date.getTime())) {
-    return "분석 전";
-  }
-
-  return date.toLocaleDateString("ko-KR", {
-    month: "short",
-    day: "numeric",
-  });
-}
-
-function getStatusLabel(status) {
-  if (!status) return "분석 전";
-
-  const normalizedStatus = String(status).toLowerCase();
-  const statusMap = {
-    good: "양호",
-    low: "양호",
-    normal: "보통",
-    caution: "주의",
-    medium: "주의",
-    risk: "관리 필요",
-    high: "관리 필요",
-    danger: "관리 필요",
-    severe: "집중 관리",
-    pending: "분석 대기",
-    processing: "분석 중",
-    analysis_pending: "분석 대기",
-    ai_model_pending: "AI 모델 연결 대기",
-    completed: "분석 완료",
-    error: "분석 실패",
-    failed: "분석 실패",
-  };
-
-  return statusMap[normalizedStatus] || status;
-}
-
-function getDashboardErrorMessage(error) {
-  const rawMessage = String(error?.message || "").toLowerCase();
-
-  if (
-    !rawMessage ||
-    rawMessage.includes("internal server error") ||
-    rawMessage.includes("failed to fetch") ||
-    rawMessage.includes("networkerror") ||
-    rawMessage.includes("api 요청에 실패했습니다")
-  ) {
-    return "대시보드 정보를 불러오지 못했습니다. 로그인 상태와 서비스 연결 상태를 확인한 뒤 다시 시도해주세요.";
-  }
-
-  return "대시보드 정보를 불러오지 못했습니다. 잠시 후 다시 확인해 주세요.";
-}
-
-function getMetricName(metric) {
-  return getDisplayText(metric, "피부 지표");
-}
-
-function getMetricScore(metric) {
-  const rawScore =
-    metric?.score ??
-    metric?.metricScore ??
-    metric?.metric_score ??
-    metric?.value ??
-    metric?.metricValue ??
-    metric?.metric_value;
-
-  const score = Number(rawScore);
-
-  if (Number.isNaN(score)) return null;
-
-  return Math.max(0, Math.min(100, Math.round(score)));
-}
-
-function hasMetricScore(metric) {
-  const rawScore =
-    metric?.score ??
-    metric?.metricScore ??
-    metric?.metric_score ??
-    metric?.value ??
-    metric?.metricValue ??
-    metric?.metric_value;
-
-  if (rawScore === null || rawScore === undefined || rawScore === "") return false;
-
-  return !Number.isNaN(Number(rawScore));
-}
-
-function getMetricGrade(metric) {
-  return metric?.gradeName || metric?.grade_name || metric?.status || metric?.level;
-}
-
-function normalizeMetrics(latestAnalysis, canShowScores) {
-  const metrics = Array.isArray(latestAnalysis?.metrics) ? latestAnalysis.metrics : [];
-
-  const mvpMetrics = metrics.filter((metric) => {
-    const name = getMetricName(metric);
-    return name.includes("색소") || name.includes("주름");
-  });
-
-  if (!canShowScores || mvpMetrics.length === 0) {
-    return [
-      {
-        label: "색소침착",
-        score: null,
-        status: canShowScores ? "첫 분석 후 표시" : "분석 완료 후 표시",
-        hasScore: false,
-      },
-      {
-        label: "주름",
-        score: null,
-        status: canShowScores ? "첫 분석 후 표시" : "분석 완료 후 표시",
-        hasScore: false,
-      },
-    ];
-  }
-
-  return mvpMetrics.slice(0, 2).map((metric) => ({
-    label: getMetricName(metric),
-    score: getMetricScore(metric),
-    status: getMetricGrade(metric) ? getStatusLabel(getMetricGrade(metric)) : "관리 참고",
-    hasScore: hasMetricScore(metric),
-  }));
 }
 
 function DashboardPage() {
@@ -363,497 +188,237 @@ function DashboardPage() {
   const profile = dashboard?.profile || {};
   const summary = dashboard?.summary || {};
   const latestAnalysis = dashboard?.latestAnalysis || null;
-  const mainConcern = dashboard?.mainConcern || null;
-  const nextAction = dashboard?.nextAction || dashboard?.next_action || null;
-  const latestStatus =
-    latestAnalysis?.analysis_status ||
-    latestAnalysis?.analysisStatus ||
-    latestAnalysis?.status ||
-    summary.latestStatus ||
-    summary.latest_status;
-  const latestScore = toAnalysisScoreNumber(
-    latestAnalysis?.totalScore ??
-      latestAnalysis?.totalSkinScore ??
-      latestAnalysis?.total_score ??
-      latestAnalysis?.total_skin_score ??
-      summary.latestTotalScore ??
-      summary.latest_total_score
-  );
+  const mainConcern =
+    dashboard?.mainConcern || dashboard?.main_concern || summary.mainConcern || summary.main_concern;
 
   const analysisCount = Number(
-    summary.analysisCount || summary.analysis_count || profile.analysisCount || 0
+    summary.analysisCount || summary.analysis_count || profile.analysisCount || 0,
   );
-
-  const hasLatestAnalysisScore = shouldShowAnalysisScore({
-    score: latestScore,
-    status: latestStatus,
-    saved: latestAnalysis?.saved ?? summary.saved,
-  });
   const hasAnalysisHistory = Boolean(latestAnalysis) || analysisCount >= 1;
-  const metrics = useMemo(
-    () => normalizeMetrics(latestAnalysis, hasLatestAnalysisScore),
-    [hasLatestAnalysisScore, latestAnalysis],
+  const analysisCountLabel = isLoading ? "확인 중" : `${analysisCount}회`;
+  const mainConcernLabel = isLoading ? "확인 중" : getDisplayText(mainConcern);
+  const latestAnalysisStatus =
+    latestAnalysis?.status ??
+    latestAnalysis?.analysisStatus ??
+    latestAnalysis?.analysis_status ??
+    summary.latestStatus ??
+    summary.latest_status ??
+    summary.status;
+  const latestAnalysisSaved = latestAnalysis?.saved ?? summary.latestSaved ?? summary.latest_saved;
+
+  const pigmentationScore = useMemo(
+    () => getMetricScore(latestAnalysis, ["pigmentation", "색소침착"]),
+    [latestAnalysis],
   );
-  const dashboardActions = useMemo(
-    () => getDashboardActions(hasAnalysisHistory, nextAction),
-    [hasAnalysisHistory, nextAction],
+  const wrinkleScore = useMemo(
+    () => getMetricScore(latestAnalysis, ["wrinkle", "wrinkles", "주름"]),
+    [latestAnalysis],
   );
 
-  const mainConcernName = getDisplayText(mainConcern, "분석 후 표시됩니다");
-  const latestDate = formatDate(
-    latestAnalysis?.analyzedAt || latestAnalysis?.analyzed_at || summary.latestAnalyzedAt
+  const totalScore = toScoreNumber(
+    latestAnalysis?.totalScore ??
+      latestAnalysis?.total_score ??
+      latestAnalysis?.totalSkinScore ??
+      latestAnalysis?.total_skin_score ??
+      summary.latestTotalScore ??
+      summary.latest_total_score,
   );
 
-  const userName = profile.name || profile.userName || profile.nickname || "사용자";
-  const heroEyebrow = hasAnalysisHistory ? "최근 분석 기반" : "관리 흐름";
-  const heroTitle = hasAnalysisHistory
-    ? "최근 분석 결과를 바탕으로"
-    : "첫 피부 분석을";
-  const heroHighlight = hasAnalysisHistory ? "관리 흐름을 이어가세요" : "시작해 보세요";
-  const heroDescription = hasAnalysisHistory
-    ? "색소침착·주름 지표와 추천 정보를 서비스 허브에서 한 번에 확인할 수 있습니다."
-    : "얼굴 이미지를 기반으로 색소침착·주름 지표를 분석하고 추천과 관리 가이드로 이어갈 수 있습니다.";
-  const primaryHeroAction = hasAnalysisHistory
-    ? { to: "/recommendations", label: "추천 확인" }
-    : { to: "/analysis/capture", label: "피부 분석 시작" };
-  const secondaryHeroAction = hasAnalysisHistory
-    ? { to: "/history", label: "분석 이력 보기" }
-    : null;
+  const canShowLatestAnalysis = shouldShowAnalysisScore({
+    score: totalScore,
+    status: latestAnalysisStatus,
+    saved: latestAnalysisSaved,
+  });
+  const displayTotalScore = canShowLatestAnalysis ? totalScore : null;
+  const displayPigmentationScore = canShowLatestAnalysis ? pigmentationScore : null;
+  const displayWrinkleScore = canShowLatestAnalysis ? wrinkleScore : null;
+  const latestStatusLabel = isLoading
+    ? "확인 중"
+    : canShowLatestAnalysis
+      ? "분석 완료"
+      : hasAnalysisHistory
+        ? "분석 후 표시"
+        : "분석 대기";
+
+  const latestDate = isLoading
+    ? "확인 중"
+    : canShowLatestAnalysis
+      ? formatDate(
+          latestAnalysis?.analyzedAt || latestAnalysis?.analyzed_at || summary.latestAnalyzedAt,
+        )
+      : "분석 후 표시";
+
+  const primaryAction = canShowLatestAnalysis
+    ? { to: "/recommendations", label: "맞춤 추천 확인" }
+    : { to: "/analysis/capture", label: "첫 분석 시작" };
+  const secondaryAction = dashboardError
+    ? { to: "/login", label: "로그인 확인" }
+    : canShowLatestAnalysis
+      ? { to: "/analysis/capture", label: "새 분석 시작" }
+      : { to: "/history", label: "분석 이력 보기" };
+  const heroEyebrow = canShowLatestAnalysis
+    ? "최근 분석 기반 대시보드"
+    : "피부 분석 시작 대시보드";
+  const heroDescription = canShowLatestAnalysis
+    ? "색소침착·주름 지표를 확인하고, 추천 성분·제품·식습관 가이드로 바로 이어갈 수 있습니다."
+    : "첫 분석을 완료하면 점수, 관리 기준, 맞춤 추천 흐름을 이 화면에서 이어서 확인할 수 있습니다.";
 
   return (
     <PageLayout>
       <style>
         {`
-          .dashboard-app-home {
-            display: grid;
-            gap: 38px;
-          }
-
-          .dashboard-app-hero {
-            display: grid;
-            grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
-            gap: 20px;
-            align-items: stretch;
-          }
-
-          .dashboard-welcome-card,
-          .dashboard-status-card,
-          .dashboard-action-card,
-          .dashboard-mini-card {
-            border: 1px solid rgba(226, 232, 240, 0.92);
-            box-shadow: 0 20px 54px rgba(15, 23, 42, 0.07);
-          }
-
-          .dashboard-welcome-card {
-            min-height: 285px;
-            padding: 26px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            background:
-              radial-gradient(circle at 82% 12%, rgba(22, 125, 127, 0.13), transparent 30%),
-              radial-gradient(circle at 8% 100%, rgba(20, 184, 166, 0.08), transparent 34%),
-              #ffffff;
-          }
-
-          .dashboard-start-pill {
-            display: inline-flex;
-            align-items: center;
-            width: fit-content;
-            gap: 7px;
-            margin-bottom: 2px;
-            padding: 8px 12px;
-            border-radius: 999px;
-            color: #167d7f;
-            background: rgba(22, 125, 127, 0.09);
-            border: 1px solid rgba(22, 125, 127, 0.16);
-            font-size: 12px;
-            font-weight: 950;
-            line-height: 1;
-          }
-
-          .dashboard-welcome-copy h1 {
-            max-width: 620px;
-            margin: 16px 0 12px;
-            color: #0f172a;
-            font-size: clamp(32px, 3.4vw, 44px);
-            line-height: 1.12;
-            letter-spacing: -0.06em;
-            word-break: keep-all;
-            overflow-wrap: normal;
-            text-wrap: balance;
-          }
-
-          .dashboard-gradient-text {
-            background: linear-gradient(90deg, #167d7f 0%, #22c5c8 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-          }
-
-          .dashboard-welcome-copy p {
-            max-width: 650px;
-            margin: 0;
-            color: #64748b;
-            font-size: 15px;
-            line-height: 1.7;
-            word-break: keep-all;
-          }
-
-          .dashboard-welcome-actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 24px;
-          }
-
-          .dashboard-hub-strip {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 20px;
-          }
-
-          .dashboard-hub-strip span {
-            display: inline-flex;
-            align-items: center;
-            min-height: 32px;
-            padding: 0 11px;
-            border-radius: 999px;
-            color: #0f172a;
-            background: rgba(255, 255, 255, 0.78);
-            border: 1px solid rgba(226, 232, 240, 0.88);
-            font-size: 12px;
-            font-weight: 900;
-            white-space: nowrap;
-          }
-
-          .dashboard-primary-cta .sf-button {
-            min-height: 54px;
-            padding-inline: 22px;
-            border: 1px solid rgba(22, 125, 127, 0.22);
-            box-shadow: 0 18px 38px rgba(22, 125, 127, 0.22);
-          }
-
-          .dashboard-secondary-cta .sf-button {
-            color: #475569;
-            background: rgba(255, 255, 255, 0.72);
-            box-shadow: none;
-          }
-
-          .dashboard-kpi-row {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 10px;
-            margin-top: 22px;
-          }
-
-          .dashboard-kpi {
-            padding: 14px;
-            border-radius: 18px;
-            background: rgba(248, 250, 252, 0.86);
-            border: 1px solid rgba(226, 232, 240, 0.85);
-          }
-
-          .dashboard-kpi span {
-            display: block;
-            color: #64748b;
-            font-size: 12px;
-            font-weight: 900;
-          }
-
-          .dashboard-kpi strong {
-            display: block;
-            margin-top: 8px;
-            color: #0f172a;
-            font-size: 24px;
-            letter-spacing: -0.05em;
-          }
-
-          .dashboard-status-card {
-            min-height: 100%;
-            padding: 24px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            background: #ffffff;
-          }
-
-          .dashboard-status-top {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            gap: 14px;
-            margin-bottom: 16px;
-          }
-
-          .dashboard-status-top span:first-child,
-          .dashboard-card-label {
-            display: block;
-            color: #64748b;
-            font-size: 12px;
-            font-weight: 900;
-          }
-
-          .dashboard-status-top h2 {
-            margin: 8px 0 0;
-            color: #0f172a;
-            font-size: 23px;
-            letter-spacing: -0.045em;
-          }
-
-          .dashboard-status-pill {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            padding: 8px 12px;
-            border-radius: 999px;
-            color: #167d7f;
-            background: rgba(22, 125, 127, 0.1);
-            font-size: 12px;
-            font-weight: 900;
-            white-space: nowrap;
-          }
-
-          .dashboard-score-box {
-            display: grid;
-            grid-template-columns: 96px 1fr;
-            gap: 16px;
-            align-items: center;
-            padding: 16px;
-            border-radius: 22px;
-            background: linear-gradient(135deg, rgba(22, 125, 127, 0.08), rgba(248, 250, 252, 0.9));
-            border: 1px solid rgba(226, 232, 240, 0.85);
-          }
-
-          .dashboard-score-box.is-muted {
-            background:
-              radial-gradient(circle at 100% 0%, rgba(100, 116, 139, 0.06), transparent 32%),
-              #f8fafc;
-          }
-
-          .dashboard-score-ring-compact {
-            width: 92px;
-            height: 92px;
-            border-radius: 50%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: #0f172a;
-            background:
-              radial-gradient(circle, #ffffff 58%, transparent 60%),
-              conic-gradient(#167d7f 0 var(--score-value), #e2e8f0 var(--score-value) 100%);
-          }
-
-          .dashboard-score-ring-compact strong {
-            font-size: 26px;
-            letter-spacing: -0.055em;
-          }
-
-          .dashboard-score-ring-compact small {
-            color: #64748b;
-            font-weight: 800;
-          }
-
-          .dashboard-score-summary strong {
-            display: block;
-            color: #0f172a;
-            font-size: 17px;
-            letter-spacing: -0.035em;
-          }
-
-          .dashboard-score-summary p {
-            margin: 6px 0 0;
-            color: #64748b;
-            line-height: 1.65;
-            word-break: keep-all;
-          }
-
-          .dashboard-metrics-compact {
-            display: grid;
-            gap: 10px;
-            margin-top: 14px;
-          }
-
-          .dashboard-metric-compact {
-            display: grid;
-            grid-template-columns: 74px minmax(0, 1fr) minmax(82px, auto);
-            gap: 10px;
-            align-items: center;
-          }
-
-          .dashboard-metric-compact strong {
-            color: #0f172a;
-            font-size: 14px;
-          }
-
-          .dashboard-metric-compact small {
-            color: #64748b;
-            font-size: 12px;
-            font-weight: 900;
-            text-align: right;
-            white-space: nowrap;
-          }
-
-          .dashboard-bar {
-            height: 8px;
-            overflow: hidden;
-            border-radius: 999px;
-            background: #e2e8f0;
-          }
-
-          .dashboard-bar span {
-            display: block;
-            height: 100%;
-            border-radius: inherit;
-            background: linear-gradient(90deg, #167d7f, #22c5c8);
-          }
-
-          .dashboard-quick-grid {
-            display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 14px;
-          }
-
-          .dashboard-action-card {
+          .dashboard-home-like {
             position: relative;
-            min-height: 198px;
-            padding: 24px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            gap: 20px;
-            overflow: hidden;
-            background: rgba(255, 255, 255, 0.96);
-            border-radius: 26px;
-            transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+            min-height: auto;
+            display: grid;
+            align-items: start;
+            width: min(100%, 1220px);
+            margin: 0 auto;
+            padding: clamp(28px, 4vw, 54px) clamp(18px, 3vw, 36px) clamp(32px, 5vw, 58px);
+            overflow: visible;
           }
 
-          .dashboard-action-card::after {
+          .dashboard-home-like::before {
             content: "";
             position: absolute;
-            inset: auto -40px -54px auto;
-            width: 118px;
-            height: 118px;
+            left: max(-220px, -16vw);
+            top: 4%;
+            width: min(520px, 46vw);
+            height: min(520px, 46vw);
             border-radius: 999px;
-            background: radial-gradient(circle, rgba(22, 125, 127, 0.08), transparent 68%);
+            background: radial-gradient(circle, rgba(22, 125, 127, 0.14), transparent 64%);
+            filter: blur(8px);
             pointer-events: none;
           }
 
-          .dashboard-action-card:hover {
-            transform: translateY(-3px);
-            border-color: rgba(22, 125, 127, 0.22);
-            box-shadow: 0 24px 58px rgba(15, 23, 42, 0.1);
-          }
-
-          .dashboard-action-card.is-primary-action {
-            border-color: rgba(22, 125, 127, 0.34);
-            background:
-              radial-gradient(circle at 84% 16%, rgba(22, 125, 127, 0.16), transparent 30%),
-              linear-gradient(135deg, #ffffff 0%, #f0fdfa 100%);
-            box-shadow: 0 24px 62px rgba(22, 125, 127, 0.14);
-          }
-
-          .dashboard-action-card.is-primary-action::after {
-            background: radial-gradient(circle, rgba(22, 125, 127, 0.16), transparent 68%);
-          }
-
-          .dashboard-action-card.is-primary-action .dashboard-icon-tile {
-            color: #ffffff;
-            background: linear-gradient(135deg, #167d7f, #22c5c8);
-            border-color: rgba(22, 125, 127, 0.26);
-            box-shadow: 0 18px 36px rgba(22, 125, 127, 0.22);
-          }
-
-          .dashboard-action-card.is-primary-action .dashboard-action-index {
-            color: #ffffff;
-            background: #167d7f;
-          }
-
-          .dashboard-action-card.is-primary-action .sf-button {
-            box-shadow: 0 14px 30px rgba(22, 125, 127, 0.18);
-          }
-
-          .dashboard-action-card:not(.is-primary-action) .sf-button {
-            color: #475569;
-            background: rgba(255, 255, 255, 0.98);
-            box-shadow: none;
-          }
-
-          .dashboard-action-head {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            gap: 16px;
-          }
-
-          .dashboard-action-index {
-            color: #94a3b8;
-            padding: 6px 9px;
+          .dashboard-home-like::after {
+            content: "";
+            position: absolute;
+            right: max(-240px, -18vw);
+            bottom: -14%;
+            width: min(620px, 50vw);
+            height: min(620px, 50vw);
             border-radius: 999px;
-            background: #f1f5f9;
-            font-size: 12px;
+            background: radial-gradient(circle, rgba(34, 197, 200, 0.12), transparent 64%);
+            filter: blur(12px);
+            pointer-events: none;
+          }
+
+          .dashboard-landing-hero {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            grid-template-columns: minmax(390px, 0.92fr) minmax(380px, 0.78fr);
+            gap: clamp(30px, 4.4vw, 56px);
+            align-items: center;
+            width: 100%;
+            max-width: 1160px;
+            margin: 0 auto;
+          }
+
+          .dashboard-home-copy {
+            min-width: 0;
+          }
+
+          .dashboard-home-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            width: fit-content;
+            min-height: 34px;
+            padding: 0 14px;
+            color: #167d7f;
+            background: rgba(22, 125, 127, 0.1);
+            border: 1px solid rgba(22, 125, 127, 0.14);
+            border-radius: 999px;
+            font-size: 13px;
             font-weight: 950;
-            line-height: 1;
             letter-spacing: -0.02em;
           }
 
-          .dashboard-icon-tile {
-            width: 60px;
-            height: 60px;
-            min-width: 60px;
-            min-height: 60px;
-            border-radius: 18px;
-            display: grid;
-            place-items: center;
-            line-height: 0;
-            color: #167d7f;
-            background: linear-gradient(135deg, #f2fbfb 0%, #ffffff 48%, #ecfeff 100%);
-            border: 1px solid rgba(226, 232, 240, 0.9);
-            box-shadow: 0 14px 30px rgba(15, 23, 42, 0.07);
-          }
-
-          .dashboard-icon-tile svg {
-            display: block;
-            width: 26px !important;
-            height: 26px !important;
-            min-width: 26px;
-            min-height: 26px;
-            margin: 0;
-            flex: 0 0 auto;
-            transform: none;
-            stroke-width: 2.1;
-          }
-
-          .dashboard-action-body {
-            position: relative;
-            z-index: 1;
-          }
-
-          .dashboard-action-card h3 {
-            margin: 14px 0 6px;
+          .dashboard-home-copy h1 {
+            max-width: 620px;
+            margin: 18px 0 18px;
             color: #0f172a;
-            font-size: 17px;
-            letter-spacing: -0.04em;
+            font-size: clamp(38px, 4.4vw, 58px);
+            line-height: 1.08;
+            letter-spacing: -0.078em;
+            word-break: keep-all;
+            text-wrap: balance;
           }
 
-          .dashboard-action-card p {
-            margin: 0 0 14px;
+          .dashboard-home-gradient {
+            display: inline-block;
+            color: #159b9d;
+            letter-spacing: -0.085em;
+          }
+
+          .dashboard-home-description {
+            max-width: 620px;
+            margin: 0;
             color: #64748b;
-            font-size: 13px;
-            line-height: 1.55;
+            font-size: 16px;
+            line-height: 1.72;
+            letter-spacing: -0.02em;
             word-break: keep-all;
+          }
+
+          .dashboard-home-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 28px;
+          }
+
+          .dashboard-home-actions .sf-button {
+            min-height: 52px;
+            padding-inline: 24px;
+            border-radius: 999px;
+          }
+
+          .dashboard-home-actions .sf-button:first-child {
+            border: 1px solid rgba(22, 125, 127, 0.24);
+            box-shadow: 0 20px 46px rgba(22, 125, 127, 0.23);
+          }
+
+          .dashboard-home-actions .sf-button:nth-child(2) {
+            color: #0f172a;
+            background: #e2e8f0;
+            border: 1px solid rgba(226, 232, 240, 0.98);
+            box-shadow: none;
+          }
+
+          .dashboard-home-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 18px;
+            max-width: 520px;
+          }
+
+          .dashboard-home-chips span {
+            display: inline-flex;
+            align-items: center;
+            min-height: 32px;
+            padding: 0 13px;
+            border-radius: 999px;
+            color: #0f172a;
+            background: rgba(255, 255, 255, 0.86);
+            border: 1px solid rgba(226, 232, 240, 0.95);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
+            font-size: 12px;
+            font-weight: 900;
+            white-space: nowrap;
           }
 
           .dashboard-error-note {
             display: flex;
-            gap: 8px;
             align-items: flex-start;
-            margin-top: 16px;
-            padding: 12px;
-            border-radius: 16px;
+            gap: 9px;
+            max-width: 620px;
+            margin-top: 20px;
+            padding: 13px 14px;
+            border-radius: 18px;
             color: #b91c1c;
             background: #fef2f2;
             border: 1px solid #fecaca;
@@ -861,217 +426,537 @@ function DashboardPage() {
             line-height: 1.5;
           }
 
-          @media (max-width: 980px) {
-            .dashboard-app-home {
-              gap: 28px;
+          .dashboard-home-report {
+            display: flex;
+            justify-content: center;
+            min-width: 0;
+          }
+
+          .dashboard-report-card {
+            width: min(100%, 456px);
+            padding: 24px;
+            border-radius: 28px;
+            background: rgba(255, 255, 255, 0.96);
+            border: 1px solid rgba(226, 232, 240, 0.94);
+            box-shadow: 0 28px 72px rgba(15, 23, 42, 0.1);
+          }
+
+          .dashboard-report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
+            margin-bottom: 22px;
+          }
+
+          .dashboard-report-header h2 {
+            margin: 0;
+            color: #0f172a;
+            font-size: 22px;
+            line-height: 1.2;
+            letter-spacing: -0.055em;
+          }
+
+          .dashboard-report-status {
+            color: #0f172a;
+            font-size: 13px;
+            font-weight: 950;
+            line-height: 1.35;
+            text-align: right;
+            white-space: nowrap;
+          }
+
+          .dashboard-preview-panel {
+            position: relative;
+            min-height: 208px;
+            border-radius: 18px;
+            overflow: hidden;
+            background:
+              radial-gradient(circle at 3% 82%, rgba(255, 237, 213, 0.86), transparent 42%),
+              radial-gradient(circle at 95% 8%, rgba(45, 212, 191, 0.62), transparent 38%),
+              linear-gradient(135deg, #f8fafc 0%, #ecfeff 100%);
+          }
+
+          .dashboard-preview-blob {
+            position: absolute;
+            right: -8px;
+            top: -62px;
+            width: 248px;
+            height: 248px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #5eead4 0%, #2dd4bf 100%);
+            box-shadow: inset 0 -24px 50px rgba(15, 23, 42, 0.06);
+            opacity: 0.92;
+          }
+
+          .dashboard-preview-dot {
+            position: absolute;
+            left: 50%;
+            bottom: 43px;
+            width: 24px;
+            height: 24px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.06);
+            transform: translateX(-50%);
+          }
+
+          .dashboard-roi-box {
+            position: absolute;
+            display: grid;
+            place-items: center;
+            min-width: 64px;
+            height: 48px;
+            border: 2px solid #167d7f;
+            border-radius: 13px;
+            background: rgba(255, 255, 255, 0.46);
+          }
+
+          .dashboard-roi-box::before {
+            content: attr(data-label);
+            position: absolute;
+            left: 50%;
+            top: -24px;
+            transform: translateX(-50%);
+            padding: 4px 10px;
+            border-radius: 999px;
+            color: #167d7f;
+            background: #ffffff;
+            box-shadow: 0 10px 22px rgba(15, 23, 42, 0.07);
+            font-size: 11px;
+            font-weight: 950;
+            white-space: nowrap;
+          }
+
+          .dashboard-roi-box.is-zone {
+            left: 126px;
+            top: 66px;
+          }
+
+          .dashboard-roi-box.is-pigment {
+            left: 104px;
+            bottom: 40px;
+          }
+
+          .dashboard-roi-box.is-wrinkle {
+            right: 52px;
+            bottom: 72px;
+            border-color: #f59e0b;
+          }
+
+          .dashboard-roi-box.is-wrinkle::before {
+            color: #f59e0b;
+          }
+
+          .dashboard-report-caption {
+            margin: 12px 0 16px;
+            color: #475569;
+            font-size: 12px;
+            font-weight: 850;
+            line-height: 1.55;
+            word-break: keep-all;
+          }
+
+          .dashboard-report-facts {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            margin: 0 0 16px;
+          }
+
+          .dashboard-report-facts div {
+            min-width: 0;
+            padding: 12px 13px;
+            border-radius: 16px;
+            background: #f8fafc;
+            border: 1px solid rgba(226, 232, 240, 0.9);
+          }
+
+          .dashboard-report-facts span {
+            display: block;
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 950;
+            white-space: nowrap;
+          }
+
+          .dashboard-report-facts strong {
+            display: block;
+            margin-top: 5px;
+            color: #0f172a;
+            font-size: 14px;
+            font-weight: 950;
+            letter-spacing: -0.035em;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          .dashboard-report-metrics {
+            display: grid;
+            grid-template-columns: minmax(120px, 0.8fr) minmax(0, 1fr);
+            gap: 12px;
+          }
+
+          .dashboard-total-score-card,
+          .dashboard-metric-stack > div {
+            border: 1px solid rgba(226, 232, 240, 0.96);
+            background: #ffffff;
+            box-shadow: 0 12px 24px rgba(15, 23, 42, 0.045);
+          }
+
+          .dashboard-total-score-card {
+            min-height: 136px;
+            display: grid;
+            place-items: center;
+            border-radius: 22px;
+            text-align: center;
+          }
+
+          .dashboard-total-score-card strong {
+            display: block;
+            color: #0f172a;
+            font-size: clamp(32px, 3.6vw, 46px);
+            line-height: 1;
+            letter-spacing: -0.065em;
+          }
+
+          .dashboard-total-score-card span {
+            display: block;
+            margin-top: 9px;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 950;
+          }
+
+          .dashboard-grade-pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 26px;
+            margin-top: 9px;
+            padding: 0 11px;
+            border-radius: 999px;
+            color: #167d7f;
+            background: rgba(22, 125, 127, 0.1);
+            font-size: 12px;
+            font-weight: 950;
+          }
+
+          .dashboard-grade-pill.is-caution {
+            color: #92400e;
+            background: rgba(245, 158, 11, 0.16);
+          }
+
+          .dashboard-grade-pill.is-care {
+            color: #be123c;
+            background: rgba(244, 63, 94, 0.12);
+          }
+
+          .dashboard-grade-pill.is-empty {
+            color: #64748b;
+            background: #f1f5f9;
+          }
+
+          .dashboard-metric-stack {
+            display: grid;
+            gap: 10px;
+          }
+
+          .dashboard-metric-stack > div {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            min-height: 62px;
+            padding: 13px 16px;
+            border-radius: 18px;
+          }
+
+          .dashboard-metric-stack span {
+            display: block;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 950;
+          }
+
+          .dashboard-metric-stack strong {
+            display: block;
+            margin-top: 4px;
+            color: #0f172a;
+            font-size: 18px;
+            letter-spacing: -0.04em;
+          }
+
+          .dashboard-small-pill {
+            display: inline-flex;
+            align-items: center;
+            min-height: 28px;
+            padding: 0 10px;
+            border-radius: 999px;
+            color: #167d7f;
+            background: rgba(22, 125, 127, 0.1);
+            font-size: 12px;
+            font-weight: 950;
+            white-space: nowrap;
+          }
+
+          .dashboard-small-pill.is-caution {
+            color: #92400e;
+            background: rgba(245, 158, 11, 0.16);
+          }
+
+          .dashboard-small-pill.is-care {
+            color: #be123c;
+            background: rgba(244, 63, 94, 0.12);
+          }
+
+          .dashboard-small-pill.is-empty {
+            color: #64748b;
+            background: #f1f5f9;
+          }
+
+          .dashboard-report-note {
+            display: grid;
+            grid-template-columns: 42px 1fr;
+            gap: 13px;
+            align-items: center;
+            margin-top: 16px;
+            padding: 14px 16px;
+            border-radius: 18px;
+            color: #0f172a;
+            background: rgba(22, 125, 127, 0.1);
+            font-size: 14px;
+            font-weight: 850;
+            line-height: 1.55;
+            word-break: keep-all;
+          }
+
+          .dashboard-note-icon {
+            display: grid;
+            place-items: center;
+            width: 38px;
+            height: 38px;
+            border-radius: 14px;
+            color: #ffffff;
+            background: #167d7f;
+            box-shadow: 0 14px 26px rgba(22, 125, 127, 0.22);
+          }
+
+          @media (max-width: 1080px) {
+            .dashboard-home-like {
+              align-items: start;
+              padding-top: 32px;
             }
 
-            .dashboard-app-hero {
+            .dashboard-landing-hero {
               grid-template-columns: 1fr;
+              gap: 36px;
             }
 
-            .dashboard-quick-grid {
-              grid-template-columns: repeat(2, minmax(0, 1fr));
+            .dashboard-home-copy h1 {
+              max-width: 720px;
+            }
+
+            .dashboard-home-report {
+              justify-content: flex-start;
             }
           }
 
-          @media (max-width: 640px) {
-            .dashboard-app-home {
-              gap: 20px;
-            }
-
-            .dashboard-welcome-card,
-            .dashboard-status-card,
-            .dashboard-mini-card {
-              padding: 18px;
-            }
-
-            .dashboard-welcome-card,
-            .dashboard-status-card {
+          @media (max-width: 680px) {
+            .dashboard-home-like {
               min-height: auto;
+              padding: 24px 0 32px;
             }
 
-            .dashboard-welcome-copy h1 {
-              font-size: 31px;
+            .dashboard-home-copy h1 {
+              font-size: 40px;
+              letter-spacing: -0.065em;
             }
 
-            .dashboard-welcome-actions .sf-button {
+            .dashboard-home-description {
+              font-size: 15px;
+            }
+
+            .dashboard-home-actions .sf-button {
               width: 100%;
             }
 
-            .dashboard-hub-strip span {
-              flex: 1 1 calc(50% - 8px);
-              justify-content: center;
+            .dashboard-report-card {
+              padding: 18px;
+              border-radius: 24px;
             }
 
-            .dashboard-kpi-row,
-            .dashboard-score-box,
-            .dashboard-quick-grid {
-              grid-template-columns: 1fr;
+            .dashboard-report-header {
+              flex-direction: column;
             }
 
-            .dashboard-score-ring-compact {
-              margin: 0 auto;
-            }
-
-            .dashboard-metric-compact {
-              grid-template-columns: 74px 1fr;
-            }
-
-            .dashboard-metric-compact small {
-              grid-column: 1 / -1;
+            .dashboard-report-status {
               text-align: left;
             }
 
+            .dashboard-report-facts {
+              grid-template-columns: 1fr;
+            }
+
+            .dashboard-preview-panel {
+              min-height: 220px;
+            }
+
+            .dashboard-preview-blob {
+              right: -38px;
+              top: -58px;
+              width: 230px;
+              height: 230px;
+            }
+
+            .dashboard-roi-box.is-zone {
+              left: 74px;
+            }
+
+            .dashboard-roi-box.is-pigment {
+              left: 88px;
+            }
+
+            .dashboard-roi-box.is-wrinkle {
+              right: 28px;
+            }
+
+            .dashboard-report-metrics {
+              grid-template-columns: 1fr;
+            }
           }
         `}
       </style>
 
-      <section className="dashboard-app-home">
-        <div className="dashboard-app-hero">
-          <Card className="dashboard-welcome-card">
-            <div className="dashboard-welcome-copy">
-              <span className="dashboard-start-pill">
-                <Camera size={14} />
-                {heroEyebrow}
+      <section className="dashboard-home-like">
+        <div className="dashboard-landing-hero">
+          <div className="dashboard-home-copy">
+            <span className="dashboard-home-eyebrow">
+              <Sparkles size={15} />
+              {heroEyebrow}
+            </span>
+
+            <h1>
+              {canShowLatestAnalysis ? "최근 분석 결과로" : "첫 분석을 시작하고"}
+              <br />
+              {canShowLatestAnalysis ? "오늘의 피부 관리" : "나에게 맞는 관리"}
+              <br />
+              <span className="dashboard-home-gradient">
+                {canShowLatestAnalysis ? "흐름을 이어가세요" : "흐름을 만들어보세요"}
               </span>
-              <h1>
-                {heroTitle}
-                <br />
-                <span className="dashboard-gradient-text">{heroHighlight}</span>
-              </h1>
-              <p>{userName}님, {heroDescription}</p>
+            </h1>
 
-              <div className="dashboard-welcome-actions">
-                <span className="dashboard-primary-cta">
-                  <Button to={primaryHeroAction.to} size="lg">
-                    {primaryHeroAction.label} <ArrowRight size={18} />
-                  </Button>
-                </span>
-                {secondaryHeroAction && (
-                  <span className="dashboard-secondary-cta">
-                    <Button to={secondaryHeroAction.to} variant="secondary" size="lg">
-                      {secondaryHeroAction.label}
-                    </Button>
-                  </span>
-                )}
-              </div>
+            <p className="dashboard-home-description">
+              {heroDescription}
+            </p>
 
-              <div className="dashboard-hub-strip" aria-label="대시보드 주요 기능">
-                {hubHighlights.map((item) => (
-                  <span key={item}>{item}</span>
-                ))}
-              </div>
-
-              {dashboardError && (
-                <div className="dashboard-error-note">
-                  <AlertCircle size={18} />
-                  <span>{dashboardError}</span>
-                </div>
-              )}
+            <div className="dashboard-home-actions">
+              <Button to={primaryAction.to} size="lg">
+                {primaryAction.label} <ArrowRight size={18} />
+              </Button>
+              <Button to={secondaryAction.to} variant="secondary" size="lg">
+                {secondaryAction.label}
+              </Button>
             </div>
 
-            <div className="dashboard-kpi-row">
-              <div className="dashboard-kpi">
-                <span>분석 횟수</span>
-                <strong>{analysisCount}회</strong>
-              </div>
-              <div className="dashboard-kpi">
-                <span>최근 분석</span>
-                <strong>{latestDate}</strong>
-              </div>
-              <div className="dashboard-kpi">
-                <span>관심 지표</span>
-                <strong>{mainConcernName}</strong>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="dashboard-status-card">
-            <div className="dashboard-status-top">
-              <div>
-                <span>최근 피부 상태</span>
-                <h2>{hasLatestAnalysisScore ? "분석 결과 요약" : hasAnalysisHistory ? "분석 상태 안내" : "아직 분석 전입니다"}</h2>
-              </div>
-              <span className="dashboard-status-pill">
-                <CheckCircle2 size={14} />
-                {getStatusLabel(latestStatus)}
-              </span>
-            </div>
-
-            <div className={`dashboard-score-box ${hasLatestAnalysisScore ? "" : "is-muted"}`}>
-              <div
-                className="dashboard-score-ring-compact"
-                style={{ "--score-value": `${hasLatestAnalysisScore ? latestScore : 0}%` }}
-              >
-                <strong>{hasLatestAnalysisScore ? latestScore : "분석 전"}</strong>
-                <small>{hasLatestAnalysisScore ? "/100" : "첫 분석 후 표시"}</small>
-              </div>
-
-              <div className="dashboard-score-summary">
-                <strong>
-                  {hasLatestAnalysisScore
-                    ? "최근 분석 결과가 준비되었습니다"
-                    : hasAnalysisHistory
-                      ? "점수는 분석 완료 후 표시됩니다"
-                      : "첫 분석을 진행하면 결과가 표시됩니다"}
-                </strong>
-                <p>
-                  {isLoading
-                    ? "대시보드 정보를 불러오는 중입니다."
-                    : hasLatestAnalysisScore
-                      ? latestAnalysis.summary ||
-                        latestAnalysis.description ||
-                        summary.latestSummary ||
-                        "색소침착과 주름 중심의 분석 결과를 확인할 수 있습니다."
-                      : hasAnalysisHistory
-                        ? "분석이 완료되지 않았거나 저장되지 않은 결과는 실제 점수처럼 표시하지 않습니다."
-                      : "사진 업로드 후 분석 결과와 추천 정보를 이어서 확인할 수 있습니다."}
-                </p>
-              </div>
-            </div>
-
-            <div className="dashboard-metrics-compact">
-              {metrics.map((metric) => (
-                <div className="dashboard-metric-compact" key={metric.label}>
-                  <strong>{metric.label}</strong>
-                  <div className="dashboard-bar">
-                    <span style={{ width: `${metric.hasScore ? metric.score : 0}%` }} />
-                  </div>
-                  <small>{metric.hasScore ? `${metric.score}점 · ${metric.status}` : metric.status}</small>
-                </div>
+            <div className="dashboard-home-chips" aria-label="SkinFlow 주요 기능">
+              {featureChips.map((item) => (
+                <span key={item}>{item}</span>
               ))}
             </div>
-          </Card>
-        </div>
 
-        <div className="dashboard-quick-grid">
-          {dashboardActions.map((item) => {
-            const Icon = item.icon;
+            {dashboardError && (
+              <div className="dashboard-error-note">
+                <AlertCircle size={18} />
+                <span>{dashboardError}</span>
+              </div>
+            )}
+          </div>
 
-            return (
-              <Card
-                className={`dashboard-action-card ${item.variant === "primary" ? "is-primary-action" : ""}`}
-                key={item.title}
-              >
-                <div className="dashboard-action-body">
-                  <div className="dashboard-action-head">
-                    <span className="dashboard-icon-tile" aria-hidden="true">
-                      <Icon />
-                    </span>
-                    <span className="dashboard-action-index">{item.stepLabel || item.step}</span>
-                  </div>
-                  <h3>{item.title}</h3>
-                  <p>{item.description}</p>
+          <div className="dashboard-home-report">
+            <div className="dashboard-report-card">
+              <div className="dashboard-report-header">
+                <h2>최근 피부 분석 요약</h2>
+                <div className="dashboard-report-status">
+                  {latestStatusLabel}
+                  <br />
+                  {latestDate}
                 </div>
-                <Button to={item.to} variant={item.variant} size="sm">
-                  {item.cta} <ArrowRight size={15} />
-                </Button>
-              </Card>
-            );
-          })}
-        </div>
+              </div>
 
+              <div className="dashboard-preview-panel" aria-label="피부 분석 리포트 미리보기">
+                <div className="dashboard-preview-blob" aria-hidden="true" />
+                <div className="dashboard-preview-dot" aria-hidden="true" />
+                <span className="dashboard-roi-box is-zone" data-label="T-zone" />
+                <span className="dashboard-roi-box is-pigment" data-label="색소" />
+                <span className="dashboard-roi-box is-wrinkle" data-label="주름" />
+              </div>
+
+              <p className="dashboard-report-caption">
+                ROI 영역은 분석 흐름을 이해하기 위한 참고 이미지입니다.
+              </p>
+
+              <div className="dashboard-report-facts" aria-label="대시보드 분석 요약">
+                <div>
+                  <span>분석 횟수</span>
+                  <strong>{analysisCountLabel}</strong>
+                </div>
+                <div>
+                  <span>최근 분석</span>
+                  <strong>{latestDate}</strong>
+                </div>
+                <div>
+                  <span>추천 기준</span>
+                  <strong>{mainConcernLabel}</strong>
+                </div>
+              </div>
+
+              <div className="dashboard-report-metrics">
+                <div className="dashboard-total-score-card">
+                  <div>
+                    <strong>{isLoading ? "확인 중" : getScoreLabel(displayTotalScore)}</strong>
+                    <span>종합 피부 점수</span>
+                    <em className={`dashboard-grade-pill ${getGradeClass(displayTotalScore)}`}>
+                      {isLoading ? "확인 중" : getGradeLabel(displayTotalScore)}
+                    </em>
+                  </div>
+                </div>
+
+                <div className="dashboard-metric-stack">
+                  <div>
+                    <div>
+                      <span>색소침착</span>
+                      <strong>{isLoading ? "확인 중" : getScoreLabel(displayPigmentationScore)}</strong>
+                    </div>
+                    <em className={`dashboard-small-pill ${getGradeClass(displayPigmentationScore)}`}>
+                      {isLoading ? "확인 중" : getGradeLabel(displayPigmentationScore)}
+                    </em>
+                  </div>
+                  <div>
+                    <div>
+                      <span>주름</span>
+                      <strong>{isLoading ? "확인 중" : getScoreLabel(displayWrinkleScore)}</strong>
+                    </div>
+                    <em className={`dashboard-small-pill ${getGradeClass(displayWrinkleScore)}`}>
+                      {isLoading ? "확인 중" : getGradeLabel(displayWrinkleScore)}
+                    </em>
+                  </div>
+                </div>
+              </div>
+
+              <div className="dashboard-report-note">
+                <span className="dashboard-note-icon" aria-hidden="true">
+                  <CheckCircle2 size={20} />
+                </span>
+                <span>
+                  {canShowLatestAnalysis
+                    ? "분석 결과를 바탕으로 AI 피부 설명과 기능성 추천 성분·화장품 추천 제품·식습관 가이드를 제공합니다."
+                    : "분석이 완료되면 점수, 등급, 추천 정보를 이 화면에서 이어서 확인할 수 있습니다."}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
     </PageLayout>
   );

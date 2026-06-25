@@ -18,6 +18,22 @@ import {
   getProductRecommendations,
 } from "../api/recommendationApi";
 
+const SCORE_DISPLAY_MODE_KEY = "skinflow_score_display_mode";
+const SHOW_CARE_NOTICE_KEY = "skinflow_show_care_notice";
+const EXPAND_RECOMMENDATION_REASON_KEY = "skinflow_expand_recommendation_reason";
+
+function readStoredSetting(key, fallbackValue) {
+  if (typeof window === "undefined") return fallbackValue;
+
+  const storedValue = window.localStorage.getItem(key);
+
+  if (storedValue === null) return fallbackValue;
+  if (storedValue === "true") return true;
+  if (storedValue === "false") return false;
+
+  return storedValue;
+}
+
 function getApiErrorMessage(error) {
   if (error?.status === 401) {
     return "로그인 후 추천 정보를 확인할 수 있습니다.";
@@ -36,16 +52,6 @@ function formatCount(value) {
   return `${numericValue}개`;
 }
 
-function formatScore(value) {
-  const numericValue = Number(value);
-
-  if (!Number.isFinite(numericValue)) {
-    return "점수 없음";
-  }
-
-  return `${Math.round(numericValue)}점`;
-}
-
 function hasMatchScore(value) {
   if (value === null || value === undefined) return false;
   if (typeof value === "string" && value.trim() === "") return false;
@@ -53,15 +59,17 @@ function hasMatchScore(value) {
   return Number.isFinite(Number(value));
 }
 
-function formatMatchScore(value) {
+function formatMatchScore(value, displayMode = "percent") {
   if (!hasMatchScore(value)) {
-    return "매칭 점수 없음";
+    return "매칭 정보 없음";
   }
 
-  return `${Math.round(Number(value))}점`;
+  // 추천 매칭 값은 0~100 범위의 적합도이므로 사용자가 더 직관적으로 읽도록 표시 단위만 바꿉니다.
+  return displayMode === "score" ? `${Math.round(Number(value))}점` : `${Math.round(Number(value))}%`;
 }
 
 function getRecommendationMatchScore(item) {
+  // API의 matchScore, match, score 값을 그대로 읽고 계산식은 변경하지 않습니다.
   return item?.match_score ?? item?.matchScore ?? item?.match ?? item?.score;
 }
 
@@ -147,11 +155,37 @@ function getRecommendationModeLabel(mode) {
   return "";
 }
 
+function getRecommendationBasisRangeLabel(summary) {
+  const count = Number(
+    summary?.recentAnalysisCount ??
+      summary?.recent_analysis_count ??
+      summary?.basisCount ??
+      summary?.basis_count ??
+      summary?.analysisCount ??
+      summary?.analysis_count,
+  );
+  const basisType = normalizeSourceText(summary?.basisType ?? summary?.basis_type ?? summary?.referenceRange);
+  const isAverageBased = summary?.averageBased === true || summary?.average_based === true || basisType.includes("average");
+
+  // 최근 5회 평균 문구는 API가 실제 기준 개수와 평균 기반 여부를 내려줄 때만 표시합니다.
+  if (count === 5 && isAverageBased) {
+    return "최근 5회 평균 기준";
+  }
+
+  if (Number.isFinite(count) && count > 1 && isAverageBased) {
+    return `최근 ${count}회 평균 기준`;
+  }
+
+  return "최근 분석 결과 기반";
+}
+
 function getRecommendationReason(item) {
+  // 백엔드가 제공한 추천 이유 필드만 표시해 프론트에서 근거 문구를 임의 생성하지 않습니다.
   return getFirstDisplayText(item?.recommendationReason, item?.recommendation_reason, item?.reason);
 }
 
 function getReferenceBasisHint(item) {
+  // referenceBasis는 백엔드 추천 기준을 짧은 태그로 보여줄 수 있을 때만 사용합니다.
   const basis = item?.referenceBasis ?? item?.reference_basis;
 
   if (!basis) return "";
@@ -182,6 +216,7 @@ function normalizeSourceText(value) {
 }
 
 function getRecommendationSourceState(summary, itemCount = 0) {
+  // 추천 기준 상태는 summary/source 값을 그대로 해석해 표시하고, 추천 알고리즘 자체는 변경하지 않습니다.
   if (!summary && itemCount === 0) {
     return {
       tone: "empty",
@@ -265,6 +300,11 @@ function RecommendationPage() {
   const [ingredientError, setIngredientError] = useState("");
   const [productError, setProductError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [scoreDisplayMode] = useState(() => readStoredSetting(SCORE_DISPLAY_MODE_KEY, "percent"));
+  const [showCareNotice] = useState(() => readStoredSetting(SHOW_CARE_NOTICE_KEY, true));
+  const [expandRecommendationReason] = useState(() =>
+    readStoredSetting(EXPAND_RECOMMENDATION_REASON_KEY, true)
+  );
 
   const loadRecommendations = useCallback(async () => {
     setIsLoading(true);
@@ -276,6 +316,7 @@ function RecommendationPage() {
       getProductRecommendations(),
     ]);
 
+    // 성분/제품 추천 API 응답은 각각 items와 summary로 분리해 UI에 매핑합니다.
     if (ingredientResult.status === "fulfilled") {
       setIngredients(ingredientResult.value.ingredients);
       setIngredientSummary(ingredientResult.value.summary);
@@ -305,7 +346,6 @@ function RecommendationPage() {
     };
   }, [loadRecommendations]);
 
-  const summary = productSummary || ingredientSummary;
   const visibleIngredients = useMemo(() => getUniqueDisplayIngredients(ingredients), [ingredients]);
   const hasRecommendationData = visibleIngredients.length > 0 || products.length > 0;
   const ingredientSourceState = useMemo(
@@ -328,6 +368,7 @@ function RecommendationPage() {
     return ingredientSourceState;
   }, [ingredientSourceState, productSourceState, products.length, visibleIngredients.length]);
   const recommendationBasisSummary = useMemo(() => {
+    // selectedMetricName, recommendationMode는 백엔드 기준 설명으로만 사용합니다.
     const basisSummary =
       [productSummary, ingredientSummary].find((item) => hasText(item?.selectedMetricName)) ||
       productSummary ||
@@ -335,13 +376,22 @@ function RecommendationPage() {
       {};
     const selectedMetricName = getFirstDisplayText(basisSummary.selectedMetricName);
     const modeLabel = getRecommendationModeLabel(basisSummary.recommendationMode);
+    const rangeLabel = getRecommendationBasisRangeLabel(basisSummary);
+    const summaryReason = getFirstDisplayText(
+      basisSummary.recommendationReason,
+      basisSummary.recommendation_reason,
+      basisSummary.referenceBasis,
+      basisSummary.reference_basis,
+    );
 
     return {
       metricLabel: selectedMetricName || sourceState.label,
+      selectedMetricName,
       modeLabel: modeLabel || sourceState.label,
+      rangeLabel,
       text: selectedMetricName
-        ? `현재 추천 기준: ${selectedMetricName}`
-        : sourceState.message,
+        ? `이 추천은 ${selectedMetricName} 분석 결과를 기준으로 생성되었습니다.`
+        : summaryReason || sourceState.message,
     };
   }, [ingredientSummary, productSummary, sourceState]);
 
@@ -359,8 +409,19 @@ function RecommendationPage() {
         label: "화장품 추천 제품",
         value: formatCount(productSummary?.recommendationCount ?? products.length),
       },
+      {
+        label: "기준 범위",
+        value: recommendationBasisSummary.rangeLabel,
+      },
     ],
-    [hasRecommendationData, ingredientSummary, productSummary, products.length, visibleIngredients.length],
+    [
+      hasRecommendationData,
+      ingredientSummary,
+      productSummary,
+      products.length,
+      recommendationBasisSummary.rangeLabel,
+      visibleIngredients.length,
+    ],
   );
 
   const summaryNote = useMemo(() => {
@@ -377,17 +438,11 @@ function RecommendationPage() {
     }
 
     if (sourceState.tone === "personalized") {
-      const scoreText = formatScore(
-        summary?.totalScore ?? summary?.totalSkinScore ?? summary?.total_skin_score ?? summary?.score
-      );
-
-      return scoreText === "점수 없음"
-        ? "최근 분석 결과에서 관리 우선 지표를 확인하고, 기능성 추천 성분과 연결되는 화장품 추천 제품을 보여드립니다."
-        : `최근 분석 결과 ${scoreText} 기준으로 기능성 추천 성분과 연결되는 화장품 추천 제품을 보여드립니다.`;
+      return "최근 분석 결과 기반으로 관리 우선 지표를 확인하고, 기능성 추천 성분과 연결되는 화장품 추천 제품을 보여드립니다.";
     }
 
     return sourceState.message;
-  }, [ingredientError, isLoading, productError, products.length, sourceState, summary, visibleIngredients.length]);
+  }, [ingredientError, isLoading, productError, products.length, sourceState, visibleIngredients.length]);
 
   const statusLabel = isLoading ? "불러오는 중" : ingredientError && productError ? "연결 확인" : sourceState.label;
 
@@ -1199,20 +1254,22 @@ function RecommendationPage() {
 
             <div className="sf-recommend-basis">
               <div className="sf-recommend-basis-top">
-                <strong>{recommendationBasisSummary.text}</strong>
+                <strong>추천 기준</strong>
                 <span>{recommendationBasisSummary.modeLabel}</span>
               </div>
-              <p>
-                {recommendationBasisSummary.metricLabel
-                  ? `${recommendationBasisSummary.metricLabel} 기준으로 기능성 추천 성분과 화장품 추천 제품을 이어서 확인합니다.`
-                  : "최근 분석 결과 또는 기본 관리 기준에 따라 추천 정보를 확인합니다."}
-              </p>
+              {/* 설정값이 켜져 있을 때만 백엔드가 내려준 추천 기준 설명을 펼쳐 보여줍니다. */}
+              {expandRecommendationReason && (
+                <p>{recommendationBasisSummary.text || "최근 분석 결과 기반 추천 정보를 확인합니다."}</p>
+              )}
             </div>
 
-            <div className="sf-summary-note">
-              <Sparkles size={18} />
-              <span>{summaryNote}</span>
-            </div>
+            {/* 피부 관리 참고 안내는 사용자 설정에 따라 숨길 수 있습니다. */}
+            {showCareNotice && (
+              <div className="sf-summary-note">
+                <Sparkles size={18} />
+                <span>{summaryNote}</span>
+              </div>
+            )}
           </Card>
         </section>
 
@@ -1310,7 +1367,7 @@ function RecommendationPage() {
 
                       <div className={`sf-match-score ${hasMatchScore(matchScore) ? "" : "is-pending"}`}>
                         <span>매칭</span>
-                        {formatMatchScore(matchScore)}
+                        {formatMatchScore(matchScore, scoreDisplayMode)}
                       </div>
                     </article>
                   );
@@ -1361,7 +1418,12 @@ function RecommendationPage() {
                     .join(" ")}`.trim();
 
                   const productSearchUrl = `https://www.oliveyoung.co.kr/store/search/getSearchMain.do?query=${encodeURIComponent(oliveKeyword)}`;
+                  const hasDirectProductUrl = hasText(item.productUrl);
                   const productLinkUrl = item.productUrl || item.productSearchUrl || productSearchUrl;
+                  const productLinkLabel = hasDirectProductUrl ? "제품 링크 열기" : "제품명 검색 결과 보기";
+                  const productLinkNote = hasDirectProductUrl
+                    ? "백엔드가 제공한 제품 링크로 이동합니다."
+                    : "제품 상세 URL이 없으면 제품명 기준 검색 결과가 연결됩니다.";
 
                   return (
                     <article className="sf-product-card" key={item.id || item.name}>
@@ -1408,7 +1470,7 @@ function RecommendationPage() {
                                     {ingredientName}
                                     {hasMatchScore(matchedIngredient?.match) && (
                                     <span className="sf-product-ingredient-score">
-                                      {formatMatchScore(matchedIngredient.match)}
+                                      {formatMatchScore(matchedIngredient.match, scoreDisplayMode)}
                                     </span>
                                     )}
                                   </span>
@@ -1442,18 +1504,18 @@ function RecommendationPage() {
                  target="_blank"
                  rel="noopener noreferrer"
                         >
-                제품 링크 열기 <ExternalLink size={13} />
+                {productLinkLabel} <ExternalLink size={13} />
                            </a>
 
                           <p className="sf-product-link-note">
-                        제품명 기준으로 검색 결과가 연결됩니다.
+                        {productLinkNote}
                     </p>
                     </>
                       </div>
 
                       <div className={`sf-match-score ${hasMatchScore(matchScore) ? "" : "is-pending"}`}>
                         <span>매칭</span>
-                        {formatMatchScore(matchScore)}
+                        {formatMatchScore(matchScore, scoreDisplayMode)}
                       </div>
                     </article>
                   );

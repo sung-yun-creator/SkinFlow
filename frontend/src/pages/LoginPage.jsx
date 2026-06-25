@@ -20,6 +20,7 @@ function LoginPage() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
+  const [accountHelpOpen, setAccountHelpOpen] = useState(false);
   useEffect(() => {
     cleanupLegacyAuthStorage();
   }, []);
@@ -140,19 +141,23 @@ function LoginPage() {
 
             {loginError && <p className="form-error-text">{loginError}</p>}
 
-            <p
-              className="auth-helper-text"
-              style={{
-                margin: "-2px 0 4px",
-                color: "#64748b",
-                fontSize: 12,
-                fontWeight: 700,
-                lineHeight: 1.55,
-                wordBreak: "keep-all",
-              }}
-            >
-              로그인 정보가 기억나지 않으면 팀 관리자에게 문의해 주세요.
-            </p>
+            <div className="auth-account-help">
+              <button
+                type="button"
+                className="auth-account-help-button"
+                onClick={() => setAccountHelpOpen((currentValue) => !currentValue)}
+              >
+                이메일 또는 비밀번호를 잊으셨나요?
+              </button>
+
+              {/* 계정 찾기/비밀번호 재설정 API가 없어 실제 동작처럼 보이지 않도록 안내만 제공합니다. */}
+              {accountHelpOpen && (
+                <p className="auth-account-help-panel">
+                  계정 찾기 기능은 준비 중입니다. 가입한 이메일이 기억나지 않거나 비밀번호 재설정이
+                  필요한 경우 관리자에게 문의해 주세요.
+                </p>
+              )}
+            </div>
 
             <button className="auth-submit-button" type="submit" disabled={isLoading}>
               {isLoading ? "로그인 중..." : "로그인하기"}

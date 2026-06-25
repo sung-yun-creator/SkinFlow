@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   CalendarDays,
@@ -387,6 +387,8 @@ function filterHistoryRecords(records, keyword) {
 function HistoryPage() {
   const [historyData, setHistoryData] = useState(defaultHistoryData);
   const [selectedDetail, setSelectedDetail] = useState(null);
+  const [selectedAnalysisId, setSelectedAnalysisId] = useState(null);
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [historyError, setHistoryError] = useState("");
   const [detailError, setDetailError] = useState("");
@@ -394,6 +396,8 @@ function HistoryPage() {
   const [isLlmReportLoading, setIsLlmReportLoading] = useState(false);
   const [llmReportError, setLlmReportError] = useState("");
   const [searchText, setSearchText] = useState("");
+  const detailSectionRef = useRef(null);
+  const recordSectionRef = useRef(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -501,10 +505,14 @@ function HistoryPage() {
   const hasSearchKeyword = trimmedSearchText !== "";
   const hasSearchResults = filteredRecords.length > 0;
   const selectedDetailId = getRecordId(selectedDetail);
+  const activeSelectedDetailId = selectedAnalysisId || selectedDetailId;
   const isSelectedDetailVisible =
     Boolean(selectedDetail) &&
     filteredRecords.some((record) => getRecordId(record) === selectedDetailId);
   const visibleSelectedDetail = isSelectedDetailVisible ? selectedDetail : null;
+  const shouldShowDetailSection = Boolean(
+    activeSelectedDetailId || visibleSelectedDetail || isDetailLoading || detailError
+  );
 
   const trendItems = useMemo(() => {
     const withOrder = records.map((record, index) => ({
@@ -591,18 +599,35 @@ function HistoryPage() {
     hasText(llmReportBody.careGuide) ||
     hasText(safeLlmDisclaimer);
 
+  useEffect(() => {
+    if (!shouldShowDetailSection) return;
+
+    const frameId = window.requestAnimationFrame(() => {
+      detailSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [shouldShowDetailSection, isDetailLoading, visibleSelectedDetail, detailError]);
+
   async function handleDetailClick(analysisId) {
     if (!analysisId) {
       setDetailError("분석 ID가 없어 상세 정보를 불러올 수 없습니다.");
+      setSelectedAnalysisId(null);
       setLlmReport(null);
       setLlmReportError("");
       return;
     }
 
     try {
+      setSelectedAnalysisId(analysisId);
+      setSelectedDetail(null);
       setDetailError("");
       setLlmReport(null);
       setLlmReportError("");
+      setIsDetailLoading(true);
       setIsLlmReportLoading(true);
 
       const [detailResult, reportResult] = await Promise.allSettled([
@@ -626,6 +651,7 @@ function HistoryPage() {
         setLlmReportError(getLlmReportErrorMessage(reportResult.reason));
       }
     } finally {
+      setIsDetailLoading(false);
       setIsLlmReportLoading(false);
     }
   }
@@ -702,6 +728,8 @@ function HistoryPage() {
 
   function clearSelectedDetailState() {
     setSelectedDetail(null);
+    setSelectedAnalysisId(null);
+    setIsDetailLoading(false);
     setDetailError("");
     setLlmReport(null);
     setLlmReportError("");
@@ -726,6 +754,13 @@ function HistoryPage() {
 
   function handleCloseDetail() {
     clearSelectedDetailState();
+
+    window.requestAnimationFrame(() => {
+      recordSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
   }
 
 
@@ -1413,6 +1448,14 @@ function HistoryPage() {
           border: 1px solid rgba(226, 232, 240, 0.9);
         }
 
+        .sf-record-card.is-active {
+          background:
+            linear-gradient(135deg, rgba(22, 125, 127, 0.1), rgba(255, 255, 255, 0.96)),
+            #ffffff;
+          border-color: rgba(22, 125, 127, 0.34);
+          box-shadow: 0 18px 42px rgba(22, 125, 127, 0.12);
+        }
+
         .sf-record-card > .sf-icon-tile {
           align-self: center;
         }
@@ -1521,6 +1564,19 @@ function HistoryPage() {
         .sf-record-actions .sf-text-button:hover {
           background: rgba(22, 125, 127, 0.12);
           transform: translateY(-1px);
+        }
+
+        .sf-record-actions .sf-text-button.is-active {
+          color: #ffffff;
+          background: #167d7f;
+          border-color: #167d7f;
+          box-shadow: 0 12px 24px rgba(22, 125, 127, 0.18);
+        }
+
+        .sf-record-actions .sf-text-button:disabled {
+          cursor: wait;
+          opacity: 0.82;
+          transform: none;
         }
 
         .sf-empty-card,
@@ -1699,6 +1755,7 @@ function HistoryPage() {
           grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
           gap: 16px;
           align-items: start;
+          scroll-margin-top: 104px;
         }
 
         .sf-history-detail-section .sf-detail-card,
@@ -1723,6 +1780,65 @@ function HistoryPage() {
         .sf-detail-card .sf-card-title-row {
           padding-bottom: 14px;
           border-bottom: 1px solid rgba(226, 232, 240, 0.86);
+        }
+
+        .sf-detail-kicker {
+          display: inline-flex;
+          align-items: center;
+          width: fit-content;
+          min-height: 28px;
+          margin-bottom: 8px;
+          padding: 0 11px;
+          border-radius: 999px;
+          color: #167d7f;
+          background: rgba(22, 125, 127, 0.1);
+          border: 1px solid rgba(22, 125, 127, 0.16);
+          font-size: 11px;
+          font-weight: 950;
+        }
+
+        .sf-detail-subcopy {
+          margin: 8px 0 0;
+          color: #64748b;
+          font-size: 13px;
+          font-weight: 750;
+          line-height: 1.5;
+          word-break: keep-all;
+        }
+
+        .sf-detail-loading-card,
+        .sf-detail-error-card {
+          display: grid;
+          grid-column: 1 / -1;
+          gap: 10px;
+          min-height: 220px;
+          padding: 24px;
+          border-radius: 24px;
+          align-content: center;
+          background: #ffffff;
+          border: 1px solid rgba(226, 232, 240, 0.94);
+          box-shadow: 0 18px 44px rgba(15, 23, 42, 0.055);
+        }
+
+        .sf-detail-loading-card strong,
+        .sf-detail-error-card strong {
+          color: #0f172a;
+          font-size: 18px;
+          letter-spacing: -0.035em;
+        }
+
+        .sf-detail-loading-card p,
+        .sf-detail-error-card p {
+          margin: 0;
+          color: #64748b;
+          font-size: 13px;
+          line-height: 1.6;
+          word-break: keep-all;
+        }
+
+        .sf-detail-error-card {
+          border-color: rgba(244, 63, 94, 0.22);
+          background: #fff7f8;
         }
 
         .sf-detail-metrics {
@@ -2586,7 +2702,7 @@ function HistoryPage() {
 
         </section>
 
-        <section className="sf-history-grid">
+        <section className="sf-history-grid" ref={recordSectionRef}>
           <Card className="sf-history-card sf-history-trend-card">
             <div className="sf-card-title-row">
               <div>
@@ -2675,7 +2791,10 @@ function HistoryPage() {
                   );
 
                   return (
-                    <div className="sf-record-card" key={recordId || index}>
+                    <div
+                      className={`sf-record-card${recordId === activeSelectedDetailId ? " is-active" : ""}`}
+                      key={recordId || index}
+                    >
                       <span className="sf-icon-tile" aria-hidden="true">
                         <CalendarDays size={21} />
                       </span>
@@ -2698,10 +2817,16 @@ function HistoryPage() {
                         <div className="sf-record-actions">
                           <button
                             type="button"
-                            className="sf-text-button"
+                            className={`sf-text-button${recordId === activeSelectedDetailId ? " is-active" : ""}`}
                             onClick={() => handleDetailClick(recordId)}
+                            aria-pressed={recordId === activeSelectedDetailId}
+                            disabled={isDetailLoading && recordId === activeSelectedDetailId}
                           >
-                            상세 보기
+                            {recordId === activeSelectedDetailId
+                              ? isDetailLoading
+                                ? "불러오는 중"
+                                : "상세 확인 중"
+                              : "상세 보기"}
                           </button>
                         </div>
                       </div>
@@ -2730,19 +2855,40 @@ function HistoryPage() {
               )}
             </div>
 
-
-            {detailError && <p className="sf-error-line" style={{ marginTop: 12 }}>{detailError}</p>}
-
           </Card>
         </section>
 
-        {visibleSelectedDetail && (
-          <section className="sf-history-detail-section">
+        {shouldShowDetailSection && (
+          <section className="sf-history-detail-section" ref={detailSectionRef}>
+            {isDetailLoading ? (
+              <div className="sf-detail-loading-card">
+                <span className="sf-detail-kicker">상세 분석 정보</span>
+                <strong>선택한 이력의 상세 결과를 불러오는 중입니다.</strong>
+                <p>아래 상세 분석 정보 영역으로 이동했습니다. 결과가 준비되면 이 자리에서 바로 확인할 수 있습니다.</p>
+              </div>
+            ) : detailError ? (
+              <div className="sf-detail-error-card">
+                <span className="sf-detail-kicker">상세 분석 정보</span>
+                <strong>상세 정보를 불러오지 못했습니다.</strong>
+                <p>{detailError}</p>
+                <button
+                  type="button"
+                  className="sf-detail-close-button"
+                  onClick={handleCloseDetail}
+                  aria-label="상세 분석 정보 닫기"
+                >
+                  목록으로 돌아가기
+                </button>
+              </div>
+            ) : visibleSelectedDetail ? (
+              <>
                 <div className="sf-detail-card">
                   <div className="sf-card-title-row">
                     <div>
+                      <span className="sf-detail-kicker">선택한 분석 상세</span>
                       <small>{formatDate(getRecordDate(visibleSelectedDetail))}</small>
                       <h2>상세 분석 정보</h2>
+                      <p className="sf-detail-subcopy">선택한 이력의 상세 결과입니다. 분석 결과 기반 관리 포인트와 추천 흐름을 이어서 확인할 수 있습니다.</p>
                     </div>
                     <div className="sf-detail-header-actions">
                       <span className="sf-status-badge">{getStatusLabel(selectedDetailStatus)}</span>
@@ -2935,6 +3081,8 @@ function HistoryPage() {
                     </>
                   )}
                 </div>
+              </>
+            ) : null}
           </section>
         )}
 

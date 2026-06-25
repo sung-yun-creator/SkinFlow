@@ -1005,6 +1005,426 @@ function LandingPage() {
               padding: 42px 0;
             }
           }
+
+
+          /* 2026-06-25: Landing hero aligned with logged-in home dashboard style */
+          .sf-landing-page {
+            max-width: none;
+            padding: 0 24px 44px;
+          }
+
+          .sf-landing-hero {
+            position: relative;
+            min-height: calc(100vh - 68px);
+            display: grid;
+            grid-template-columns: minmax(430px, 0.98fr) minmax(400px, 0.82fr);
+            gap: clamp(38px, 5.4vw, 74px);
+            align-items: center;
+            width: min(100%, 1160px);
+            margin: 0 auto;
+            padding: clamp(34px, 5vw, 72px) 0 clamp(32px, 5vw, 64px);
+            overflow: visible;
+          }
+
+          .sf-landing-hero::before {
+            content: "";
+            position: absolute;
+            left: max(-220px, -16vw);
+            top: 8%;
+            width: min(520px, 46vw);
+            height: min(520px, 46vw);
+            border-radius: 999px;
+            background: radial-gradient(circle, rgba(22, 125, 127, 0.14), transparent 64%);
+            filter: blur(8px);
+            pointer-events: none;
+          }
+
+          .sf-landing-hero::after {
+            content: "";
+            position: absolute;
+            right: max(-240px, -18vw);
+            bottom: -12%;
+            width: min(620px, 50vw);
+            height: min(620px, 50vw);
+            border-radius: 999px;
+            background: radial-gradient(circle, rgba(34, 197, 200, 0.12), transparent 64%);
+            filter: blur(12px);
+            pointer-events: none;
+          }
+
+          .sf-landing-copy,
+          .sf-report-card {
+            position: relative;
+            z-index: 1;
+          }
+
+          .sf-landing-kicker {
+            min-height: 34px;
+            padding: 0 14px;
+            border: 1px solid rgba(22, 125, 127, 0.14);
+            font-size: 13px;
+            letter-spacing: -0.02em;
+          }
+
+          .sf-landing-copy h1 {
+            max-width: 620px;
+            margin: 22px 0 22px;
+            color: #0f172a;
+            font-size: clamp(44px, 5.4vw, 72px);
+            line-height: 1.04;
+            letter-spacing: -0.078em;
+            word-break: keep-all;
+            text-wrap: balance;
+          }
+
+          .sf-gradient-text {
+            display: inline-block;
+            color: #159b9d;
+            background: none;
+            -webkit-background-clip: initial;
+            background-clip: initial;
+            letter-spacing: -0.085em;
+          }
+
+          .sf-landing-copy p {
+            max-width: 620px;
+            color: #64748b;
+            font-size: 17px;
+            line-height: 1.82;
+            letter-spacing: -0.02em;
+          }
+
+          .sf-landing-actions {
+            gap: 12px;
+            margin-top: 34px;
+          }
+
+          .sf-landing-actions .sf-button {
+            min-height: 56px;
+            padding-inline: 24px;
+            border-radius: 999px;
+          }
+
+          .sf-landing-actions .sf-button:first-child {
+            border: 1px solid rgba(22, 125, 127, 0.24);
+            box-shadow: 0 20px 46px rgba(22, 125, 127, 0.23);
+          }
+
+          .sf-landing-actions .sf-button:nth-child(2) {
+            color: #0f172a;
+            background: #e2e8f0;
+            border: 1px solid rgba(226, 232, 240, 0.98);
+            box-shadow: none;
+          }
+
+          .sf-landing-feature-strip {
+            gap: 10px;
+            max-width: 610px;
+            margin-top: 24px;
+          }
+
+          .sf-landing-feature-strip span {
+            min-height: 32px;
+            padding: 0 13px;
+          }
+
+          .sf-landing-stats {
+            display: none;
+          }
+
+          .sf-report-card {
+            width: min(100%, 492px);
+            padding: 26px;
+            border-radius: 28px;
+            background: rgba(255, 255, 255, 0.96);
+            border: 1px solid rgba(226, 232, 240, 0.94);
+            box-shadow: 0 34px 86px rgba(15, 23, 42, 0.12);
+          }
+
+          .sf-report-top {
+            align-items: flex-start;
+            margin-bottom: 26px;
+          }
+
+          .sf-report-top small {
+            display: none;
+          }
+
+          .sf-report-top h2 {
+            margin: 0;
+            font-size: 24px;
+            line-height: 1.2;
+            letter-spacing: -0.055em;
+          }
+
+          .sf-report-status {
+            display: block;
+            padding: 0;
+            color: #0f172a;
+            background: transparent;
+            font-size: 13px;
+            font-weight: 950;
+            line-height: 1.35;
+            text-align: right;
+            white-space: nowrap;
+          }
+
+          .sf-skin-canvas {
+            min-height: 230px;
+            height: 230px;
+            border-radius: 18px;
+            overflow: hidden;
+            background:
+              radial-gradient(circle at 3% 82%, rgba(255, 237, 213, 0.86), transparent 42%),
+              radial-gradient(circle at 95% 8%, rgba(45, 212, 191, 0.62), transparent 38%),
+              linear-gradient(135deg, #f8fafc 0%, #ecfeff 100%);
+          }
+
+          .sf-skin-canvas::before,
+          .sf-skin-canvas::after {
+            display: none;
+          }
+
+          .sf-preview-blob {
+            position: absolute;
+            right: -8px;
+            top: -62px;
+            width: 248px;
+            height: 248px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #5eead4 0%, #2dd4bf 100%);
+            box-shadow: inset 0 -24px 50px rgba(15, 23, 42, 0.06);
+            opacity: 0.92;
+          }
+
+          .sf-preview-dot {
+            position: absolute;
+            left: 50%;
+            bottom: 43px;
+            width: 24px;
+            height: 24px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.06);
+            transform: translateX(-50%);
+          }
+
+          .sf-roi-box {
+            position: absolute;
+            display: grid;
+            place-items: center;
+            min-width: 64px;
+            width: 64px;
+            height: 48px;
+            border: 2px solid #167d7f;
+            border-radius: 13px;
+            background: rgba(255, 255, 255, 0.46);
+          }
+
+          .sf-roi-label {
+            top: -24px;
+            padding: 4px 10px;
+            color: #167d7f;
+            font-size: 11px;
+            box-shadow: 0 10px 22px rgba(15, 23, 42, 0.07);
+          }
+
+          .sf-roi-forehead {
+            left: 126px;
+            top: 66px;
+          }
+
+          .sf-roi-cheek {
+            left: 104px;
+            bottom: 40px;
+          }
+
+          .sf-roi-wrinkle {
+            right: 52px;
+            top: auto;
+            bottom: 72px;
+            border-color: #f59e0b;
+          }
+
+          .sf-roi-note {
+            margin: 12px 0 16px;
+            color: #475569;
+            font-size: 12px;
+            font-weight: 850;
+            line-height: 1.55;
+          }
+
+          .sf-report-metrics {
+            display: grid;
+            grid-template-columns: minmax(120px, 0.8fr) minmax(0, 1fr);
+            gap: 12px;
+            margin-top: 0;
+          }
+
+          .sf-report-total-metric,
+          .sf-report-side-metrics > div {
+            border: 1px solid rgba(226, 232, 240, 0.96);
+            background: #ffffff;
+            box-shadow: 0 12px 24px rgba(15, 23, 42, 0.045);
+          }
+
+          .sf-report-total-metric {
+            min-height: 136px;
+            display: grid;
+            place-items: center;
+            padding: 15px;
+            border-radius: 22px;
+            text-align: center;
+          }
+
+          .sf-report-total-metric strong {
+            display: block;
+            color: #0f172a;
+            font-size: clamp(24px, 2.6vw, 36px);
+            line-height: 1.08;
+            letter-spacing: -0.065em;
+            word-break: keep-all;
+          }
+
+          .sf-report-total-metric span,
+          .sf-report-side-metrics span {
+            display: block;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 950;
+          }
+
+          .sf-report-total-metric span {
+            margin-top: 9px;
+          }
+
+          .sf-report-total-metric em,
+          .sf-report-side-metrics em {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 26px;
+            margin-top: 9px;
+            padding: 0 11px;
+            border-radius: 999px;
+            color: #64748b;
+            background: #f1f5f9;
+            font-size: 12px;
+            font-style: normal;
+            font-weight: 950;
+            white-space: nowrap;
+          }
+
+          .sf-report-side-metrics {
+            display: grid;
+            gap: 10px;
+          }
+
+          .sf-report-side-metrics > div {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 12px;
+            min-height: 62px;
+            padding: 13px 16px;
+            border-radius: 18px;
+          }
+
+          .sf-report-side-metrics strong {
+            display: block;
+            margin-top: 4px;
+            color: #0f172a;
+            font-size: 18px;
+            letter-spacing: -0.04em;
+            word-break: keep-all;
+          }
+
+          .sf-report-side-metrics em {
+            margin-top: 0;
+          }
+
+          .sf-report-comment {
+            display: grid;
+            grid-template-columns: 42px 1fr;
+            gap: 13px;
+            align-items: center;
+            margin-top: 16px;
+            padding: 14px 16px;
+            border-radius: 18px;
+            font-size: 14px;
+            font-weight: 850;
+            line-height: 1.55;
+          }
+
+          .sf-report-comment-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 14px;
+            box-shadow: 0 14px 26px rgba(22, 125, 127, 0.22);
+          }
+
+          @media (max-width: 1080px) {
+            .sf-landing-hero {
+              grid-template-columns: 1fr;
+              gap: 36px;
+              min-height: auto;
+              padding-top: 42px;
+            }
+
+            .sf-report-card {
+              margin: 0;
+            }
+          }
+
+          @media (max-width: 640px) {
+            .sf-landing-page {
+              padding: 0 16px 34px;
+            }
+
+            .sf-landing-hero {
+              padding: 24px 0 32px;
+            }
+
+            .sf-landing-copy h1 {
+              font-size: 40px;
+              letter-spacing: -0.065em;
+            }
+
+            .sf-report-top {
+              flex-direction: column;
+            }
+
+            .sf-report-status {
+              text-align: left;
+            }
+
+            .sf-skin-canvas {
+              min-height: 220px;
+              height: 220px;
+            }
+
+            .sf-preview-blob {
+              right: -38px;
+              top: -58px;
+              width: 230px;
+              height: 230px;
+            }
+
+            .sf-roi-forehead {
+              left: 74px;
+            }
+
+            .sf-roi-cheek {
+              left: 88px;
+            }
+
+            .sf-roi-wrinkle {
+              right: 28px;
+            }
+
+            .sf-report-metrics {
+              grid-template-columns: 1fr;
+            }
+          }
         `}
       </style>
 
@@ -1101,18 +1521,21 @@ function LandingPage() {
           <div className="sf-landing-copy">
             <span className="sf-landing-kicker">
               <Sparkles size={15} />
-              AI 기반 피부 분석 솔루션
+              AI 피부 분석 & 맞춤 관리 플랫폼
             </span>
 
             <h1>
-              AI 기반 피부 분석 및
+              사진 한 장으로
               <br />
-              <span className="sf-gradient-text">통합 라이프케어 솔루션</span>
+              시작하는 나만의
+              <br />
+              AI 피부 관리,
+              <br />
+              <span className="sf-gradient-text">SkinFlow</span>
             </h1>
 
             <p>
-              얼굴 사진 한 장으로 색소침착과 주름 흐름을 확인하고,
-              성분·제품·식습관 가이드까지 이어지는 관리 방향을 제공합니다.
+              얼굴 사진 한 장으로 색소침착과 주름을 분석하고, 기능성 추천 성분·화장품 추천 제품·식습관 가이드까지 제공합니다.
             </p>
 
             <div className="sf-landing-actions">
@@ -1127,8 +1550,8 @@ function LandingPage() {
             <div className="sf-landing-feature-strip" aria-label="SkinFlow 핵심 기능">
               <span>색소침착 분석</span>
               <span>주름 분석</span>
-              <span>성분 추천</span>
-              <span>제품 추천</span>
+              <span>기능성 추천 성분</span>
+              <span>화장품 추천 제품</span>
               <span>식습관 가이드</span>
               <span>분석 이력 관리</span>
             </div>
@@ -1156,12 +1579,15 @@ function LandingPage() {
                 <h2>AI 피부 분석 리포트</h2>
               </div>
               <span className="sf-report-status">
-                <CheckCircle2 size={14} />
-                분석 흐름
+                미리보기
+                <br />
+                분석 완료 후 표시
               </span>
             </div>
 
             <div className="sf-skin-canvas">
+              <span className="sf-preview-blob" aria-hidden="true" />
+              <span className="sf-preview-dot" aria-hidden="true" />
               <span className="sf-roi-box sf-roi-forehead">
                 <span className="sf-roi-label">T-zone</span>
               </span>
@@ -1177,17 +1603,23 @@ function LandingPage() {
             </p>
 
             <div className="sf-report-metrics">
-              <div className="sf-report-metric">
-                <span>종합 점수</span>
+              <div className="sf-report-total-metric">
                 <strong>분석 후 표시</strong>
+                <span>종합 피부 점수</span>
+                <em>저장 결과 기반</em>
               </div>
-              <div className="sf-report-metric">
-                <span>색소침착</span>
-                <strong>최근 분석 결과 영역</strong>
-              </div>
-              <div className="sf-report-metric">
-                <span>주름</span>
-                <strong>분석 완료 후 표시</strong>
+
+              <div className="sf-report-side-metrics">
+                <div>
+                  <span>색소침착</span>
+                  <strong>분석 후 표시</strong>
+                  <em>저장 결과 기반</em>
+                </div>
+                <div>
+                  <span>주름</span>
+                  <strong>분석 후 표시</strong>
+                  <em>저장 결과 기반</em>
+                </div>
               </div>
             </div>
 
@@ -1196,8 +1628,7 @@ function LandingPage() {
                 <Sparkles size={17} />
               </span>
               <span>
-                결과 화면은 피부 관리 참고 정보로 제공되며, 실제 분석 결과와 추천은
-                분석 완료 후 사용자의 이력과 함께 연결됩니다.
+                안내용 미리보기이며 실제 점수와 추천은 분석 완료 후 사용자의 이력과 함께 연결됩니다.
               </span>
             </div>
           </aside>

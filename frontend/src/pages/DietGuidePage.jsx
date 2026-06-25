@@ -11,6 +11,8 @@ import PageLayout from "../components/layout/PageLayout";
 import Button from "../components/common/Button";
 import { getDietGuideRecommendations } from "../api/recommendationApi";
 
+const SHOW_CARE_NOTICE_KEY = "skinflow_show_care_notice";
+
 const sourceLabelMap = {
   latest_analysis: "최근 분석 결과 기반 가이드",
   analysis_unsaved: "이력 반영 전 참고 가이드",
@@ -18,6 +20,18 @@ const sourceLabelMap = {
   fallback: "식습관 관리 가이드",
   unknown: "식습관 관리 가이드",
 };
+
+function readStoredSetting(key, fallbackValue) {
+  if (typeof window === "undefined") return fallbackValue;
+
+  const storedValue = window.localStorage.getItem(key);
+
+  if (storedValue === null) return fallbackValue;
+  if (storedValue === "true") return true;
+  if (storedValue === "false") return false;
+
+  return storedValue;
+}
 
 function normalizeSourceValue(value) {
   return String(value || "")
@@ -31,6 +45,7 @@ function getSourceLabel(source) {
 }
 
 function getGuideSourceState(source, summary) {
+  // source와 summary는 백엔드가 내려준 추천 기준 상태이므로 프론트에서 기준을 새로 계산하지 않습니다.
   const primarySource = normalizeSourceValue(source);
   const guideSource = normalizeSourceValue(summary?.guideSource ?? summary?.guide_source);
   const isSavedFalse = summary?.saved === false;
@@ -88,7 +103,55 @@ function getRecommendationModeLabel(mode) {
 }
 
 function getGuideReason(item) {
+  // 개별 카드의 추천 이유는 API 응답 필드가 있을 때만 노출합니다.
   return getFirstText(item?.recommendationReason, item?.recommendation_reason, item?.reason);
+}
+
+function getReferenceBasisSummary(summary) {
+  const basis = summary?.referenceBasis ?? summary?.reference_basis;
+
+  if (!basis) return "";
+  if (typeof basis === "string") return basis.trim();
+
+  return getFirstText(
+    basis.summary,
+    basis.description,
+    basis.title,
+    basis.name,
+    basis.label,
+    basis.metricName,
+    basis.metric_name
+  );
+}
+
+function hasRecentFiveRecommendationBasis(summary) {
+  const basisText = normalizeSourceValue(
+    getFirstText(
+      summary?.recommendationBasis,
+      summary?.recommendation_basis,
+      summary?.referenceBasis,
+      summary?.reference_basis,
+      summary?.basisLabel,
+      summary?.basis_label
+    )
+  );
+  const basisCount = Number(
+    summary?.basisCount ??
+      summary?.basis_count ??
+      summary?.recommendationBasisCount ??
+      summary?.recommendation_basis_count ??
+      summary?.recentAnalysisBasisCount ??
+      summary?.recent_analysis_basis_count
+  );
+  const basisType = normalizeSourceValue(summary?.basisType ?? summary?.basis_type ?? summary?.referenceRange);
+  const isAverageBased =
+    summary?.averageBased === true || summary?.average_based === true || basisType.includes("average");
+
+  // 최근 5회 평균 문구는 백엔드가 실제 기준 개수와 평균 기반 여부를 제공할 때만 표시합니다.
+  return (
+    isAverageBased &&
+    (basisCount === 5 || basisText.includes("recent_5") || basisText.includes("5회") || basisText.includes("five"))
+  );
 }
 
 function toSafeArray(value) {
@@ -120,6 +183,7 @@ function DietGuidePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [checkedActionIds, setCheckedActionIds] = useState([]);
+  const [showCareNotice] = useState(() => readStoredSetting(SHOW_CARE_NOTICE_KEY, true));
 
   useEffect(() => {
     let isMounted = true;
@@ -191,12 +255,18 @@ function DietGuidePage() {
   const flowSourceLabel = isLatestGuide ? "최근 분석 결과 기반" : "분석 후 개인화 가능";
   const selectedMetricName = getFirstText(summary?.selectedMetricName);
   const recommendationModeLabel = getRecommendationModeLabel(summary?.recommendationMode);
+  const referenceBasisSummary = getReferenceBasisSummary(summary);
+  const summaryRecommendationReason = getFirstText(summary?.recommendationReason, summary?.recommendation_reason, summary?.reason);
+  const hasRecentFiveBasis = hasRecentFiveRecommendationBasis(summary);
   const basisTitle = selectedMetricName
     ? `${selectedMetricName} 분석 결과 기준`
     : sourceLabel;
   const basisDescription = selectedMetricName
-    ? `이 가이드는 ${selectedMetricName} 분석 결과를 기준으로 구성되었습니다.`
+    ? `이 가이드는 ${selectedMetricName} 분석 결과 기반으로 구성되었습니다.`
+    : referenceBasisSummary
+      ? referenceBasisSummary
     : guideSourceState.notice;
+  const basisLabel = hasRecentFiveBasis ? "최근 5회 평균 기준" : recommendationModeLabel || sourceLabel;
 
   const handleCheckToggle = (itemId) => {
     setCheckedActionIds((currentIds) =>
@@ -1062,17 +1132,24 @@ function DietGuidePage() {
             <div className="sf-diet-basis-card">
               <div className="sf-diet-basis-top">
                 <strong>{basisTitle}</strong>
-                {(recommendationModeLabel || sourceLabel) && (
-                  <span>{recommendationModeLabel || sourceLabel}</span>
-                )}
+                {basisLabel && <span>{basisLabel}</span>}
               </div>
+              {/* 추천 기준은 백엔드가 제공한 selectedMetricName/referenceBasis/source 설명만 요약 표시합니다. */}
               <p>{basisDescription}</p>
+              {hasText(summaryRecommendationReason) && (
+                <p>
+                  <strong>추천 기준</strong> {summaryRecommendationReason}
+                </p>
+              )}
             </div>
 
-            <div className="sf-diet-notice">
-              <ShieldCheck size={17} />
-              <span>{guideSourceState.notice}</span>
-            </div>
+            {/* 사용자가 설정에서 참고 안내를 끄면 피부 관리 참고 정보 문구를 숨깁니다. */}
+            {showCareNotice && (
+              <div className="sf-diet-notice">
+                <ShieldCheck size={17} />
+                <span>{guideSourceState.notice}</span>
+              </div>
+            )}
           </div>
         </section>
 
@@ -1097,6 +1174,7 @@ function DietGuidePage() {
                   </div>
                 </div>
 
+                {/* 체크 항목이 있을 때만 진행 상태를 보여 더미 진행률처럼 보이지 않게 합니다. */}
                 {visibleActionItems.length > 0 && (
                   <div className="sf-check-count">
                     <span className="sf-diet-label">실천 체크</span>
@@ -1111,6 +1189,7 @@ function DietGuidePage() {
                 )}
               </div>
 
+              {/* 체크리스트는 API checks가 있을 때만 렌더링하고, 체크 상태는 현재 화면에서만 유지합니다. */}
               {visibleActionItems.length > 0 ? (
                 <div className="sf-check-list">
                   {visibleActionItems.map((item, index) => {
@@ -1175,6 +1254,7 @@ function DietGuidePage() {
 
                           {hasText(item.title) && <h3>{item.title}</h3>}
                           {hasText(item.description) && <p>{item.description}</p>}
+                          {/* recommendationReason/reason 필드가 있는 카드에만 추천 이유를 표시합니다. */}
                           {hasText(guideReason) && (
                             <p className="sf-guide-reason">
                               <span className="sf-guide-reason-label">추천 이유</span>
