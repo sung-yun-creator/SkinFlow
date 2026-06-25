@@ -1,5 +1,6 @@
 const pool = require('../config/db');
 
+// 분석 repository는 피부 분석, 지표, ROI, 분석 이미지 메타데이터를 DB에 읽고 씁니다.
 async function findGradeByCode(connection, gradeCode) {
     const [rows] = await connection.query(
         `
@@ -35,6 +36,7 @@ async function findMetricTypesByCodes(connection, metricCodes) {
 }
 
 async function createAnalysisWithMetrics(userId, analysis, image = null) {
+    // 분석 결과, 지표, 마스킹 이미지 메타데이터는 한 트랜잭션으로 함께 저장합니다.
     const connection = await pool.getConnection();
 
     try {
@@ -185,6 +187,7 @@ async function findAnalysisByIdAndUserId(userId, analysisId) {
 }
 
 async function replaceAnalysisRois(analysisId, rois) {
+    // 같은 분석의 ROI는 재시도할 수 있으므로 기존 좌표를 지우고 새 좌표로 교체합니다.
     const connection = await pool.getConnection();
 
     try {

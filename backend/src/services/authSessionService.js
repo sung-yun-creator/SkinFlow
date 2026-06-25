@@ -2,6 +2,7 @@ const DEFAULT_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 
 const sessionActivityByUserId = new Map();
 
+// JWT 자체 만료와 별개로, 서버 메모리에서 사용자별 마지막 활동 시간을 관리합니다.
 function getIdleTimeoutMs() {
     const configuredTimeout = Number(process.env.AUTH_IDLE_TIMEOUT_MS);
 
@@ -23,6 +24,7 @@ function getSessionActivityKey(payload) {
 }
 
 function isSessionIdleExpired(payload, now = Date.now()) {
+    // 마지막 활동 시각이 설정된 유휴 시간보다 오래되면 재로그인이 필요합니다.
     const sessionKey = getSessionActivityKey(payload);
 
     if (!sessionKey) {

@@ -1,3 +1,4 @@
+// 초기 제품 데이터나 상품 상세 URL 기준을 맞출 때 참고하는 올리브영 상품 목록입니다.
 function oliveYoungProductUrl(goodsNo) {
     return `https://www.oliveyoung.co.kr/store/goods/getGoodsDetail.do?goodsNo=${goodsNo}`;
 }

@@ -1,3 +1,4 @@
+// 피부 분석 등급과 지표 타입의 기본 기준표입니다. DB seed와 API 정규화 기준으로 함께 사용합니다.
 const ANALYSIS_GRADES = [
     {
         code: 'good',
@@ -35,6 +36,7 @@ const ANALYSIS_METRIC_TYPES = [
 ];
 
 function findGradeByScore(score) {
+    // 점수를 등급 기준표에 맞춰 good/caution/risk 중 하나로 변환합니다.
     const numericScore = Number(score);
 
     if (!Number.isFinite(numericScore)) {

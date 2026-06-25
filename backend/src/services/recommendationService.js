@@ -12,6 +12,7 @@ const { toNumber } = require('../utils/number');
 
 const OLIVE_YOUNG_SEARCH_BASE_URL = 'https://www.oliveyoung.co.kr/store/search/getSearchMain.do?query=';
 
+// 추천 service는 최신 분석 지표를 기준으로 성분, 제품, 식습관 가이드를 조합합니다.
 function oliveYoungSearchUrl(keyword) {
     return `${OLIVE_YOUNG_SEARCH_BASE_URL}${encodeURIComponent(keyword)}`;
 }
@@ -107,6 +108,7 @@ function getMetricMeta(metricCode) {
 }
 
 function getConcernMetrics(metrics) {
+    // 점수가 낮은 지표일수록 우선 관리 대상으로 보기 위해 추천 기준으로 변환합니다.
     const validMetrics = metrics
         .map((metric) => ({
             code: metric.metric_code || null,
@@ -125,6 +127,7 @@ function getConcernMetrics(metrics) {
 }
 
 function normalizeFocusMetric(focus) {
+    // 프론트에서 사용자가 색소침착/주름을 직접 선택하면 쿼리값을 내부 지표 코드로 맞춥니다.
     const normalizedFocus = String(focus || '').trim().toLowerCase();
 
     if (['pigmentation', 'pigment', 'spot', 'tone', 'color', '색소', '색소침착'].includes(normalizedFocus)) {
@@ -227,6 +230,7 @@ function getIngredientTags(ingredient, metricMeta) {
 }
 
 function buildIngredientRecommendations(ingredients, concernMetrics) {
+    // DB 성분이 있으면 DB를 우선 사용하고, 없을 때만 코드에 있는 기본 성분표를 사용합니다.
     const sortedConcernMetrics = [...concernMetrics].sort((left, right) => {
         const leftScore = left.score === null ? 999 : left.score;
         const rightScore = right.score === null ? 999 : right.score;
@@ -358,6 +362,7 @@ function toPublicMatchedIngredient(ingredient) {
 }
 
 function applyProductSearchUrls(products) {
+    // 상세 URL이 DB에 있으면 그대로 사용하고, 없으면 검색 URL을 별도 필드로 내려줍니다.
     const usedIngredientKeys = new Set();
 
     return products.map((product) => {
@@ -657,6 +662,7 @@ function buildFallbackDietGuides() {
 }
 
 async function buildIngredientRecommendationResult(analysisContext, options = {}) {
+    // 자동 추천은 최신 분석의 낮은 지표를, 수동 추천은 focus로 선택한 지표를 우선합니다.
     const ingredients = await recommendationRepository.findIngredients();
     const requestedFocusMetricCode = normalizeFocusMetric(options.focus);
     const concernMetrics = applyFocusMetric(
@@ -670,6 +676,7 @@ async function buildIngredientRecommendationResult(analysisContext, options = {}
     let recommendations = [];
 
     if (analysisId && !isManualFocus) {
+        // 자동 추천은 같은 분석 이력에서 이미 만든 추천이 있으면 재사용합니다.
         const storedIngredients = await recommendationRepository.findIngredientRecommendationsByAnalysisId(analysisId);
 
         if (storedIngredients.length > 0) {
@@ -682,6 +689,7 @@ async function buildIngredientRecommendationResult(analysisContext, options = {}
         recommendations = buildIngredientRecommendations(ingredients, concernMetrics);
 
         if (analysisId && ingredients.length > 0 && !isManualFocus) {
+            // DB 성분으로 새로 계산한 자동 추천은 분석 이력에 저장해 이후 상세 리포트와 맞춥니다.
             const storedIngredients = await recommendationRepository.createIngredientRecommendationsForAnalysis(
                 analysisId,
                 recommendations,
@@ -725,6 +733,7 @@ async function getIngredientRecommendations(userId, options = {}) {
 }
 
 async function getDietGuideRecommendations(userId) {
+    // 식습관 가이드는 최신 분석 이력에 저장된 항목을 우선하고, 없으면 기본 가이드를 생성합니다.
     const latestAnalysis = await recommendationRepository.findLatestAnalysisWithMetricsByUserId(userId);
     const latestAnalysisId = latestAnalysis?.analysis.skin_analysis_id || null;
 
@@ -771,6 +780,7 @@ async function getDietGuideRecommendations(userId) {
 }
 
 async function getProductRecommendations(userId, options = {}) {
+    // 제품 추천은 먼저 추천 성분을 만든 뒤, 제품-성분 매칭으로 후보를 좁힙니다.
     const requestedFocusMetricCode = normalizeFocusMetric(options.focus);
     const ingredientResult = await getIngredientRecommendations(userId, options);
     const analysisId = ingredientResult.summary.analysisId || null;
@@ -824,6 +834,7 @@ async function getProductRecommendations(userId, options = {}) {
 }
 
 async function getRecommendationSnapshotForAnalysis(userId, analysisId) {
+    // 상세 리포트는 특정 분석 이력 기준으로 성분/제품/식습관 스냅샷을 다시 맞춰 가져옵니다.
     const analysisContext = await recommendationRepository.findAnalysisWithMetricsByUserIdAndAnalysisId(userId, analysisId);
 
     if (!analysisContext) {

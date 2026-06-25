@@ -8,6 +8,7 @@ const historyRoutes = require('./routes/historyRoutes');
 const mypageRoutes = require('./routes/mypageRoutes');
 const recommendationRoutes = require('./routes/recommendationRoutes');
 
+// Express 앱의 공통 설정과 API 라우트 연결을 담당하는 백엔드 진입 파일입니다.
 const app = express();
 
 // 프론트 개발 서버 요청을 허용하고 JSON 요청 본문을 읽을 수 있게 준비합니다.
@@ -20,6 +21,7 @@ app.get('/', (req, res) => {
     res.json({ message: 'SkinFlow backend is running.' });
 });
 
+// 기능별 route 파일을 /api 하위 경로에 연결합니다.
 app.use('/api/auth', authRoutes);
 app.use('/api/analysis', analysisRoutes);
 app.use('/api/chat', chatRoutes);

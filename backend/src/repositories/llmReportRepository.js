@@ -1,5 +1,6 @@
 const pool = require('../config/db');
 
+// LLM 리포트 repository는 분석 상세 리포트 저장/재사용에 필요한 DB 접근을 담당합니다.
 async function findReportByAnalysisId(userId, analysisId) {
     const [rows] = await pool.query(
         `
@@ -25,6 +26,7 @@ async function findReportByAnalysisId(userId, analysisId) {
 }
 
 async function findRecentReportsByUserId(userId, excludedAnalysisId, limit = 10) {
+    // 같은 입력 지문을 가진 과거 리포트를 찾기 위해 최근 리포트 후보를 조회합니다.
     const [rows] = await pool.query(
         `
             SELECT
@@ -71,6 +73,7 @@ async function findCareGuidesByAnalysisId(userId, analysisId) {
 }
 
 async function createReport({ analysisId, promptText, explanationText, languageCode = 'ko' }) {
+    // LLM에 보낸 입력 요약과 생성 결과를 함께 저장해 이후 재조회/재사용이 가능하게 합니다.
     const [result] = await pool.query(
         `
             INSERT INTO t_llm_explanation (

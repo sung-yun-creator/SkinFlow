@@ -1,3 +1,4 @@
+// 분석 이력에 식습관 가이드가 없을 때 기본 추천으로 사용하는 가이드/루틴/체크 항목입니다.
 const DIET_GUIDE_REFERENCES = [
     {
         category: '기본 권장',
