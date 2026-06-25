@@ -31,21 +31,40 @@ function normalizeMatch(value) {
   return Number.isFinite(numericValue) ? numericValue : null;
 }
 
+function normalizePositiveNumber(value) {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "string" && value.trim() === "") return null;
+
+  const numericValue = Number(value);
+
+  return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : null;
+}
+
 function normalizeIngredient(item) {
-  const name = normalizeText(item?.name);
+  const name = pickText(item?.name, item?.ingredientName, item?.ingredient_name);
+  const recommendationReason = pickText(
+    item?.recommendationReason,
+    item?.recommendation_reason,
+    item?.recommendReason,
+    item?.recommend_reason,
+    item?.reason,
+  );
 
   if (!name) {
     return null;
   }
 
   return {
-    id: item?.id ?? name,
+    id: item?.id ?? item?.ingredientId ?? item?.ingredient_id ?? name,
     name,
-    description: normalizeText(item?.description),
-    match: normalizeMatch(item?.match),
-    reason: normalizeText(item?.reason),
+    description: pickText(item?.description, item?.content, item?.summary),
+    match: normalizeMatch(pickValue(item?.match, item?.matchScore, item?.match_score, item?.score)),
+    recommendationReason,
+    reason: recommendationReason,
+    referenceBasis: item?.referenceBasis ?? item?.reference_basis ?? null,
     priority: item?.priority ?? null,
-    metricName: normalizeText(item?.metricName),
+    metricName: pickText(item?.metricName, item?.metric_name),
+    metricCode: pickText(item?.metricCode, item?.metric_code, item?.type, item?.code),
     tags: toArray(item?.tags).map(normalizeText).filter(Boolean),
   };
 }
@@ -63,6 +82,11 @@ function normalizeSummary(response, defaultSource) {
     ...summary,
     source,
     message: response?.message ?? summary?.message ?? "",
+    recommendationMode: response?.recommendationMode ?? summary?.recommendationMode ?? summary?.recommendation_mode ?? null,
+    selectedMetricName: response?.selectedMetricName ?? summary?.selectedMetricName ?? summary?.selected_metric_name ?? null,
+    selectedMetricCode: response?.selectedMetricCode ?? summary?.selectedMetricCode ?? summary?.selected_metric_code ?? null,
+    recommendationReason: response?.recommendationReason ?? summary?.recommendationReason ?? summary?.recommendation_reason ?? null,
+    referenceBasis: response?.referenceBasis ?? summary?.referenceBasis ?? summary?.reference_basis ?? null,
     ingredientSource: response?.ingredientSource ?? summary?.ingredientSource ?? null,
     productSource: response?.productSource ?? summary?.productSource ?? null,
     isFallback: response?.isFallback ?? summary?.isFallback ?? false,
@@ -132,16 +156,37 @@ function normalizeProduct(item) {
         item?.score,
       ),
     ),
-    reason: pickText(
+    recommendationReason: pickText(
+      card?.recommendationReason,
+      card?.recommendation_reason,
       card?.recommendReason,
       card?.recommend_reason,
       card?.reason,
+      item?.recommendationReason,
+      item?.recommendation_reason,
       item?.recommendReason,
       item?.recommend_reason,
       item?.reason,
     ),
+    reason: pickText(
+      card?.recommendationReason,
+      card?.recommendation_reason,
+      card?.recommendReason,
+      card?.recommend_reason,
+      card?.reason,
+      item?.recommendationReason,
+      item?.recommendation_reason,
+      item?.recommendReason,
+      item?.recommend_reason,
+      item?.reason,
+    ),
+    referenceBasis: card?.referenceBasis ?? card?.reference_basis ?? item?.referenceBasis ?? item?.reference_basis ?? null,
     tags: normalizeTags(pickValue(card?.tags, item?.tags)),
+    priceAmount: normalizePositiveNumber(
+      pickValue(card?.priceAmount, card?.price_amount, card?.price, item?.priceAmount, item?.price_amount, item?.price),
+    ),
     productUrl: pickText(card?.productUrl, card?.product_url, item?.productUrl, item?.product_url),
+    productSearchUrl: pickText(card?.productSearchUrl, card?.product_search_url, item?.productSearchUrl, item?.product_search_url),
     imageUrl: pickText(
       card?.imageUrl,
       card?.image_url,
@@ -166,11 +211,17 @@ function normalizeDietSummary(response) {
   const guideCount = Number(summary?.guideCount);
 
   return {
-    analysisId: summary?.analysisId ?? null,
-    analyzedAt: summary?.analyzedAt ?? null,
-    totalScore: summary?.totalScore ?? null,
-    guideSource: summary?.guideSource ?? null,
+    ...summary,
+    analysisId: summary?.analysisId ?? summary?.analysis_id ?? null,
+    analyzedAt: summary?.analyzedAt ?? summary?.analyzed_at ?? null,
+    totalScore: summary?.totalScore ?? summary?.total_score ?? null,
+    guideSource: summary?.guideSource ?? summary?.guide_source ?? null,
     saved: response?.saved ?? summary?.saved ?? null,
+    recommendationMode: response?.recommendationMode ?? summary?.recommendationMode ?? summary?.recommendation_mode ?? null,
+    selectedMetricName: response?.selectedMetricName ?? summary?.selectedMetricName ?? summary?.selected_metric_name ?? null,
+    selectedMetricCode: response?.selectedMetricCode ?? summary?.selectedMetricCode ?? summary?.selected_metric_code ?? null,
+    recommendationReason: response?.recommendationReason ?? summary?.recommendationReason ?? summary?.recommendation_reason ?? null,
+    referenceBasis: response?.referenceBasis ?? summary?.referenceBasis ?? summary?.reference_basis ?? null,
     guideCount: hasGuideCount && Number.isFinite(guideCount) ? guideCount : null,
     message: normalizeText(summary?.message),
   };
@@ -178,20 +229,30 @@ function normalizeDietSummary(response) {
 
 function normalizeDietGuide(item) {
   const card = item?.card ?? {};
+  const recommendationReason = pickText(
+    card?.recommendationReason,
+    card?.recommendation_reason,
+    card?.reason,
+    item?.recommendationReason,
+    item?.recommendation_reason,
+    item?.reason,
+  );
 
   return {
-    id: item?.id ?? item?.recommendationId ?? null,
-    recommendationId: item?.recommendationId ?? null,
-    ingredientId: item?.ingredientId ?? null,
-    ingredientName: normalizeText(item?.ingredientName),
+    id: item?.id ?? item?.recommendationId ?? item?.recommendation_id ?? null,
+    recommendationId: item?.recommendationId ?? item?.recommendation_id ?? null,
+    ingredientId: item?.ingredientId ?? item?.ingredient_id ?? null,
+    ingredientName: pickText(item?.ingredientName, item?.ingredient_name),
     category: normalizeText(item?.category),
-    title: normalizeText(card?.title) || normalizeText(item?.title),
-    description: normalizeText(card?.description) || normalizeText(item?.content),
+    title: pickText(card?.title, item?.title),
+    description: pickText(card?.description, item?.description, item?.content),
     content: normalizeText(item?.content),
-    reason: normalizeText(item?.reason),
-    priority: normalizeText(card?.priority) || normalizeText(item?.priority),
-    tag: normalizeText(card?.tag) || normalizeText(item?.category),
-    createdAt: item?.createdAt ?? null,
+    recommendationReason,
+    reason: recommendationReason,
+    referenceBasis: card?.referenceBasis ?? card?.reference_basis ?? item?.referenceBasis ?? item?.reference_basis ?? null,
+    priority: pickText(card?.priority, item?.priority),
+    tag: pickText(card?.tag, item?.tag, item?.category),
+    createdAt: item?.createdAt ?? item?.created_at ?? null,
   };
 }
 
@@ -204,8 +265,11 @@ function normalizeDietRoutine(item) {
 
 function normalizeDietCheck(item) {
   return {
+    id: item?.id ?? null,
     title: normalizeText(item?.title),
     category: normalizeText(item?.category),
+    description: pickText(item?.description, item?.content, item?.recommendationReason, item?.recommendation_reason, item?.reason),
+    recommendationReason: pickText(item?.recommendationReason, item?.recommendation_reason, item?.reason),
   };
 }
 

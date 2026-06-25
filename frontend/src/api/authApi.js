@@ -38,6 +38,18 @@ export function login({ email, password }) {
   });
 }
 
+export function sendPasswordResetCode(email) {
+  return http.post("/api/auth/password-reset-code", { email });
+}
+
+export function resetPassword({ email, code, newPassword }) {
+  return http.post("/api/auth/reset-password", {
+    email,
+    code,
+    newPassword,
+  });
+}
+
 export function saveLoginSession(data, email) {
   cleanupLegacyAuthStorage();
 
@@ -77,5 +89,5 @@ export function getAuthErrorMessage(error, fallbackMessage) {
     return fallbackMessage;
   }
 
-  return fallbackMessage;
+  return error?.message || fallbackMessage;
 }

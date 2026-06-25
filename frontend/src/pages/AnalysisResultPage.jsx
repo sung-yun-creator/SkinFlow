@@ -601,6 +601,27 @@ function AnalysisResultPage() {
             gap: 7px;
           }
 
+          .sf-result-score-help-list {
+            display: grid;
+            gap: 7px;
+          }
+
+          .sf-result-score-help-list span {
+            display: grid;
+            grid-template-columns: 7px 1fr;
+            gap: 8px;
+            align-items: start;
+          }
+
+          .sf-result-score-help-list span::before {
+            content: "";
+            width: 7px;
+            height: 7px;
+            margin-top: 6px;
+            border-radius: 999px;
+            background: #167d7f;
+          }
+
           .sf-result-score-help svg {
             flex: 0 0 auto;
             color: #167d7f;
@@ -980,7 +1001,12 @@ function AnalysisResultPage() {
                 <div className="sf-result-score-help">
                   <div className="sf-result-score-help-main">
                     <Info size={15} />
+                    <span>점수 의미 안내</span>
+                  </div>
+                  <div className="sf-result-score-help-list">
                     <span>점수가 높을수록 현재 피부 상태가 양호하다는 의미입니다.</span>
+                    <span>점수가 낮은 항목은 관리 우선순위가 높게 표시됩니다.</span>
+                    <span>피부 관리 참고 정보이며 의료적 판단이나 관리 확정 기준이 아닙니다.</span>
                   </div>
                   <div className="sf-result-grade-legend" aria-label="피부 상태 단계 안내">
                     <span style={{ "--legend-color": "#167D7F", "--legend-bg": "rgba(22, 125, 127, 0.11)" }}>
