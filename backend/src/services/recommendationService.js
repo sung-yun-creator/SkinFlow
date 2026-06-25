@@ -6,13 +6,15 @@ const {
 const {
     DIET_CHECK_REFERENCES,
     DIET_GUIDE_REFERENCES,
+    DIET_QUESTION_REFERENCES,
     DIET_ROUTINE_REFERENCES,
 } = require('../constants/dietGuideReference');
 const { toNumber } = require('../utils/number');
 
 const OLIVE_YOUNG_SEARCH_BASE_URL = 'https://www.oliveyoung.co.kr/store/search/getSearchMain.do?query=';
+const MAX_DIET_GUIDE_COUNT = 3;
 
-// 추천 service는 최신 분석 지표를 기준으로 성분, 제품, 식습관 가이드를 조합합니다.
+// 추천 service는 최신 분석 또는 사용자가 선택한 분석 이력을 기준으로 추천 응답을 조합합니다.
 function oliveYoungSearchUrl(keyword) {
     return `${OLIVE_YOUNG_SEARCH_BASE_URL}${encodeURIComponent(keyword)}`;
 }
@@ -661,8 +663,196 @@ function buildFallbackDietGuides() {
     return DIET_GUIDE_REFERENCES.map((guide, index) => toDietGuide(guide, index));
 }
 
+function createAnalysisNotFoundError() {
+    const error = new Error('분석 이력을 찾을 수 없습니다.');
+    error.status = 404;
+    error.code = 'ANALYSIS_NOT_FOUND';
+    return error;
+}
+
+async function findAnalysisContextForRecommendations(userId, analysisId = null) {
+    if (!analysisId) {
+        return recommendationRepository.findLatestAnalysisWithMetricsByUserId(userId);
+    }
+
+    const analysisContext = await recommendationRepository.findAnalysisWithMetricsByUserIdAndAnalysisId(userId, analysisId);
+
+    if (!analysisContext) {
+        throw createAnalysisNotFoundError();
+    }
+
+    return analysisContext;
+}
+
+function uniqueByMetricCode(metrics) {
+    const seen = new Set();
+
+    return metrics.filter((metric) => {
+        if (!metric?.code || seen.has(metric.code)) {
+            return false;
+        }
+
+        seen.add(metric.code);
+        return true;
+    });
+}
+
+function getMetricQuestionReference(metric) {
+    const scoreBand = getScoreBand(metric?.score);
+    const metricReferences = DIET_QUESTION_REFERENCES[metric?.code] || {};
+
+    return {
+        reference: metricReferences[scoreBand.code] || metricReferences.default || null,
+        scoreBand,
+    };
+}
+
+function formatIngredientNames(ingredients, metricCode, limit = 2) {
+    const names = ingredients
+        .filter((ingredient) => !metricCode || ingredient.metricCode === metricCode)
+        .map((ingredient) => ingredient.name)
+        .filter(Boolean);
+
+    return [...new Set(names)].slice(0, limit);
+}
+
+function buildDietReason(reference, metric, scoreBand, ingredientNames) {
+    const metricName = metric?.name || getMetricMeta(metric?.code).name;
+    const scoreText = metric?.score !== null && metric?.score !== undefined
+        ? `${Math.round(metric.score)}점`
+        : '점수 확인 전';
+    const ingredientText = ingredientNames.length > 0
+        ? ` 맞춤추천 성분(${ingredientNames.join(', ')})과도 함께 확인할 수 있습니다.`
+        : '';
+
+    return `${metricName} ${scoreText} ${scoreBand.label} 기준입니다. ${reference.reason}${ingredientText}`;
+}
+
+function toPersonalizedDietGuide(reference, metric, index, ingredients = [], analysisContext = null) {
+    const { scoreBand } = getMetricQuestionReference(metric);
+    const ingredientNames = formatIngredientNames(ingredients, metric?.code);
+    const metricName = metric?.name || getMetricMeta(metric?.code).name;
+
+    return toDietGuide(
+        {
+            ...reference,
+            reason: buildDietReason(reference, metric, scoreBand, ingredientNames),
+            priority: `${metricName} ${scoreBand.label}`,
+            ingredient_name: ingredientNames[0] || null,
+        },
+        index,
+        analysisContext,
+    );
+}
+
+function buildPersonalizedDietGuides(analysisContext, ingredients = []) {
+    if (!analysisContext?.analysis) {
+        return buildFallbackDietGuides();
+    }
+
+    const concernMetrics = uniqueByMetricCode(getConcernMetrics(analysisContext.metrics || []));
+    const metricGuides = concernMetrics
+        .map((metric, index) => {
+            const { reference } = getMetricQuestionReference(metric);
+
+            return reference
+                ? toPersonalizedDietGuide(reference, metric, index, ingredients, analysisContext)
+                : null;
+        })
+        .filter(Boolean);
+    const commonGuides = [
+        DIET_QUESTION_REFERENCES.hydration,
+        DIET_QUESTION_REFERENCES.trigger,
+    ].map((reference, index) => toDietGuide(reference, metricGuides.length + index, analysisContext));
+
+    return [...metricGuides, ...commonGuides].slice(0, MAX_DIET_GUIDE_COUNT);
+}
+
+function buildPersonalizedDietRoutines(analysisContext, ingredients = []) {
+    if (!analysisContext?.analysis) {
+        return DIET_ROUTINE_REFERENCES;
+    }
+
+    const concernMetrics = uniqueByMetricCode(getConcernMetrics(analysisContext.metrics || []));
+    const focusMetric = concernMetrics[0] || null;
+    const secondMetric = concernMetrics[1] || null;
+    const focusMeta = getMetricMeta(focusMetric?.code);
+    const focusIngredient = formatIngredientNames(ingredients, focusMetric?.code, 1)[0];
+    const secondIngredient = formatIngredientNames(ingredients, secondMetric?.code, 1)[0];
+
+    return [
+        {
+            time: '아침',
+            text: focusMetric?.code === 'wrinkle'
+                ? '단백질 식품과 물 한 잔으로 탄력 관리 루틴을 시작해보세요.'
+                : '비타민 C 과일이나 채소를 곁들이고 자외선 차단도 함께 챙겨보세요.',
+            category: focusMeta.name,
+        },
+        {
+            time: '점심',
+            text: focusIngredient
+                ? `${focusIngredient} 추천 흐름과 맞춰 채소, 단백질, 과일을 균형 있게 선택해보세요.`
+                : '채소와 단백질이 포함된 식사를 선택해 피부 컨디션을 안정적으로 유지해보세요.',
+            category: '맞춤추천 연계',
+        },
+        {
+            time: '저녁',
+            text: secondIngredient
+                ? `${secondIngredient} 관리 방향을 떠올리며 단 음료와 늦은 야식 빈도를 줄여보세요.`
+                : '야식과 과한 당 섭취를 줄이고 충분한 수면으로 회복 루틴을 준비하세요.',
+            category: secondMetric?.name || '생활 루틴',
+        },
+    ];
+}
+
+function buildPersonalizedDietChecks(analysisContext, ingredients = []) {
+    if (!analysisContext?.analysis) {
+        return DIET_CHECK_REFERENCES;
+    }
+
+    const concernMetrics = uniqueByMetricCode(getConcernMetrics(analysisContext.metrics || []));
+    const focusMetric = concernMetrics[0] || null;
+    const secondMetric = concernMetrics[1] || null;
+    const focusMeta = getMetricMeta(focusMetric?.code);
+    const secondMeta = getMetricMeta(secondMetric?.code);
+    const focusLabel = focusMetric?.code === 'wrinkle'
+        ? '단백질 식품 하나 챙기기'
+        : '과일이나 채소 하나 챙기기';
+    const secondLabel = secondMetric?.code === 'wrinkle'
+        ? '물 자주 마시기'
+        : '자외선 차단 함께 챙기기';
+    const focusDescription = focusMetric?.code === 'wrinkle'
+        ? '단백질, 비타민 C, 오메가-3 식품처럼 탄력 관리에 참고할 수 있는 식품을 오늘 식사에 하나 넣어봅니다.'
+        : '비타민 C 과일이나 항산화 채소처럼 피부톤 관리에 참고할 수 있는 식품을 오늘 식사에 하나 포함합니다.';
+
+    return [
+        {
+            title: focusLabel,
+            category: focusMeta.name,
+            description: focusDescription,
+        },
+        {
+            title: '오늘 먹은 간식 한 번 돌아보기',
+            category: '맞춤추천',
+            description: '단 음료, 과자, 패스트푸드처럼 자주 반복되는 간식이 있었는지 가볍게 확인합니다.',
+        },
+        {
+            title: secondLabel,
+            category: secondMeta.name,
+            description: secondMetric?.code === 'wrinkle'
+                ? '수분, 단백질, 수면 루틴을 함께 확인합니다.'
+                : '자외선 차단, 항산화 식품, 피부 자극 최소화를 함께 확인합니다.',
+        },
+        {
+            title: '단 음료와 늦은 야식 빈도 줄이기',
+            category: '생활 루틴',
+            description: '피부 컨디션을 흔들 수 있는 반복 습관을 오늘 한 번만 줄여봅니다.',
+        },
+    ];
+}
+
 async function buildIngredientRecommendationResult(analysisContext, options = {}) {
-    // 자동 추천은 최신 분석의 낮은 지표를, 수동 추천은 focus로 선택한 지표를 우선합니다.
+    // 자동 추천은 분석 이력의 낮은 지표를, 수동 추천은 focus로 선택한 지표를 우선합니다.
     const ingredients = await recommendationRepository.findIngredients();
     const requestedFocusMetricCode = normalizeFocusMetric(options.focus);
     const concernMetrics = applyFocusMetric(
@@ -723,18 +913,29 @@ async function buildIngredientRecommendationResult(analysisContext, options = {}
 }
 
 async function getIngredientRecommendations(userId, options = {}) {
-    const latestAnalysis = await recommendationRepository.findLatestAnalysisWithMetricsByUserId(userId);
-    const result = await buildIngredientRecommendationResult(latestAnalysis, options);
+    const analysisContext = await findAnalysisContextForRecommendations(userId, options.analysisId);
+    const result = await buildIngredientRecommendationResult(analysisContext, options);
 
     return {
         ...result,
-        source: latestAnalysis ? 'latest_analysis' : 'default',
+        source: analysisContext
+            ? options.analysisId ? 'selected_analysis' : 'latest_analysis'
+            : 'default',
+        summary: {
+            ...result.summary,
+            source: analysisContext
+                ? options.analysisId ? 'selected_analysis' : 'latest_analysis'
+                : 'default',
+            message: options.analysisId && analysisContext
+                ? '선택한 분석 이력 기준으로 추천했습니다.'
+                : result.summary.message,
+        },
     };
 }
 
-async function getDietGuideRecommendations(userId) {
-    // 식습관 가이드는 최신 분석 이력에 저장된 항목을 우선하고, 없으면 기본 가이드를 생성합니다.
-    const latestAnalysis = await recommendationRepository.findLatestAnalysisWithMetricsByUserId(userId);
+async function getDietGuideRecommendations(userId, options = {}) {
+    // 식습관 가이드는 최신 분석 또는 선택 분석 ID 기준으로 질문형 가이드와 체크 항목을 만듭니다.
+    const latestAnalysis = await findAnalysisContextForRecommendations(userId, options.analysisId);
     const latestAnalysisId = latestAnalysis?.analysis.skin_analysis_id || null;
 
     if (!latestAnalysisId) {
@@ -754,28 +955,34 @@ async function getDietGuideRecommendations(userId) {
         };
     }
 
+    const ingredientResult = await buildIngredientRecommendationResult(latestAnalysis);
+    const personalizedGuides = buildPersonalizedDietGuides(latestAnalysis, ingredientResult.ingredients);
+    const personalizedRoutines = buildPersonalizedDietRoutines(latestAnalysis, ingredientResult.ingredients);
+    const personalizedChecks = buildPersonalizedDietChecks(latestAnalysis, ingredientResult.ingredients);
     let dietGuides = await recommendationRepository.findDietGuidesByAnalysisId(latestAnalysisId);
 
     if (dietGuides.length === 0) {
         dietGuides = await recommendationRepository.createDietGuidesForAnalysis(
             latestAnalysisId,
-            DIET_GUIDE_REFERENCES,
+            personalizedGuides,
         );
     }
 
     return {
-        source: 'latest_analysis',
+        source: options.analysisId ? 'selected_analysis' : 'latest_analysis',
         summary: {
             analysisId: latestAnalysisId,
             analyzedAt: latestAnalysis.analysis.analyzed_at || latestAnalysis.analysis.created_at || null,
             totalScore: toNumber(latestAnalysis.analysis.total_skin_score),
-            guideSource: 'database',
-            guideCount: dietGuides.length,
-            message: null,
+            guideSource: 'personalized',
+            guideCount: personalizedGuides.length,
+            focusMetric: ingredientResult.summary.focusMetric || null,
+            recommendedIngredients: ingredientResult.ingredients.slice(0, 3).map((ingredient) => ingredient.name),
+            message: options.analysisId ? '선택한 분석 이력 기준의 식습관 가이드입니다.' : null,
         },
-        guides: dietGuides.map((guide, index) => toDietGuide(guide, index, latestAnalysis)),
-        routines: DIET_ROUTINE_REFERENCES,
-        checks: DIET_CHECK_REFERENCES,
+        guides: personalizedGuides,
+        routines: personalizedRoutines,
+        checks: personalizedChecks,
     };
 }
 
@@ -854,9 +1061,10 @@ async function getRecommendationSnapshotForAnalysis(userId, analysisId) {
         ? buildStoredProductRecommendations(storedProductRows, ingredientResult.ingredients)
         : [];
     let dietGuides = await recommendationRepository.findDietGuidesByAnalysisId(analysisId);
+    const personalizedDietGuides = buildPersonalizedDietGuides(analysisContext, ingredientResult.ingredients);
 
     if (dietGuides.length === 0) {
-        dietGuides = buildFallbackDietGuides();
+        dietGuides = personalizedDietGuides;
     }
 
     return {
@@ -864,9 +1072,11 @@ async function getRecommendationSnapshotForAnalysis(userId, analysisId) {
         metrics: analysisContext.metrics,
         ingredients: ingredientResult.ingredients,
         products,
-        dietGuides: dietGuides.map((guide, index) => toDietGuide(guide, index, analysisContext)),
-        routines: DIET_ROUTINE_REFERENCES,
-        checks: DIET_CHECK_REFERENCES,
+        dietGuides: personalizedDietGuides.length > 0
+            ? personalizedDietGuides
+            : dietGuides.map((guide, index) => toDietGuide(guide, index, analysisContext)),
+        routines: buildPersonalizedDietRoutines(analysisContext, ingredientResult.ingredients),
+        checks: buildPersonalizedDietChecks(analysisContext, ingredientResult.ingredients),
     };
 }
 
