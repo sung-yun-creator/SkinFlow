@@ -101,10 +101,17 @@ function toReportResponse(row, source) {
         disclaimer: null,
     });
     const prompt = parseJson(row.prompt_text, {});
+    const analysis = prompt.input?.analysis || {};
 
     return {
         id: row.llm_explanation_id,
         analysisId: row.skin_analysis_id,
+        analysisDate: analysis.analyzedAt || null,
+        analysis: {
+            analyzedAt: analysis.analyzedAt || null,
+            grade: analysis.grade || null,
+            totalScore: analysis.totalScore ?? null,
+        },
         source,
         provider: prompt.provider || null,
         fingerprint: prompt.fingerprint || null,
