@@ -6,6 +6,7 @@ const { authenticate } = require('../middlewares/authMiddleware');
 
 const router = express.Router();
 
+// 분석 route는 이미지 업로드를 받아 ROI 추출 또는 피부 분석 controller로 넘깁니다.
 function createInvalidImageTypeError() {
     const error = new Error('이미지 파일만 업로드할 수 있습니다.');
     error.code = 'IMAGE_UPLOAD_INVALID';
@@ -28,6 +29,7 @@ const upload = multer({
 });
 
 // ROI 추출과 분석 요청은 모두 로그인한 사용자만 사용할 수 있습니다.
+// /roi는 임시 ROI 확인, /:analysisId/roi는 기존 분석 이력에 ROI 저장, /skin은 분석 생성까지 처리합니다.
 router.post('/roi', authenticate, upload.single('file'), asyncHandler(extractAnalysisRoi));
 router.post('/:analysisId/roi', authenticate, upload.single('file'), asyncHandler(saveAnalysisRoi));
 router.post('/skin', authenticate, upload.single('file'), asyncHandler(requestSkinAnalysis));

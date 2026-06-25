@@ -1,5 +1,6 @@
 const { getOrCreateLlmReport } = require('../services/llmReportService');
 
+// 상세 리포트 controller는 분석 이력 ID를 검증하고 저장/생성된 LLM 리포트를 가져옵니다.
 async function getLlmReportByAnalysisId(req, res) {
     const analysisId = Number(req.params.analysisId);
 

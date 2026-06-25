@@ -1,5 +1,6 @@
 const { toNumber } = require('./number');
 
+// DB에서 가져온 분석/지표/추천 행을 API 응답용 camelCase 구조로 바꾸는 공통 mapper입니다.
 function toMetric(metric) {
     return {
         id: metric.skin_metric_id,

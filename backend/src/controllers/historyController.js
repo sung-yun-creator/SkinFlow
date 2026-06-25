@@ -1,5 +1,6 @@
 const { getHistory, getHistoryDetail } = require('../services/historyService');
 
+// 분석 이력 controller는 목록/상세 조회 요청을 사용자 ID 기준으로 service에 위임합니다.
 async function listHistory(req, res) {
     const history = await getHistory(req.user.userId, {
         limit: req.query.limit,
@@ -9,6 +10,7 @@ async function listHistory(req, res) {
 }
 
 async function getHistoryById(req, res) {
+    // URL 파라미터가 잘못되면 DB 조회 전에 바로 400으로 응답합니다.
     const analysisId = Number(req.params.analysisId);
 
     if (!Number.isInteger(analysisId) || analysisId <= 0) {

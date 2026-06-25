@@ -7,6 +7,7 @@ const GEMINI_API_VERSION = 'v1beta';
 const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
 const FALLBACK_GEMINI_MODEL = 'gemini-2.5-flash-lite';
 
+// LLM 리포트 service는 분석/추천 스냅샷을 짧은 JSON 리포트로 생성하거나 재사용합니다.
 function parseJson(value, fallback = null) {
     if (!value) {
         return fallback;
@@ -24,6 +25,7 @@ function pickItems(items, mapper, limit = 3) {
 }
 
 function toCompactInput(snapshot) {
+    // LLM에는 필요한 점수, 추천명, 날짜만 압축해서 보내 과한 개인정보/불필요한 데이터를 줄입니다.
     return {
         analysis: {
             analysisId: snapshot.analysis.skin_analysis_id,
@@ -63,6 +65,7 @@ function toCompactInput(snapshot) {
 }
 
 function buildFingerprint(compactInput) {
+    // 같은 분석/추천 조합이면 기존 리포트를 재사용할 수 있도록 지문을 만듭니다.
     const fingerprintTarget = {
         grade: compactInput.analysis.grade,
         totalScore: compactInput.analysis.totalScore,
@@ -276,6 +279,7 @@ async function requestGeminiReportWithModel(compactInput, model, apiKey) {
 }
 
 async function getOrCreateLlmReport(userId, analysisId) {
+    // 이미 저장된 리포트가 있으면 API 비용 없이 DB 결과를 바로 반환합니다.
     const existing = await llmReportRepository.findReportByAnalysisId(userId, analysisId);
 
     if (existing) {
@@ -298,6 +302,7 @@ async function getOrCreateLlmReport(userId, analysisId) {
     );
 
     if (reusableReport) {
+        // 최근 리포트 중 입력 지문이 같으면 내용을 복사해 현재 분석 이력에 연결합니다.
         const copied = await llmReportRepository.createReport({
             analysisId,
             promptText: toPromptEnvelope({

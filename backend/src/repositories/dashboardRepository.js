@@ -1,6 +1,7 @@
 const pool = require('../config/db');
 const userRepository = require('./userRepository');
 
+// 대시보드 repository는 첫 화면 요약에 필요한 프로필, 분석, 추천 데이터를 모읍니다.
 async function findProfileByUserId(userId) {
     return userRepository.findUserById(userId);
 }

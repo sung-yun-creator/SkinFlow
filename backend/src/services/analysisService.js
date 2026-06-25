@@ -4,6 +4,7 @@ const analysisRepository = require('../repositories/analysisRepository');
 const { findGradeByScore } = require('../constants/analysisReference');
 const { deleteStoredImage, savePrivacyImage } = require('./analysisImageStorageService');
 
+// 분석 service는 AI 서버 호출, 결과 정규화, DB 저장 여부 판단을 담당합니다.
 function getAiServerUrl() {
     return (process.env.AI_SERVER_URL || DEFAULT_AI_SERVER_URL).replace(/\/$/, '');
 }
@@ -74,6 +75,7 @@ async function extractRoi(file) {
 }
 
 function toStoredRois(roiResult) {
+    // AI 서버가 ok 상태로 반환한 얼굴/부위 ROI만 DB 저장 대상 좌표로 변환합니다.
     if (roiResult?.roi?.status !== 'ok') {
         return [];
     }
@@ -92,6 +94,7 @@ function toStoredRois(roiResult) {
 }
 
 async function extractAndSaveRoi(userId, analysisId, file) {
+    // 다른 사용자의 분석 이력에 ROI가 저장되지 않도록 먼저 소유자 검사를 합니다.
     const analysis = await analysisRepository.findAnalysisByIdAndUserId(userId, analysisId);
 
     if (!analysis) {
@@ -207,11 +210,13 @@ function toSafeRawResult(aiResult) {
 }
 
 function normalizeAnalysisResult(aiResult) {
+    // AI 서버 응답 형태가 조금 달라도 프론트/DB가 쓰는 공통 분석 구조로 맞춥니다.
     const prediction = aiResult?.prediction || {};
     const predictionResult = prediction.result || aiResult?.result || null;
     const predictionStatus = prediction.status || aiResult?.status || 'ok';
 
     if (!predictionResult || predictionStatus === 'pending') {
+        // 결과가 준비되지 않았거나 실패 상태면 분석 이력을 남기지 않도록 persistable=false로 표시합니다.
         return {
             code: predictionStatus === 'pending' ? 'AI_MODEL_PENDING' : 'ANALYSIS_RESULT_NOT_READY',
             persistable: false,
@@ -228,6 +233,7 @@ function normalizeAnalysisResult(aiResult) {
     ].filter(Boolean);
 
     if (metrics.length === 0) {
+        // 색소침착/주름 지표가 없으면 저장 가능한 분석 결과로 보지 않습니다.
         return {
             code: 'ANALYSIS_RESULT_INVALID',
             persistable: false,
@@ -277,12 +283,14 @@ async function analyzeAndSaveSkin(userId, file) {
     const normalized = normalizeAnalysisResult(aiResult);
 
     if (!normalized.persistable) {
+        // 실패/대기/비정상 결과는 사용자에게 반환만 하고 DB 분석 이력은 만들지 않습니다.
         return {
             saved: false,
             ...normalized,
         };
     }
 
+    // 저장 가능한 결과일 때만 마스킹 이미지를 파일로 남기고 분석 데이터와 연결합니다.
     const storedImage = await savePrivacyImage(aiResult?.privacy_image);
 
     try {

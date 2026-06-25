@@ -1,8 +1,9 @@
-const { createUser, findUserByEmail } = require('../services/userService');
+const { createUser, findUserByEmail, updateUserPasswordHash } = require('../services/userService');
 const {
     checkEmailAvailable,
     clearEmailVerification,
     isEmailVerified,
+    sendExistingEmailVerificationCode,
     sendVerificationCode,
     verifyEmailCode,
 } = require('../services/emailVerificationService');
@@ -127,9 +128,62 @@ async function verifyEmail(req, res) {
     return res.json({ verified: true });
 }
 
+async function sendPasswordResetCode(req, res) {
+    const { email } = req.body;
+
+    if (!email) {
+        return res.status(400).json({ message: '이메일을 입력해 주세요.' });
+    }
+
+    // 비밀번호 찾기는 기존 회원 이메일이어야 하므로 회원가입용 인증 발송과 분리합니다.
+    const result = await sendExistingEmailVerificationCode(email);
+
+    if (!result.exists) {
+        return res.status(404).json({ message: '가입된 이메일을 찾을 수 없습니다.' });
+    }
+
+    return res.json({
+        message: '비밀번호 재설정 인증 코드가 발송되었습니다.',
+        expiresIn: result.expiresIn,
+    });
+}
+
+async function resetPassword(req, res) {
+    const { email, code, newPassword } = req.body;
+
+    if (!email || !code || !newPassword) {
+        return res.status(400).json({ message: '이메일, 인증 코드, 새 비밀번호를 입력해 주세요.' });
+    }
+
+    if (newPassword.length < 8) {
+        return res.status(400).json({ message: '비밀번호는 8자 이상이어야 합니다.' });
+    }
+
+    const user = await findUserByEmail(email);
+
+    if (!user) {
+        return res.status(404).json({ message: '가입된 이메일을 찾을 수 없습니다.' });
+    }
+
+    // 이메일로 받은 인증 코드를 먼저 확인한 뒤에만 비밀번호 해시를 새로 저장합니다.
+    const verified = verifyEmailCode(email, code);
+
+    if (!verified) {
+        return res.status(400).json({ message: '인증 코드가 올바르지 않거나 만료되었습니다.' });
+    }
+
+    // 비밀번호는 평문으로 저장하지 않고 bcrypt 해시로만 교체합니다.
+    await updateUserPasswordHash(user.user_id, await hashPassword(newPassword));
+    clearEmailVerification(email);
+
+    return res.json({ message: '비밀번호가 재설정되었습니다.' });
+}
+
 module.exports = {
     checkEmail,
+    resetPassword,
     signup,
+    sendPasswordResetCode,
     sendEmailCode,
     verifyEmail,
     login,

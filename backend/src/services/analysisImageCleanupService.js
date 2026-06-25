@@ -6,6 +6,7 @@ const { toStoredImagePath } = require('./analysisImageStorageService');
 const DEFAULT_IMAGE_RETENTION_DAYS = 30;
 const CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
+// 오래된 마스킹 이미지 파일과 DB 행을 주기적으로 정리하는 service입니다.
 function getImageRetentionDays() {
     const days = Number(process.env.IMAGE_RETENTION_DAYS || DEFAULT_IMAGE_RETENTION_DAYS);
 
@@ -29,6 +30,7 @@ async function deleteFileIfExists(fileName) {
 }
 
 async function cleanupExpiredAnalysisImages() {
+    // 보관 기간이 지난 이미지 파일을 먼저 지우고, 이후 연결된 DB 이미지 행을 정리합니다.
     const retentionDays = getImageRetentionDays();
     const expiredImages = await analysisRepository.findExpiredPrivacyImages(retentionDays);
 
@@ -59,6 +61,7 @@ async function cleanupExpiredAnalysisImages() {
 }
 
 function startAnalysisImageCleanupSchedule() {
+    // 서버 시작 직후 한 번 실행하고, 이후 하루 간격으로 반복합니다.
     cleanupExpiredAnalysisImages()
         .then((result) => {
             if (result.rowCount > 0 || result.fileCount > 0) {

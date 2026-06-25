@@ -5,6 +5,7 @@ const {
     touchSessionActivity,
 } = require('../services/authSessionService');
 
+// 보호 API 앞에서 JWT를 확인하고, 통과한 사용자 정보를 req.user에 담아 다음 계층으로 넘깁니다.
 function authenticate(req, res, next) {
     // 프론트는 보호 API를 호출할 때 Authorization: Bearer <token> 형식으로 보내야 합니다.
     const authHeader = req.headers.authorization || '';
