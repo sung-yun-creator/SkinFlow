@@ -11,13 +11,17 @@ async function listDietGuideRecommendations(req, res) {
 }
 
 async function listIngredientRecommendations(req, res) {
-    const recommendations = await getIngredientRecommendations(req.user.userId);
+    const recommendations = await getIngredientRecommendations(req.user.userId, {
+        focus: req.query.focus,
+    });
 
     return res.json(recommendations);
 }
 
 async function listProductRecommendations(req, res) {
-    const recommendations = await getProductRecommendations(req.user.userId);
+    const recommendations = await getProductRecommendations(req.user.userId, {
+        focus: req.query.focus,
+    });
 
     return res.json(recommendations);
 }
