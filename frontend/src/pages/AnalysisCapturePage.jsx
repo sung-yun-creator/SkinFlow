@@ -78,7 +78,7 @@ function getProgressFromRoiResult(roiResult) {
   if (!status || status === "ok") {
     return {
       status: "roi_complete",
-      label: "얼굴 영역 확인 완료",
+      label: "촬영 이미지 확인 완료",
       description: "분석에 필요한 얼굴 관심 영역을 확인했습니다.",
       progress: 45,
     };
@@ -112,6 +112,82 @@ function getProgressFromRoiResult(roiResult) {
 
 const allowedImageTypes = ["image/jpeg", "image/png"];
 
+function getRoiData(roiResult) {
+  return roiResult?.roi || roiResult?.result?.roi || roiResult?.result || roiResult || null;
+}
+
+function isRoiResultReady(roiResult) {
+  const roiData = getRoiData(roiResult);
+  const status = roiData?.status || roiResult?.status;
+
+  return !status || status === "ok";
+}
+
+function normalizeRoiRegions(roiResult) {
+  const roiData = getRoiData(roiResult);
+  const regions = [];
+
+  if (roiData?.face?.normalized) {
+    regions.push({ ...roiData.face, name: roiData.face.name || "face", type: "face" });
+  }
+
+  if (Array.isArray(roiData?.regions)) {
+    regions.push(...roiData.regions.map((region) => ({ ...region, type: "skin" })));
+  }
+
+  return regions
+    .map((region) => {
+      const normalized = region.normalized || {};
+      const x = Number(normalized.x);
+      const y = Number(normalized.y);
+      const width = Number(normalized.width);
+      const height = Number(normalized.height);
+
+      if (![x, y, width, height].every(Number.isFinite)) {
+        return null;
+      }
+
+      return {
+        name: region.name,
+        type: region.type,
+        normalized: {
+          x: Math.max(0, Math.min(1, x)),
+          y: Math.max(0, Math.min(1, y)),
+          width: Math.max(0.01, Math.min(1, width)),
+          height: Math.max(0.01, Math.min(1, height)),
+        },
+      };
+    })
+    .filter(Boolean);
+}
+
+function getRoiRegionStyle(region, frameSize, imageSize) {
+  const normalized = region.normalized;
+
+  if (!normalized || !frameSize.width || !frameSize.height || !imageSize.width || !imageSize.height) {
+    return {
+      left: `${normalized.x * 100}%`,
+      top: `${normalized.y * 100}%`,
+      width: `${normalized.width * 100}%`,
+      height: `${normalized.height * 100}%`,
+    };
+  }
+
+  const imageRatio = imageSize.width / imageSize.height;
+  const frameRatio = frameSize.width / frameSize.height;
+  const displayedWidth = imageRatio > frameRatio ? frameSize.width : frameSize.height * imageRatio;
+  const displayedHeight = imageRatio > frameRatio ? frameSize.width / imageRatio : frameSize.height;
+  const offsetX = (frameSize.width - displayedWidth) / 2;
+  const offsetY = (frameSize.height - displayedHeight) / 2;
+
+  return {
+    left: `${offsetX + normalized.x * displayedWidth}px`,
+    top: `${offsetY + normalized.y * displayedHeight}px`,
+    width: `${normalized.width * displayedWidth}px`,
+    height: `${normalized.height * displayedHeight}px`,
+  };
+}
+
 function stopMediaStream(stream) {
   if (!stream) return;
 
@@ -130,20 +206,20 @@ function createCapturedImageFile(blob) {
 
 const uploadGuideItems = [
   {
-    title: "정면 얼굴이 보이도록 촬영",
-    description: "얼굴이 중앙에 오고 이마와 양볼이 함께 보이도록 맞춰주세요.",
+    title: "얼굴이 프레임 안에 들어오게 촬영",
+    description: "얼굴 윤곽과 양볼이 잘리지 않도록 화면 중앙에 맞춰주세요.",
   },
   {
-    title: "밝은 환경에서 촬영",
-    description: "너무 어둡거나 강한 역광이 있는 환경은 피해주세요.",
+    title: "밝고 고른 조명 사용",
+    description: "너무 어둡거나 한쪽만 강한 빛이 드는 환경은 피해주세요.",
   },
   {
-    title: "얼굴 가림 요소 줄이기",
-    description: "머리카락, 마스크, 손이 얼굴을 가리지 않도록 정리해 주세요.",
+    title: "얼굴 가림 요소 제거",
+    description: "머리카락, 마스크, 손, 안경 그림자가 얼굴을 가리지 않도록 정리해 주세요.",
   },
   {
-    title: "그림자 줄이기",
-    description: "한쪽 얼굴만 어둡게 보이면 밝은 방향으로 위치를 조정해 주세요.",
+    title: "흔들림 없이 선명하게 촬영",
+    description: "초점이 맞고 얼굴 윤곽이 흐리지 않은 사진을 사용해 주세요.",
   },
 ];
 
@@ -154,25 +230,13 @@ const flowSteps = [
   },
   {
     title: "얼굴 영역 확인",
-    description: "분석에 필요한 얼굴 관심 영역을 확인합니다.",
+    description: "검출된 세부 ROI를 먼저 확인합니다.",
   },
   {
-    title: "결과 연결",
-    description: "색소침착·주름 결과와 추천 가이드를 이어서 확인합니다.",
+    title: "이 사진으로 분석",
+    description: "확인한 사진으로 색소침착·주름 분석을 요청합니다.",
   },
 ];
-
-function getFileSizeLabel(file) {
-  if (!file?.size) return "";
-
-  const sizeInMb = file.size / 1024 / 1024;
-
-  if (sizeInMb >= 1) {
-    return `${sizeInMb.toFixed(1)}MB`;
-  }
-
-  return `${Math.max(1, Math.round(file.size / 1024))}KB`;
-}
 
 function getAnalysisRequestErrorMessage(error) {
   const rawMessage = String(error?.message || "");
@@ -200,6 +264,7 @@ function AnalysisCapturePage() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const webcamStreamRef = useRef(null);
+  const previewFrameRef = useRef(null);
 
   const [selectedMethod, setSelectedMethod] = useState("upload");
   const [selectedFile, setSelectedFile] = useState(null);
@@ -209,6 +274,9 @@ function AnalysisCapturePage() {
   const [isStartingWebcam, setIsStartingWebcam] = useState(false);
   const [isWebcamActive, setIsWebcamActive] = useState(false);
   const [webcamStatus, setWebcamStatus] = useState("웹캠 준비 전");
+  const [roiPreviewResult, setRoiPreviewResult] = useState(null);
+  const [previewFrameSize, setPreviewFrameSize] = useState({ width: 0, height: 0 });
+  const [previewImageSize, setPreviewImageSize] = useState({ width: 0, height: 0 });
 
   const isLoggedIn = Boolean(localStorage.getItem("skinflow_token"));
 
@@ -231,20 +299,55 @@ function AnalysisCapturePage() {
     };
   }, []);
 
+  useEffect(() => {
+    const updatePreviewFrameSize = () => {
+      const frame = previewFrameRef.current;
+
+      if (!frame) return;
+
+      setPreviewFrameSize({
+        width: frame.clientWidth,
+        height: frame.clientHeight,
+      });
+    };
+
+    updatePreviewFrameSize();
+    window.addEventListener("resize", updatePreviewFrameSize);
+
+    return () => {
+      window.removeEventListener("resize", updatePreviewFrameSize);
+    };
+  }, [previewUrl, selectedMethod]);
+
   const selectedMethodLabel = selectedMethod === "webcam" ? "웹캠 촬영" : "이미지 업로드";
-  const fileSizeLabel = getFileSizeLabel(selectedFile);
+  const roiPreviewRegions = useMemo(() => normalizeRoiRegions(roiPreviewResult), [roiPreviewResult]);
+  const roiDisplayRegions = useMemo(
+    () =>
+      roiPreviewRegions.map((region) => ({
+        ...region,
+        style: getRoiRegionStyle(region, previewFrameSize, previewImageSize),
+      })),
+    [previewFrameSize, previewImageSize, roiPreviewRegions],
+  );
+  const hasConfirmedRoi = Boolean(roiPreviewResult) && isRoiResultReady(roiPreviewResult);
   const canStartAnalysis = Boolean(selectedFile) && !isSubmitting;
   const startButtonLabel = !isLoggedIn
     ? "로그인 후 분석하기"
     : isSubmitting
-      ? "분석 요청 중"
+      ? hasConfirmedRoi
+        ? "분석 요청 중"
+        : "얼굴 영역 확인 중"
       : selectedFile
-        ? "이미지로 분석 시작"
+        ? hasConfirmedRoi
+          ? "이 사진으로 분석하기"
+          : "얼굴 영역 확인하기"
         : selectedMethod === "webcam"
           ? "촬영 후 분석 시작"
           : "이미지 선택 후 분석 시작";
   const startHelpText = selectedFile
-    ? "이미지가 준비되었습니다. 분석을 시작하면 결과 화면으로 이동합니다."
+    ? hasConfirmedRoi
+      ? "얼굴 관심 영역을 확인했습니다. 이 사진으로 분석을 요청할 수 있습니다."
+      : "먼저 얼굴 영역을 확인한 뒤, 같은 사진으로 분석을 요청할 수 있습니다."
     : selectedMethod === "webcam"
       ? "웹캠을 켜고 얼굴 이미지를 촬영하면 분석 시작 버튼이 활성화됩니다."
       : "JPG 또는 PNG 이미지를 선택하면 분석 시작 버튼이 활성화됩니다.";
@@ -252,6 +355,8 @@ function AnalysisCapturePage() {
   const resetSelectedImage = () => {
     setSelectedFile(null);
     setSelectedFileName("");
+    setRoiPreviewResult(null);
+    setPreviewImageSize({ width: 0, height: 0 });
   };
 
   const handleSelectWebcam = () => {
@@ -302,6 +407,7 @@ function AnalysisCapturePage() {
 
     setSelectedFile(file);
     setSelectedFileName(file.name);
+    setRoiPreviewResult(null);
     setUploadError("");
   };
 
@@ -403,6 +509,7 @@ function AnalysisCapturePage() {
 
       setSelectedFile(capturedFile);
       setSelectedFileName(capturedFile.name);
+      setRoiPreviewResult(null);
       setUploadError("");
       setWebcamStatus("촬영 완료 · 분석 요청 가능");
       setIsWebcamActive(false);
@@ -414,6 +521,58 @@ function AnalysisCapturePage() {
       }
     } catch (error) {
       setUploadError(error.message || "촬영 이미지를 처리하지 못했습니다. 다시 촬영해 주세요.");
+    }
+  };
+
+  const handleConfirmFaceRegion = async () => {
+    if (isSubmitting) return;
+
+    if (!isLoggedIn) {
+      navigate("/login");
+      return;
+    }
+
+    if (!selectedFile) {
+      setUploadError(
+        selectedMethod === "webcam"
+          ? "웹캠을 켜고 얼굴 이미지를 촬영한 뒤 분석을 요청해 주세요."
+          : "이미지를 다시 선택한 뒤 분석을 요청해 주세요.",
+      );
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setUploadError("");
+      setRoiPreviewResult(null);
+
+      saveAnalysisProgress({
+        status: "roi_processing",
+        label: "얼굴 영역 확인 중",
+        description: `${selectedFile.name} 파일의 얼굴 관심 영역을 확인하고 있습니다.`,
+        progress: 20,
+      });
+
+      const roiResponse = await extractRoi(selectedFile);
+      const roiResult = roiResponse?.result || null;
+
+      saveAnalysisProgress(getProgressFromRoiResult(roiResult));
+      setRoiPreviewResult(roiResult);
+
+      if (!isRoiResultReady(roiResult)) {
+        setUploadError(roiResult?.message || roiResult?.roi?.message || "얼굴 영역을 확인하지 못했습니다. 다른 사진으로 다시 시도해 주세요.");
+      }
+    } catch (error) {
+      saveAnalysisProgress({
+        status: "failed",
+        label: "얼굴 영역 확인 필요",
+        description: "얼굴 영역 확인 요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+        progress: 0,
+      });
+
+      setUploadError(getAnalysisRequestErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -434,23 +593,18 @@ function AnalysisCapturePage() {
       return;
     }
 
+    if (!hasConfirmedRoi) {
+      setUploadError("분석 전에 얼굴 영역을 먼저 확인해 주세요.");
+      return;
+    }
+
     const analysisMethod = selectedMethod;
+    const roiResult = roiPreviewResult;
 
     try {
       setIsSubmitting(true);
       setUploadError("");
 
-      saveAnalysisProgress({
-        status: "roi_processing",
-        label: "얼굴 영역 확인 중",
-        description: `${selectedFile.name} 파일의 얼굴 관심 영역을 확인하고 있습니다.`,
-        progress: 20,
-      });
-
-      const roiResponse = await extractRoi(selectedFile);
-      const roiResult = roiResponse?.result || null;
-
-      saveAnalysisProgress(getProgressFromRoiResult(roiResult));
       saveAnalysisProgress({
         status: "skin_analysis_processing",
         label: "피부 지표 분석 요청 중",
@@ -494,14 +648,23 @@ function AnalysisCapturePage() {
     }
   };
 
+  const handlePrimaryAction = () => {
+    if (hasConfirmedRoi) {
+      handleStartAnalysis();
+      return;
+    }
+
+    handleConfirmFaceRegion();
+  };
+
   return (
     <PageLayout>
       <style>
         {`
           .sf-capture-page {
             display: grid;
-            gap: 16px;
-            padding-top: 8px;
+            gap: 18px;
+            padding-top: 4px;
           }
 
           .sf-capture-hero {
@@ -513,11 +676,11 @@ function AnalysisCapturePage() {
 
           .sf-capture-hero.is-webcam-mode {
             grid-template-columns: 1fr;
+            justify-items: center;
           }
 
           .sf-capture-hero.is-webcam-mode .sf-capture-intro {
-            min-height: auto;
-            padding: 24px 28px;
+            display: none;
           }
 
           .sf-capture-hero.is-webcam-mode .sf-capture-intro-content {
@@ -540,7 +703,7 @@ function AnalysisCapturePage() {
           }
 
           .sf-capture-hero.is-webcam-mode .sf-capture-upload-card {
-            width: min(100%, 980px);
+            width: min(100%, 920px);
             justify-self: center;
           }
 
@@ -556,8 +719,9 @@ function AnalysisCapturePage() {
           .sf-capture-intro {
             position: relative;
             overflow: hidden;
+            align-self: start;
             min-height: 0;
-            padding: 28px 30px;
+            padding: 26px 28px;
           }
 
           .sf-capture-intro::after {
@@ -576,7 +740,7 @@ function AnalysisCapturePage() {
             z-index: 1;
             display: flex;
             flex-direction: column;
-            height: 100%;
+            height: auto;
           }
 
 
@@ -590,7 +754,7 @@ function AnalysisCapturePage() {
             -webkit-text-fill-color: transparent;
           }
           .sf-capture-intro h1 {
-            margin: 16px 0 12px;
+            margin: 14px 0 10px;
             color: #0f172a;
             font-size: clamp(32px, 3.6vw, 44px);
             line-height: 1.08;
@@ -618,20 +782,20 @@ function AnalysisCapturePage() {
 
           .sf-capture-methods {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 12px;
-            margin-top: 22px;
+            grid-template-columns: 1fr;
+            gap: 13px;
+            margin-top: 20px;
           }
 
           .sf-method-card {
             position: relative;
             display: grid;
-            grid-template-columns: 48px 1fr;
-            gap: 13px;
+            grid-template-columns: 44px minmax(0, 1fr);
+            gap: 12px;
             align-items: center;
-            min-height: 76px;
-            padding: 13px;
-            border-radius: 22px;
+            min-height: 68px;
+            padding: 12px 14px;
+            border-radius: 19px;
             border: 1px solid rgba(226, 232, 240, 0.92);
             background: #f8fafc;
             cursor: pointer;
@@ -692,10 +856,10 @@ function AnalysisCapturePage() {
 
           .sf-method-copy small {
             display: block;
-            margin-top: 4px;
+            margin-top: 3px;
             color: #64748b;
             font-size: 12px;
-            line-height: 1.45;
+            line-height: 1.38;
             font-weight: 750;
             word-break: keep-all;
           }
@@ -727,7 +891,7 @@ function AnalysisCapturePage() {
           .sf-capture-note {
             display: grid;
             gap: 8px;
-            margin-top: 24px;
+            margin-top: 18px;
             padding-top: 0;
           }
 
@@ -747,7 +911,7 @@ function AnalysisCapturePage() {
           }
 
           .sf-capture-upload-card {
-            padding: 26px;
+            padding: 24px;
             display: flex;
             flex-direction: column;
           }
@@ -757,7 +921,33 @@ function AnalysisCapturePage() {
             justify-content: space-between;
             align-items: flex-start;
             gap: 16px;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
+          }
+
+          .sf-webcam-return-button {
+            border: 1px solid rgba(22, 125, 127, 0.14);
+            border-radius: 999px;
+            padding: 7px 11px;
+            color: #167d7f;
+            background: rgba(22, 125, 127, 0.075);
+            font: inherit;
+            font-size: 12px;
+            font-weight: 900;
+            line-height: 1;
+            cursor: pointer;
+            transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+            white-space: nowrap;
+          }
+
+          .sf-webcam-return-button:hover:not(:disabled) {
+            transform: translateY(-1px);
+            border-color: rgba(22, 125, 127, 0.28);
+            background: rgba(22, 125, 127, 0.11);
+          }
+
+          .sf-webcam-return-button:disabled {
+            cursor: not-allowed;
+            opacity: 0.58;
           }
 
           .sf-card-label {
@@ -806,7 +996,7 @@ function AnalysisCapturePage() {
             position: relative;
             display: grid;
             place-items: center;
-            min-height: 240px;
+            min-height: 440px;
             overflow: hidden;
             border-radius: 28px;
             border: 1px dashed rgba(22, 125, 127, 0.35);
@@ -869,14 +1059,72 @@ function AnalysisCapturePage() {
           .sf-upload-preview {
             position: relative;
             width: 100%;
-            min-height: 240px;
+            min-height: 440px;
+            overflow: hidden;
+            border-radius: 28px;
+            background:
+              radial-gradient(circle at 0% 0%, rgba(22, 125, 127, 0.12), transparent 34%),
+              linear-gradient(135deg, #f8fafc 0%, #ffffff 50%, #ecfeff 100%);
           }
 
-          .sf-upload-preview img {
+          .sf-preview-media-frame {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             width: 100%;
-            height: 240px;
-            object-fit: cover;
+            height: 440px;
+          }
+
+          .sf-preview-media-frame img {
+            width: 100%;
+            height: 440px;
+            object-fit: contain;
             display: block;
+          }
+
+          .sf-upload-preview.is-roi-confirmed .sf-preview-media-frame img {
+            object-fit: contain;
+            opacity: 0.92;
+          }
+
+          .sf-roi-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+          }
+
+          .sf-roi-preview-box {
+            position: absolute;
+            border: 2px solid rgba(22, 125, 127, 0.72);
+            border-radius: 12px;
+            background: rgba(22, 125, 127, 0.035);
+          }
+
+          .sf-roi-preview-box.is-skin {
+            border-style: dashed;
+            border-color: rgba(244, 63, 94, 0.58);
+            background: rgba(244, 63, 94, 0.035);
+          }
+
+          .sf-roi-confirm-note {
+            display: grid;
+            gap: 7px;
+            margin-top: 12px;
+            padding: 13px;
+            border-radius: 17px;
+            color: #475569;
+            background: rgba(22, 125, 127, 0.07);
+            border: 1px solid rgba(22, 125, 127, 0.12);
+            font-size: 12px;
+            font-weight: 800;
+            line-height: 1.55;
+            word-break: keep-all;
+          }
+
+          .sf-roi-confirm-note strong {
+            color: #0f172a;
+            font-size: 13px;
           }
 
           .sf-webcam-zone {
@@ -890,7 +1138,7 @@ function AnalysisCapturePage() {
           .sf-webcam-panel {
             position: relative;
             width: 100%;
-            min-height: 240px;
+            min-height: 440px;
             overflow: hidden;
             border-radius: 28px;
             background: #0f172a;
@@ -899,18 +1147,18 @@ function AnalysisCapturePage() {
           .sf-capture-hero.is-webcam-mode .sf-webcam-panel,
           .sf-capture-hero.is-webcam-mode .sf-webcam-panel video,
           .sf-capture-hero.is-webcam-mode .sf-upload-preview,
-          .sf-capture-hero.is-webcam-mode .sf-upload-preview img {
-            min-height: clamp(320px, 45vw, 460px);
-            height: clamp(320px, 45vw, 460px);
+          .sf-capture-hero.is-webcam-mode .sf-preview-media-frame,
+          .sf-capture-hero.is-webcam-mode .sf-preview-media-frame img {
+            min-height: clamp(340px, 40vw, 420px);
+            height: clamp(340px, 40vw, 420px);
           }
 
           .sf-webcam-panel video {
             width: 100%;
-            height: 240px;
+            height: 440px;
             object-fit: cover;
             display: block;
             opacity: 0;
-            transform: scaleX(-1);
             transition: opacity 0.18s ease;
           }
 
@@ -973,37 +1221,7 @@ function AnalysisCapturePage() {
           }
 
           .sf-preview-overlay {
-            position: absolute;
-            left: 16px;
-            right: 16px;
-            bottom: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 14px;
-            padding: 14px 16px;
-            border-radius: 20px;
-            background: rgba(255, 255, 255, 0.92);
-            backdrop-filter: blur(16px);
-            box-shadow: 0 16px 34px rgba(15, 23, 42, 0.12);
-          }
-
-          .sf-preview-overlay strong {
-            display: block;
-            max-width: 280px;
-            overflow: hidden;
-            color: #0f172a;
-            font-size: 14px;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-          }
-
-          .sf-preview-overlay span {
-            display: block;
-            margin-top: 3px;
-            color: #64748b;
-            font-size: 12px;
-            font-weight: 800;
+            display: none;
           }
 
           .sf-upload-meta {
@@ -1111,6 +1329,7 @@ function AnalysisCapturePage() {
             grid-template-columns: minmax(0, 0.72fr) minmax(420px, 1.28fr);
             gap: 14px;
             align-items: stretch !important;
+            margin-top: 0;
           }
 
           .sf-capture-guide-card {
@@ -1136,7 +1355,7 @@ function AnalysisCapturePage() {
             display: flex;
             flex-direction: column;
             min-height: 100%;
-            padding: 16px;
+            padding: 14px 16px;
             align-self: stretch !important;
           }
 
@@ -1295,6 +1514,11 @@ function AnalysisCapturePage() {
               grid-template-columns: 1fr;
             }
 
+            .sf-capture-hero.is-webcam-mode .sf-capture-intro {
+              display: block;
+              width: 100%;
+            }
+
             .sf-capture-intro {
               min-height: auto;
             }
@@ -1309,7 +1533,7 @@ function AnalysisCapturePage() {
             .sf-capture-upload-card,
             .sf-capture-flow-card,
             .sf-capture-guide-card {
-              padding: 20px;
+              padding: 18px;
             }
 
             .sf-capture-hero.is-webcam-mode .sf-capture-intro,
@@ -1338,19 +1562,12 @@ function AnalysisCapturePage() {
 
             .sf-upload-zone,
             .sf-upload-preview,
-            .sf-upload-preview img,
+            .sf-preview-media-frame,
+            .sf-preview-media-frame img,
             .sf-webcam-panel,
             .sf-webcam-panel video {
-              min-height: 220px;
-              height: 220px;
-            }
-
-            .sf-capture-hero.is-webcam-mode .sf-webcam-panel,
-            .sf-capture-hero.is-webcam-mode .sf-webcam-panel video,
-            .sf-capture-hero.is-webcam-mode .sf-upload-preview,
-            .sf-capture-hero.is-webcam-mode .sf-upload-preview img {
-              min-height: 260px;
-              height: 260px;
+              min-height: 330px;
+              height: 330px;
             }
 
             .sf-upload-actions,
@@ -1359,8 +1576,8 @@ function AnalysisCapturePage() {
             }
 
             .sf-preview-overlay {
-              align-items: flex-start;
-              flex-direction: column;
+              right: 10px;
+              bottom: 10px;
             }
           }
         `}
@@ -1419,7 +1636,7 @@ function AnalysisCapturePage() {
               <div className="sf-capture-note">
                 <div className="sf-note-row">
                   <CheckCircle2 size={17} />
-                  <span>얼굴이 중앙에 보이고 이마와 양볼이 가려지지 않은 사진을 사용해주세요.</span>
+                  <span>얼굴이 중앙에 보이고 주요 부위가 가려지지 않은 사진을 사용해주세요.</span>
                 </div>
                 <div className="sf-note-row">
                   <ShieldCheck size={17} />
@@ -1438,23 +1655,53 @@ function AnalysisCapturePage() {
                 <h2>{selectedMethodLabel}</h2>
               </div>
 
-              <span className={`sf-status-pill ${isLoggedIn ? "is-recommended" : "is-locked"}`}>
-                {isLoggedIn ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
-                {isLoggedIn ? "분석 가능" : "로그인 필요"}
-              </span>
+              {selectedMethod === "webcam" ? (
+                <button
+                  type="button"
+                  className="sf-webcam-return-button"
+                  onClick={handleSelectUpload}
+                  disabled={isSubmitting || isStartingWebcam}
+                >
+                  ← 이미지 업로드로 돌아가기
+                </button>
+              ) : (
+                <span className={`sf-status-pill ${isLoggedIn ? "is-recommended" : "is-locked"}`}>
+                  {isLoggedIn ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
+                  {isLoggedIn ? "분석 가능" : "로그인 필요"}
+                </span>
+              )}
             </div>
 
             {selectedMethod === "webcam" ? (
               <div className="sf-upload-zone sf-webcam-zone">
                 {previewUrl ? (
-                  <div className="sf-upload-preview">
-                    <img src={previewUrl} alt="웹캠으로 촬영한 얼굴 이미지 미리보기" />
-                    <div className="sf-preview-overlay">
-                      <div>
-                        <strong>{selectedFileName}</strong>
-                        <span>{fileSizeLabel || "웹캠 촬영 완료"}</span>
-                      </div>
-                      <Badge>촬영 완료</Badge>
+                  <div className={`sf-upload-preview ${hasConfirmedRoi ? "is-roi-confirmed" : ""}`}>
+                    <div className="sf-preview-media-frame" ref={previewFrameRef}>
+                      <img
+                        src={previewUrl}
+                        alt="웹캠으로 촬영한 얼굴 이미지 미리보기"
+                        onLoad={(event) => {
+                          setPreviewImageSize({
+                            width: event.currentTarget.naturalWidth,
+                            height: event.currentTarget.naturalHeight,
+                          });
+                          setPreviewFrameSize({
+                            width: event.currentTarget.parentElement?.clientWidth || 0,
+                            height: event.currentTarget.parentElement?.clientHeight || 0,
+                          });
+                        }}
+                      />
+                      {hasConfirmedRoi && roiDisplayRegions.length > 0 && (
+                        <div className="sf-roi-overlay" aria-hidden="true">
+                          {roiDisplayRegions.map((region) => (
+                            <span
+                              className={`sf-roi-preview-box is-${region.type}`}
+                              key={region.name}
+                              style={region.style}
+                            />
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -1486,14 +1733,33 @@ function AnalysisCapturePage() {
             ) : (
               <label className="sf-upload-zone">
                 {previewUrl ? (
-                  <div className="sf-upload-preview">
-                    <img src={previewUrl} alt="업로드한 얼굴 이미지 미리보기" />
-                    <div className="sf-preview-overlay">
-                      <div>
-                        <strong>{selectedFileName}</strong>
-                        <span>{fileSizeLabel || "이미지 선택 완료"}</span>
-                      </div>
-                      <Badge>선택 완료</Badge>
+                  <div className={`sf-upload-preview ${hasConfirmedRoi ? "is-roi-confirmed" : ""}`}>
+                    <div className="sf-preview-media-frame" ref={previewFrameRef}>
+                      <img
+                        src={previewUrl}
+                        alt="업로드한 얼굴 이미지 미리보기"
+                        onLoad={(event) => {
+                          setPreviewImageSize({
+                            width: event.currentTarget.naturalWidth,
+                            height: event.currentTarget.naturalHeight,
+                          });
+                          setPreviewFrameSize({
+                            width: event.currentTarget.parentElement?.clientWidth || 0,
+                            height: event.currentTarget.parentElement?.clientHeight || 0,
+                          });
+                        }}
+                      />
+                      {hasConfirmedRoi && roiDisplayRegions.length > 0 && (
+                        <div className="sf-roi-overlay" aria-hidden="true">
+                          {roiDisplayRegions.map((region) => (
+                            <span
+                              className={`sf-roi-preview-box is-${region.type}`}
+                              key={region.name}
+                              style={region.style}
+                            />
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -1565,8 +1831,17 @@ function AnalysisCapturePage() {
               </div>
             )}
 
+            {hasConfirmedRoi && (
+              <div className="sf-roi-confirm-note">
+                <strong>얼굴 영역 확인 결과</strong>
+                <span>
+                  검출된 세부 ROI를 읽기 전용으로 표시했습니다. 영역을 수정하지 않고 이 사진으로 분석을 이어갈 수 있습니다.
+                </span>
+              </div>
+            )}
+
             <div className="sf-upload-actions">
-              <Button full onClick={handleStartAnalysis} disabled={!canStartAnalysis}>
+              <Button full onClick={handlePrimaryAction} disabled={!canStartAnalysis}>
                 {isSubmitting ? (
                   <>
                     <span className="sf-action-label">{startButtonLabel}</span>
@@ -1579,6 +1854,16 @@ function AnalysisCapturePage() {
                   </>
                 )}
               </Button>
+              {selectedFile && (
+                <Button
+                  variant="secondary"
+                  full
+                  onClick={selectedMethod === "webcam" ? handleStartWebcam : resetSelectedImage}
+                  disabled={isSubmitting || isStartingWebcam}
+                >
+                  {selectedMethod === "webcam" ? "다시 촬영 준비" : "다시 선택하기"}
+                </Button>
+              )}
               <p className="sf-start-help">{startHelpText}</p>
             </div>
           </Card>

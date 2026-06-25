@@ -8,7 +8,6 @@ import {
   LineChart,
   Search,
   Sparkles,
-  Trophy,
 } from "lucide-react";
 import PageLayout from "../components/layout/PageLayout";
 import Button from "../components/common/Button";
@@ -80,20 +79,6 @@ function getScoreNumber(score) {
 
 function hasScoreValue(score) {
   return getScoreNumber(score) !== null;
-}
-
-function formatDiff(scoreDiff) {
-  if (scoreDiff === null || scoreDiff === undefined || scoreDiff === "") {
-    return "비교 전";
-  }
-
-  const numericDiff = Number(scoreDiff);
-
-  if (Number.isNaN(numericDiff)) return "비교 전";
-  if (numericDiff > 0) return `+${numericDiff}점`;
-  if (numericDiff < 0) return `${numericDiff}점`;
-
-  return "변화 없음";
 }
 
 function getStatusLabel(status) {
@@ -192,6 +177,24 @@ function getGradeStyle(meta) {
   };
 }
 
+function getScoreInterpretation(score, label) {
+  const numericScore = getScoreNumber(score);
+
+  if (numericScore === null) {
+    return "저장된 점수가 있을 때 지표별 해석을 표시합니다.";
+  }
+
+  if (numericScore >= 80) {
+    return `${label} 지표는 현재 양호한 편으로 참고할 수 있습니다.`;
+  }
+
+  if (numericScore >= 60) {
+    return `${label} 지표는 생활 습관과 관리 루틴을 함께 점검해보면 좋습니다.`;
+  }
+
+  return `${label} 지표는 우선 관리 항목으로 보고 추천 정보와 함께 확인해보세요.`;
+}
+
 function getMetricName(metric) {
   return (
     metric?.metricName ||
@@ -218,18 +221,6 @@ function getGradeStatusValue(source) {
     source?.analysisStatus ||
     source?.analysis_status ||
     source?.status
-  );
-}
-
-function getSummaryGradeStatus(summary) {
-  return (
-    summary?.latestGrade?.name ||
-    summary?.latest_grade?.name ||
-    summary?.latestGradeName ||
-    summary?.latest_grade_name ||
-    getGradeStatusValue(summary) ||
-    summary?.latestStatus ||
-    summary?.latest_status
   );
 }
 
@@ -440,23 +431,66 @@ function HistoryPage() {
     };
   }, []);
 
-  const summary = historyData.summary || defaultHistoryData.summary;
   const records = useMemo(
     () => (Array.isArray(historyData.records) ? historyData.records : []),
     [historyData.records]
   );
-  const latestStatus = summary.latestStatus ?? summary.latest_status;
-  const latestGradeStatus = getSummaryGradeStatus(summary);
-  const latestRawScore = summary.latestTotalScore ?? summary.latest_total_score;
-  const latestScore = getScoreNumber(latestRawScore);
-  const hasLatestScore = shouldShowAnalysisScore({
-    score: latestRawScore,
-    status: latestStatus,
-    saved: summary.saved,
-  });
-  const latestGradeMeta = getScoreGradeMeta(hasLatestScore ? latestRawScore : null, latestGradeStatus);
   const hasRecords = records.length > 0;
-  const canShowScoreDiff = hasLatestScore && summary.scoreDiff !== null && summary.scoreDiff !== undefined && summary.scoreDiff !== "";
+  const recentAverageSummary = useMemo(() => {
+    const orderedRecords = records
+      .map((record, index) => ({
+        record,
+        index,
+        time: getRecordTime(record),
+      }))
+      .sort((a, b) => {
+        if (a.time !== null && b.time !== null) return b.time - a.time;
+        if (a.time !== null) return -1;
+        if (b.time !== null) return 1;
+        return b.index - a.index;
+      });
+    const validScores = [];
+
+    for (const item of orderedRecords) {
+      const score = getRecordScore(item.record);
+      const canShowScore = shouldShowAnalysisScore({
+        score,
+        status: getRecordStatus(item.record),
+        saved: item.record.saved,
+      });
+      const numericScore = getScoreNumber(score);
+
+      if (canShowScore && numericScore !== null) {
+        validScores.push(numericScore);
+      }
+
+      if (validScores.length >= 5) break;
+    }
+
+    if (validScores.length === 0) {
+      return {
+        hasScore: false,
+        score: null,
+        count: 0,
+        basisLabel: "첫 분석 후 표시",
+      };
+    }
+
+    const averageScore = Math.round(
+      validScores.reduce((total, score) => total + score, 0) / validScores.length
+    );
+
+    return {
+      hasScore: true,
+      score: averageScore,
+      count: validScores.length,
+      basisLabel: `최근 ${validScores.length}회 기준`,
+    };
+  }, [records]);
+  const recentAverageGradeMeta = getScoreGradeMeta(
+    recentAverageSummary.hasScore ? recentAverageSummary.score : null,
+    null
+  );
   const trimmedSearchText = searchText.trim();
 
   const filteredRecords = useMemo(
@@ -700,18 +734,16 @@ function HistoryPage() {
       <style>{`
         .sf-history-page {
           display: grid;
-          gap: 18px;
+          gap: 24px;
         }
 
         .sf-history-hero {
           display: grid;
-          grid-template-columns: minmax(0, 0.95fr) minmax(360px, 0.75fr);
-          gap: 18px;
-          align-items: stretch;
+          grid-template-columns: 1fr;
+          align-items: start;
         }
 
         .sf-history-main-card,
-        .sf-history-summary-card,
         .sf-history-card {
           border-radius: 28px;
           background: #ffffff;
@@ -722,7 +754,7 @@ function HistoryPage() {
         .sf-history-main-card {
           padding: 28px;
           display: grid;
-          grid-template-columns: minmax(0, 1fr) minmax(250px, 0.46fr);
+          grid-template-columns: minmax(0, 1fr) minmax(280px, 0.38fr);
           gap: 24px;
           align-items: center;
           background:
@@ -956,12 +988,6 @@ function HistoryPage() {
           height: 100%;
           border-radius: inherit;
           background: var(--grade-color);
-        }
-
-        .sf-history-summary-card {
-          padding: 24px;
-          display: grid;
-          gap: 16px;
         }
 
         .sf-card-title-row {
@@ -2053,6 +2079,15 @@ function HistoryPage() {
           font-weight: 950;
         }
 
+        .sf-detail-score-meaning {
+          margin: 8px 0 0;
+          color: #64748b;
+          font-size: 12px;
+          font-weight: 800;
+          line-height: 1.55;
+          word-break: keep-all;
+        }
+
         .sf-detail-metric-state::before {
           content: "";
           width: 6px;
@@ -2422,7 +2457,6 @@ function HistoryPage() {
 
         @media (max-width: 640px) {
           .sf-history-main-card,
-          .sf-history-summary-card,
           .sf-history-card {
             padding: 18px;
             border-radius: 24px;
@@ -2513,24 +2547,22 @@ function HistoryPage() {
               </div>
             </div>
 
-            <div className="sf-score-preview" style={getGradeStyle(latestGradeMeta)}>
+            <div className="sf-score-preview" style={getGradeStyle(recentAverageGradeMeta)}>
               <div className="sf-score-preview-main">
                 <div
                   className="sf-score-ring"
-                  style={{ "--score": `${hasLatestScore ? latestScore : 0}%` }}
+                  style={{ "--score": `${recentAverageSummary.hasScore ? recentAverageSummary.score : 0}%` }}
                 >
-                  <strong>{hasLatestScore ? latestScore : "분석 전"}</strong>
+                  <strong>{recentAverageSummary.hasScore ? recentAverageSummary.score : "분석 전"}</strong>
                 </div>
                 <div className="sf-score-state-copy">
-                  <span className="sf-score-state-label">현재 상태</span>
-                  <span className="sf-grade-pill">{latestGradeMeta.label}</span>
-                  <p>{latestGradeMeta.description}</p>
+                  <span className="sf-score-state-label">최근 분석 평균</span>
+                  <span className="sf-grade-pill">{recentAverageGradeMeta.label}</span>
+                  <p>최근 분석 기록을 기준으로 관리 흐름을 요약한 점수입니다.</p>
                 </div>
               </div>
               <span className="sf-score-date">
-                {hasLatestScore && hasRecords
-                  ? `최근 분석일 ${formatDate(summary.latestAnalyzedAt)}`
-                  : "첫 분석 후 표시"}
+                {recentAverageSummary.hasScore ? recentAverageSummary.basisLabel : "첫 분석 후 표시"}
               </span>
               <div className="sf-status-bar" aria-hidden="true">
                 <span />
@@ -2552,92 +2584,6 @@ function HistoryPage() {
             </div>
           </div>
 
-          <Card className="sf-history-summary-card">
-            <div className="sf-card-title-row">
-              <div>
-                <small>상세 이력 요약</small>
-                <h2>지난 분석 상세 이력</h2>
-              </div>
-              <span className="sf-icon-tile" aria-hidden="true">
-                <Trophy size={21} />
-              </span>
-            </div>
-
-            {isLoading && <p className="sf-notice-line">분석 이력을 불러오는 중입니다.</p>}
-            {historyError && <p className="sf-error-line">{historyError}</p>}
-
-            <div className="sf-summary-grid">
-              <div className="sf-summary-item sf-summary-count-item">
-                <div className="sf-summary-count-top">
-                  <span>총 분석 횟수</span>
-                  <span className="sf-summary-count-icon" aria-hidden="true">
-                    <History size={16} />
-                  </span>
-                </div>
-                <strong>{summary.analysisCount ?? 0}회</strong>
-                <p>
-                  {Number(summary.analysisCount ?? 0) > 0
-                    ? "저장된 분석 이력 기준으로 누적된 기록입니다."
-                    : "첫 분석 후 기록이 누적됩니다."}
-                </p>
-                <div className="sf-summary-count-strip" aria-hidden="true">
-                  <span />
-                  <span />
-                  <span />
-                </div>
-              </div>
-              <div className="sf-summary-item sf-summary-score-item" style={getGradeStyle(latestGradeMeta)}>
-                <span>최근 종합 점수</span>
-                <div className="sf-summary-score-main">
-                  <div
-                    className="sf-summary-score-ring"
-                    style={{ "--score": `${hasLatestScore ? latestScore : 0}%` }}
-                  >
-                    <strong>{hasLatestScore ? latestScore : "분석 전"}</strong>
-                  </div>
-                  <div className="sf-summary-state-copy">
-                    <small>현재 상태</small>
-                    <em className="sf-grade-pill">{latestGradeMeta.label}</em>
-                  </div>
-                </div>
-                <p>{latestGradeMeta.description}</p>
-                <div className="sf-status-bar" aria-hidden="true">
-                  <span />
-                </div>
-              </div>
-              <div className="sf-summary-item sf-summary-guide-item">
-                <span>상태 기준</span>
-                <strong>점수가 높을수록 양호</strong>
-                <div className="sf-score-help">
-                  <Info size={15} />
-                  <span>점수가 높을수록 현재 피부 상태가 양호하다는 의미입니다.</span>
-                </div>
-                <div className="sf-grade-legend" aria-label="피부 상태 단계 안내">
-                  {scoreGradeLegend.map((item) => (
-                    <span
-                      key={item.label}
-                      style={{ "--legend-color": item.color, "--legend-bg": item.bg }}
-                    >
-                      <i aria-hidden="true" /> {item.label}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <div className="sf-summary-item">
-                <span>점수 변화</span>
-                <strong>{canShowScoreDiff ? formatDiff(summary.scoreDiff) : "비교 전"}</strong>
-              </div>
-            </div>
-
-            <p className="sf-notice-line">
-              <LineChart size={16} />
-              <span>
-                {!canShowScoreDiff
-                  ? "아직 비교할 분석 이력이 없습니다."
-                  : `최근 분석 기준 점수 변화는 ${formatDiff(summary.scoreDiff)}입니다.`}
-              </span>
-            </p>
-          </Card>
         </section>
 
         <section className="sf-history-grid">
@@ -2708,6 +2654,9 @@ function HistoryPage() {
                 />
               </label>
             </div>
+
+            {isLoading && <p className="sf-notice-line" style={{ marginTop: 12 }}>분석 이력을 불러오는 중입니다.</p>}
+            {historyError && <p className="sf-error-line" style={{ marginTop: 12 }}>{historyError}</p>}
 
             <div className={`sf-record-list${displayedRecords.length > 4 ? " is-expanded" : ""}`}>
               {hasSearchResults ? (
@@ -2818,6 +2767,12 @@ function HistoryPage() {
                       </strong>
                       <small className="sf-detail-state-label">현재 상태</small>
                       <em className="sf-detail-metric-state">{selectedDetailTotalGradeMeta.label}</em>
+                      <p className="sf-detail-score-meaning">
+                        {getScoreInterpretation(
+                          canShowSelectedDetailScore ? getRecordScore(visibleSelectedDetail) : null,
+                          "종합 점수"
+                        )}
+                      </p>
                       <div className="sf-status-bar" aria-hidden="true">
                         <span />
                       </div>
@@ -2831,6 +2786,12 @@ function HistoryPage() {
                       </strong>
                       <small className="sf-detail-state-label">현재 상태</small>
                       <em className="sf-detail-metric-state">{selectedDetailPigmentationGradeMeta.label}</em>
+                      <p className="sf-detail-score-meaning">
+                        {getScoreInterpretation(
+                          canShowSelectedDetailScore ? selectedDetailPigmentationScore : null,
+                          "색소침착"
+                        )}
+                      </p>
                       <div className="sf-status-bar" aria-hidden="true">
                         <span />
                       </div>
@@ -2844,6 +2805,12 @@ function HistoryPage() {
                       </strong>
                       <small className="sf-detail-state-label">현재 상태</small>
                       <em className="sf-detail-metric-state">{selectedDetailWrinkleGradeMeta.label}</em>
+                      <p className="sf-detail-score-meaning">
+                        {getScoreInterpretation(
+                          canShowSelectedDetailScore ? selectedDetailWrinkleScore : null,
+                          "주름"
+                        )}
+                      </p>
                       <div className="sf-status-bar" aria-hidden="true">
                         <span />
                       </div>

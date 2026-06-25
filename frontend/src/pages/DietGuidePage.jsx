@@ -78,6 +78,19 @@ function getFirstText(...values) {
   return values.find((value) => hasText(value))?.trim() ?? "";
 }
 
+function getRecommendationModeLabel(mode) {
+  const normalizedMode = normalizeSourceValue(mode);
+
+  if (normalizedMode === "auto") return "자동 추천 기준";
+  if (normalizedMode === "manual") return "사용자 선택 기준";
+
+  return "";
+}
+
+function getGuideReason(item) {
+  return getFirstText(item?.recommendationReason, item?.recommendation_reason, item?.reason);
+}
+
 function toSafeArray(value) {
   return Array.isArray(value) ? value : [];
 }
@@ -86,7 +99,7 @@ function createActionItems(checks) {
   return checks.map((item, index) => ({
     id: item.id ?? `check-${index}`,
     title: getFirstText(item.title, item.name),
-    description: getFirstText(item.description, item.content, item.reason),
+    description: getFirstText(item.description, item.content, item.recommendationReason, item.recommendation_reason, item.reason),
     category: getFirstText(item.category, item.tag, item.priority),
     sourceType: "check",
   }));
@@ -175,6 +188,15 @@ function DietGuidePage() {
   const secondaryAction = isLatestGuide
     ? { to: "/history", label: "분석 이력 보기" }
     : { to: "/recommendations", label: "추천 확인" };
+  const flowSourceLabel = isLatestGuide ? "최근 분석 결과 기반" : "분석 후 개인화 가능";
+  const selectedMetricName = getFirstText(summary?.selectedMetricName);
+  const recommendationModeLabel = getRecommendationModeLabel(summary?.recommendationMode);
+  const basisTitle = selectedMetricName
+    ? `${selectedMetricName} 분석 결과 기준`
+    : sourceLabel;
+  const basisDescription = selectedMetricName
+    ? `이 가이드는 ${selectedMetricName} 분석 결과를 기준으로 구성되었습니다.`
+    : guideSourceState.notice;
 
   const handleCheckToggle = (itemId) => {
     setCheckedActionIds((currentIds) =>
@@ -285,6 +307,20 @@ function DietGuidePage() {
             white-space: nowrap;
           }
 
+          .sf-diet-mini-flow span.is-active {
+            color: #ffffff;
+            background: #167d7f;
+            border-color: rgba(22, 125, 127, 0.3);
+          }
+
+          .sf-diet-flow-arrow {
+            display: inline-flex;
+            align-items: center;
+            color: #167d7f;
+            font-size: 13px;
+            font-weight: 950;
+          }
+
         .sf-diet-summary {
           min-height: 260px;
           padding: 26px;
@@ -384,6 +420,49 @@ function DietGuidePage() {
           flex: 0 0 auto;
           color: #167d7f;
           margin-top: 1px;
+        }
+
+        .sf-diet-basis-card {
+          display: grid;
+          gap: 8px;
+          padding: 14px;
+          border-radius: 18px;
+          background: #ffffff;
+          border: 1px solid rgba(226, 232, 240, 0.88);
+        }
+
+        .sf-diet-basis-top {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+        }
+
+        .sf-diet-basis-top strong {
+          color: #0f172a;
+          font-size: 14px;
+          font-weight: 950;
+          line-height: 1.35;
+        }
+
+        .sf-diet-basis-top span {
+          width: fit-content;
+          padding: 6px 9px;
+          border-radius: 999px;
+          color: #167d7f;
+          background: rgba(22, 125, 127, 0.09);
+          font-size: 11px;
+          font-weight: 950;
+          white-space: nowrap;
+        }
+
+        .sf-diet-basis-card p {
+          margin: 0;
+          color: #64748b;
+          font-size: 12px;
+          font-weight: 800;
+          line-height: 1.55;
+          word-break: keep-all;
         }
 
         .sf-state-message {
@@ -711,6 +790,14 @@ function DietGuidePage() {
           color: #475569;
         }
 
+        .sf-guide-reason-label {
+          display: block;
+          margin-bottom: 5px;
+          color: #167d7f;
+          font-size: 11px;
+          font-weight: 950;
+        }
+
         .sf-guide-card footer {
           display: flex;
           align-items: center;
@@ -855,8 +942,17 @@ function DietGuidePage() {
             justify-content: center;
           }
 
+          .sf-diet-flow-arrow {
+            display: none;
+          }
+
           .sf-diet-source-grid {
             grid-template-columns: 1fr;
+          }
+
+          .sf-diet-basis-top {
+            align-items: flex-start;
+            flex-direction: column;
           }
 
           .sf-check-focus-head {
@@ -911,10 +1007,11 @@ function DietGuidePage() {
               </p>
 
               <div className="sf-diet-mini-flow" aria-label="식습관 가이드 구성">
-                <span>분석 결과 기반</span>
-                <span>생활 루틴</span>
-                <span>실천 체크</span>
-                <span>기본 관리 가이드</span>
+                <span className={isLatestGuide ? "is-active" : ""}>{flowSourceLabel}</span>
+                <i className="sf-diet-flow-arrow" aria-hidden="true">→</i>
+                <span>식습관 가이드</span>
+                <i className="sf-diet-flow-arrow" aria-hidden="true">→</i>
+                <span>오늘 실천 체크</span>
               </div>
             </div>
 
@@ -960,6 +1057,16 @@ function DietGuidePage() {
                   <strong>색소침착 · 주름</strong>
                 </div>
               </div>
+            </div>
+
+            <div className="sf-diet-basis-card">
+              <div className="sf-diet-basis-top">
+                <strong>{basisTitle}</strong>
+                {(recommendationModeLabel || sourceLabel) && (
+                  <span>{recommendationModeLabel || sourceLabel}</span>
+                )}
+              </div>
+              <p>{basisDescription}</p>
             </div>
 
             <div className="sf-diet-notice">
@@ -1054,26 +1161,35 @@ function DietGuidePage() {
 
                 {guides.length > 0 ? (
                   <div className="sf-guide-grid">
-                    {guides.map((item, index) => (
-                      <article className="sf-guide-card" key={item.id ?? `guide-${index}`}>
-                        <div className="sf-guide-card-top">
-                          <span className="sf-icon-tile" aria-hidden="true">
-                            <Leaf size={21} />
-                          </span>
-                          {hasText(item.tag) && <span className="sf-guide-tag">{item.tag}</span>}
-                        </div>
+                    {guides.map((item, index) => {
+                      const guideReason = getGuideReason(item);
 
-                        {hasText(item.title) && <h3>{item.title}</h3>}
-                        {hasText(item.description) && <p>{item.description}</p>}
-                        {hasText(item.reason) && <p className="sf-guide-reason">{item.reason}</p>}
+                      return (
+                        <article className="sf-guide-card" key={item.id ?? `guide-${index}`}>
+                          <div className="sf-guide-card-top">
+                            <span className="sf-icon-tile" aria-hidden="true">
+                              <Leaf size={21} />
+                            </span>
+                            {hasText(item.tag) && <span className="sf-guide-tag">{item.tag}</span>}
+                          </div>
 
-                        {hasText(item.priority) && (
-                          <footer>
-                            <span className="sf-guide-tag">{item.priority}</span>
-                          </footer>
-                        )}
-                      </article>
-                    ))}
+                          {hasText(item.title) && <h3>{item.title}</h3>}
+                          {hasText(item.description) && <p>{item.description}</p>}
+                          {hasText(guideReason) && (
+                            <p className="sf-guide-reason">
+                              <span className="sf-guide-reason-label">추천 이유</span>
+                              {guideReason}
+                            </p>
+                          )}
+
+                          {hasText(item.priority) && (
+                            <footer>
+                              <span className="sf-guide-tag">{item.priority}</span>
+                            </footer>
+                          )}
+                        </article>
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="sf-diet-empty-card">
