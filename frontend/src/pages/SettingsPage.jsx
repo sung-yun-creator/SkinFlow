@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, Eye, ListCollapse, SlidersHorizontal, ToggleLeft } from "lucide-react";
+import { CheckCircle2, ChevronRight, Eye, ListCollapse, SlidersHorizontal, ToggleLeft, UserRound } from "lucide-react";
 import PageLayout from "../components/layout/PageLayout";
 import Card from "../components/common/Card";
+import Button from "../components/common/Button";
 
 const SCORE_DISPLAY_MODE_KEY = "skinflow_score_display_mode";
 const SHOW_CARE_NOTICE_KEY = "skinflow_show_care_notice";
@@ -276,14 +277,28 @@ function SettingsPage() {
           border: 1px solid rgba(22, 125, 127, 0.14);
         }
 
-        .sf-settings-note strong {
+        .sf-settings-account {
+          display: grid;
+          grid-template-columns: 42px minmax(0, 1fr) auto;
+          align-items: center;
+          gap: 12px;
+          padding: 16px;
+          border-radius: 22px;
+          background: #ffffff;
+          border: 1px solid rgba(226, 232, 240, 0.92);
+          box-shadow: 0 14px 36px rgba(15, 23, 42, 0.055);
+        }
+
+        .sf-settings-note strong,
+        .sf-settings-account strong {
           display: block;
           color: #0f172a;
           font-size: 14px;
           font-weight: 950;
         }
 
-        .sf-settings-note p {
+        .sf-settings-note p,
+        .sf-settings-account p {
           margin: 4px 0 0;
           color: #64748b;
           font-size: 12px;
@@ -292,13 +307,18 @@ function SettingsPage() {
           word-break: keep-all;
         }
 
+        .sf-settings-account .sf-button {
+          white-space: nowrap;
+        }
+
         @media (max-width: 640px) {
           .sf-settings-page {
             gap: 14px;
           }
 
           .sf-settings-hero,
-          .sf-settings-row {
+          .sf-settings-row,
+          .sf-settings-account {
             grid-template-columns: 1fr;
           }
 
@@ -313,6 +333,10 @@ function SettingsPage() {
 
           .sf-settings-toggle {
             justify-self: start;
+          }
+
+          .sf-settings-account .sf-button {
+            width: 100%;
           }
         }
       `}</style>
@@ -375,6 +399,20 @@ function SettingsPage() {
             <strong>설정은 추천 화면과 식습관 가이드 화면에 적용됩니다.</strong>
             <p>계정 정보와 분석 이력은 마이페이지와 분석 이력 화면에서 확인할 수 있습니다.</p>
           </div>
+        </div>
+
+        <div className="sf-settings-account">
+          <span className="sf-settings-iconTile" aria-hidden="true">
+            <UserRound />
+          </span>
+          <div>
+            <strong>내 정보 관리는 마이페이지에서 변경할 수 있습니다.</strong>
+            <p>프로필 수정과 비밀번호 변경은 마이페이지의 내 정보 관리 영역에서 처리합니다.</p>
+          </div>
+          <Button to="/mypage" variant="secondary" size="sm">
+            마이페이지로 이동
+            <ChevronRight size={15} />
+          </Button>
         </div>
       </div>
     </PageLayout>

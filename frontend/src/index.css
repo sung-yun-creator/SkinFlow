@@ -804,6 +804,7 @@ input {
 .input-box input,
 .input-box select {
   width: 100%;
+  min-width: 0;
   border: 0;
   outline: 0;
   color: var(--color-secondary);
@@ -856,6 +857,49 @@ input {
   font-weight: 700;
   line-height: 1.55;
   word-break: keep-all;
+}
+
+.auth-reset-panel {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 18px;
+  color: #0f172a;
+  background: #f8fafc;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+}
+
+.auth-reset-heading {
+  display: grid;
+  gap: 4px;
+}
+
+.auth-reset-heading strong {
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.auth-reset-heading p {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+.auth-reset-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.auth-reset-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 .check-row {
@@ -1041,6 +1085,15 @@ input {
 
   .form-grid-2 {
     grid-template-columns: 1fr;
+  }
+
+  .auth-reset-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-reset-actions button,
+  .auth-account-help-button {
+    width: 100%;
   }
 
   .auth-preview-panel {

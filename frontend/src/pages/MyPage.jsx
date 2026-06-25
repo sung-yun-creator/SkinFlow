@@ -4,19 +4,57 @@ import {
   CalendarDays,
   Camera,
   ChevronRight,
+  CheckCircle2,
   Droplets,
   History,
+  KeyRound,
   Mail,
+  Pencil,
+  Save,
+  Send,
   SlidersHorizontal,
   Sparkles,
   UserRound,
+  X,
 } from "lucide-react";
 import PageLayout from "../components/layout/PageLayout";
 import Button from "../components/common/Button";
 import Card from "../components/common/Card";
 import Badge from "../components/common/Badge";
-import { getMyPage } from "../api/mypageApi";
+import {
+  getMyPage,
+  sendMyPagePasswordCode,
+  updateMyPagePassword,
+  updateMyPageProfile,
+} from "../api/mypageApi";
+import { AUTH_STORAGE_KEYS, removeSensitiveFields } from "../api/authSession";
 import { shouldShowAnalysisScore } from "../utils/analysisStatus";
+
+const profileInitialForm = {
+  name: "",
+  gender: "",
+  birthDate: "",
+  skinType: "",
+};
+
+const passwordInitialForm = {
+  verificationCode: "",
+  newPassword: "",
+  confirmPassword: "",
+};
+
+const genderOptions = [
+  { value: "M", label: "남성" },
+  { value: "F", label: "여성" },
+];
+
+const skinTypeOptions = [
+  { value: "dry", label: "건성" },
+  { value: "oily", label: "지성" },
+  { value: "combination", label: "복합성" },
+  { value: "sensitive", label: "민감성" },
+  { value: "normal", label: "보통" },
+];
 
 function formatDate(dateValue, emptyText = "아직 없음") {
   if (!dateValue) return emptyText;
@@ -56,6 +94,16 @@ function getDisplayValue(value, emptyText = "정보 없음") {
   return value;
 }
 
+function getProfileField(profile, camelKey, snakeKey = camelKey) {
+  const value = profile?.[camelKey] ?? profile?.[snakeKey];
+
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  return String(value);
+}
+
 function getSkinTypeLabel(value) {
   if (!value) return "미입력";
 
@@ -66,10 +114,103 @@ function getSkinTypeLabel(value) {
     oily: "지성",
     combination: "복합성",
     sensitive: "민감성",
-    normal: "중성",
+    normal: "보통",
   };
 
   return skinTypeMap[normalizedValue] ?? String(value).trim();
+}
+
+function getGenderLabel(value) {
+  if (!value) return "미입력";
+
+  const normalizedValue = String(value).trim().toUpperCase();
+
+  if (normalizedValue === "M") return "남성";
+  if (normalizedValue === "F") return "여성";
+
+  return String(value).trim();
+}
+
+function getBirthDateInputValue(value) {
+  if (!value) return "";
+
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+    return value.slice(0, 10);
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return date.toISOString().slice(0, 10);
+}
+
+function createProfileForm(profile) {
+  const genderValue = getProfileField(profile, "gender").toUpperCase();
+  const skinTypeValue = getProfileField(profile, "skinType", "skin_type").toLowerCase();
+
+  return {
+    name: getProfileField(profile, "name"),
+    gender: genderOptions.some((option) => option.value === genderValue) ? genderValue : "",
+    birthDate: getBirthDateInputValue(profile?.birthDate ?? profile?.birth_date),
+    skinType: skinTypeOptions.some((option) => option.value === skinTypeValue) ? skinTypeValue : "",
+  };
+}
+
+function getUpdatedProfileFromResponse(data, fallbackProfile) {
+  const responseProfile = data?.profile ?? data?.data?.profile;
+
+  if (responseProfile && typeof responseProfile === "object") {
+    return responseProfile;
+  }
+
+  if (
+    data &&
+    typeof data === "object" &&
+    (Object.hasOwn(data, "name") ||
+      Object.hasOwn(data, "gender") ||
+      Object.hasOwn(data, "birthDate") ||
+      Object.hasOwn(data, "birth_date") ||
+      Object.hasOwn(data, "skinType") ||
+      Object.hasOwn(data, "skin_type"))
+  ) {
+    return data;
+  }
+
+  return fallbackProfile;
+}
+
+function getApiErrorMessage(error, fallbackMessage) {
+  return error?.message || fallbackMessage;
+}
+
+function mergeStoredUserProfile(profile) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const storedUser = window.localStorage.getItem(AUTH_STORAGE_KEYS.user);
+
+  if (!storedUser) {
+    return;
+  }
+
+  try {
+    const parsedUser = JSON.parse(storedUser);
+    const mergedUser = removeSensitiveFields({
+      ...parsedUser,
+      name: getProfileField(profile, "name"),
+      gender: getProfileField(profile, "gender"),
+      birthDate: getProfileField(profile, "birthDate", "birth_date"),
+      skinType: getProfileField(profile, "skinType", "skin_type"),
+    });
+
+    window.localStorage.setItem(AUTH_STORAGE_KEYS.user, JSON.stringify(mergedUser));
+  } catch {
+    window.localStorage.removeItem(AUTH_STORAGE_KEYS.user);
+  }
 }
 
 function getMainConcernLabel(value) {
@@ -112,6 +253,16 @@ function MyPage() {
   const [mypage, setMypage] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [mypageError, setMypageError] = useState("");
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState(profileInitialForm);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileFormError, setProfileFormError] = useState("");
+  const [profileFormMessage, setProfileFormMessage] = useState("");
+  const [passwordForm, setPasswordForm] = useState(passwordInitialForm);
+  const [isSendingPasswordCode, setIsSendingPasswordCode] = useState(false);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [passwordFormError, setPasswordFormError] = useState("");
+  const [passwordFormMessage, setPasswordFormMessage] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -125,6 +276,7 @@ function MyPage() {
 
         if (isMounted) {
           setMypage(data);
+          setProfileForm(createProfileForm(data.profile));
         }
       } catch (error) {
         console.error("마이페이지 정보 호출 실패:", error);
@@ -149,6 +301,8 @@ function MyPage() {
   const profile = mypage?.profile ?? {
     name: null,
     email: null,
+    gender: null,
+    birthDate: null,
     skinType: null,
     createdAt: null,
   };
@@ -174,6 +328,8 @@ function MyPage() {
 
   const profileName = getDisplayValue(profile.name, "사용자");
   const profileEmail = getDisplayValue(profile.email, "로그인 정보 확인 필요");
+  const profileGender = getGenderLabel(profile.gender);
+  const profileBirthDate = formatDate(profile.birthDate ?? profile.birth_date, "미입력");
   const skinType = getSkinTypeLabel(profile.skinType ?? profile.skin_type);
   const joinedAt = formatDate(profile.createdAt ?? profile.created_at, "확인 필요");
   const latestScoreText = hasLatestScore
@@ -248,7 +404,19 @@ function MyPage() {
       icon: Droplets,
       label: "피부 타입",
       value: isLoading ? "확인 중" : skinType,
-      helper: "회원가입 시 선택한 피부 타입입니다.",
+      helper: "관리 가이드에 참고되는 피부 타입입니다.",
+    },
+    {
+      icon: UserRound,
+      label: "성별",
+      value: isLoading ? "확인 중" : profileGender,
+      helper: "선택한 경우 프로필 정보로만 표시됩니다.",
+    },
+    {
+      icon: CalendarDays,
+      label: "생년월일",
+      value: isLoading ? "확인 중" : profileBirthDate,
+      helper: "입력하지 않았다면 미입력으로 표시됩니다.",
     },
     {
       icon: CalendarDays,
@@ -257,6 +425,132 @@ function MyPage() {
       helper: "SkinFlow 이용을 시작한 날짜입니다.",
     },
   ];
+
+  function handleProfileFormChange(event) {
+    const { name, value } = event.target;
+
+    setProfileForm((currentForm) => ({
+      ...currentForm,
+      [name]: value,
+    }));
+  }
+
+  function handleProfileEditOpen() {
+    setProfileForm(createProfileForm(profile));
+    setProfileFormError("");
+    setProfileFormMessage("");
+    setIsEditingProfile(true);
+  }
+
+  function handleProfileEditCancel() {
+    setProfileForm(createProfileForm(profile));
+    setProfileFormError("");
+    setIsEditingProfile(false);
+  }
+
+  async function handleProfileSubmit(event) {
+    event.preventDefault();
+
+    const profilePayload = {
+      name: profileForm.name.trim(),
+      gender: profileForm.gender || null,
+      birthDate: profileForm.birthDate || null,
+      skinType: profileForm.skinType || null,
+    };
+
+    try {
+      setIsSavingProfile(true);
+      setProfileFormError("");
+      setProfileFormMessage("");
+
+      const data = await updateMyPageProfile(profilePayload);
+      const updatedProfile = getUpdatedProfileFromResponse(data, profilePayload);
+      const nextProfile = {
+        ...profile,
+        ...updatedProfile,
+      };
+
+      setMypage((currentMypage) => ({
+        ...(currentMypage || {}),
+        profile: nextProfile,
+        stats: currentMypage?.stats || stats,
+        recentActivity: currentMypage?.recentActivity || [],
+      }));
+      setProfileForm(createProfileForm(nextProfile));
+      mergeStoredUserProfile(nextProfile);
+      setProfileFormMessage("프로필 정보가 저장되었습니다.");
+      setIsEditingProfile(false);
+    } catch (error) {
+      setProfileFormError(getApiErrorMessage(error, "프로필 정보를 저장하지 못했습니다."));
+    } finally {
+      setIsSavingProfile(false);
+    }
+  }
+
+  function handlePasswordFormChange(event) {
+    const { name, value } = event.target;
+
+    setPasswordForm((currentForm) => ({
+      ...currentForm,
+      [name]: value,
+    }));
+  }
+
+  async function handleSendPasswordCode() {
+    try {
+      setIsSendingPasswordCode(true);
+      setPasswordFormError("");
+      setPasswordFormMessage("");
+
+      await sendMyPagePasswordCode();
+      setPasswordFormMessage("현재 로그인 계정 이메일로 인증 코드를 보냈습니다.");
+    } catch (error) {
+      setPasswordFormError(getApiErrorMessage(error, "인증 코드를 보내지 못했습니다."));
+    } finally {
+      setIsSendingPasswordCode(false);
+    }
+  }
+
+  async function handlePasswordSubmit(event) {
+    event.preventDefault();
+
+    const verificationCode = passwordForm.verificationCode.trim();
+
+    if (!verificationCode) {
+      setPasswordFormError("인증 코드를 입력해 주세요.");
+      setPasswordFormMessage("");
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 8) {
+      setPasswordFormError("새 비밀번호는 8자 이상으로 입력해 주세요.");
+      setPasswordFormMessage("");
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordFormError("새 비밀번호 확인값이 일치하지 않습니다.");
+      setPasswordFormMessage("");
+      return;
+    }
+
+    try {
+      setIsUpdatingPassword(true);
+      setPasswordFormError("");
+      setPasswordFormMessage("");
+
+      await updateMyPagePassword({
+        verificationCode,
+        newPassword: passwordForm.newPassword,
+      });
+      setPasswordForm(passwordInitialForm);
+      setPasswordFormMessage("비밀번호가 변경되었습니다. 다음 로그인부터 새 비밀번호를 사용해 주세요.");
+    } catch (error) {
+      setPasswordFormError(getApiErrorMessage(error, "비밀번호를 변경하지 못했습니다."));
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  }
 
   return (
     <PageLayout>
@@ -280,6 +574,7 @@ function MyPage() {
         .sf-mypage-profile-card,
         .sf-personal-info-card,
         .sf-next-action-card,
+        .sf-password-card,
         .sf-settings-link-card {
           border: 1px solid rgba(226, 232, 240, 0.9);
           background: rgba(255, 255, 255, 0.96);
@@ -488,6 +783,35 @@ function MyPage() {
           letter-spacing: -0.055em;
         }
 
+        .sf-personal-info-heading {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 14px;
+          margin-bottom: 16px;
+        }
+
+        .sf-personal-info-heading h2 {
+          margin-bottom: 0;
+        }
+
+        .sf-profile-edit-toggle {
+          min-height: 38px;
+          border: 1px solid rgba(22, 125, 127, 0.18);
+          border-radius: 14px;
+          padding: 0 13px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          color: #167d7f;
+          background: rgba(22, 125, 127, 0.08);
+          font-size: 12px;
+          font-weight: 950;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+
         .sf-personal-info-list {
           display: grid;
           gap: 10px;
@@ -520,6 +844,124 @@ function MyPage() {
           font-weight: 950;
           text-align: right;
           word-break: break-all;
+        }
+
+        .sf-profile-edit-form,
+        .sf-password-form {
+          display: grid;
+          gap: 14px;
+        }
+
+        .sf-profile-form-grid,
+        .sf-password-form-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+        }
+
+        .sf-profile-edit-form .form-field,
+        .sf-password-form .form-field {
+          display: grid;
+          gap: 7px;
+        }
+
+        .sf-profile-edit-form .form-field > span,
+        .sf-password-form .form-field > span {
+          color: #0f172a;
+          font-size: 12px;
+          font-weight: 950;
+        }
+
+        .sf-profile-edit-form .input-box,
+        .sf-password-form .input-box {
+          min-height: 46px;
+          padding: 0 12px;
+          border-radius: 14px;
+          box-sizing: border-box;
+        }
+
+        .sf-profile-edit-form .input-box input,
+        .sf-profile-edit-form .input-box select,
+        .sf-password-form .input-box input {
+          min-width: 0;
+          font-size: 14px;
+        }
+
+        .sf-form-action-row,
+        .sf-password-code-row {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+
+        .sf-form-action-row button,
+        .sf-password-code-row button {
+          min-height: 40px;
+          border: 1px solid rgba(22, 125, 127, 0.18);
+          border-radius: 14px;
+          padding: 0 13px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          color: #167d7f;
+          background: rgba(22, 125, 127, 0.08);
+          font-size: 12px;
+          font-weight: 950;
+          cursor: pointer;
+        }
+
+        .sf-form-action-row button[type="submit"],
+        .sf-password-form button[type="submit"] {
+          color: #ffffff;
+          background: #167d7f;
+          border-color: #167d7f;
+        }
+
+        .sf-form-action-row button:disabled,
+        .sf-password-code-row button:disabled,
+        .sf-password-form button[type="submit"]:disabled {
+          cursor: not-allowed;
+          opacity: 0.55;
+        }
+
+        .sf-password-card {
+          display: grid;
+          gap: 16px;
+          padding: 20px;
+          border-radius: 24px;
+          background:
+            radial-gradient(circle at 100% 0%, rgba(244, 63, 94, 0.055), transparent 34%),
+            #ffffff;
+        }
+
+        .sf-password-card-head {
+          display: grid;
+          grid-template-columns: 42px minmax(0, 1fr);
+          align-items: center;
+          gap: 12px;
+        }
+
+        .sf-password-card h2 {
+          margin: 0 0 5px;
+          color: #0f172a;
+          font-size: 20px;
+          line-height: 1.2;
+          letter-spacing: -0.045em;
+        }
+
+        .sf-password-card p {
+          margin: 0;
+          color: #64748b;
+          font-size: 12px;
+          font-weight: 650;
+          line-height: 1.55;
+          word-break: keep-all;
+        }
+
+        .sf-password-code-row button,
+        .sf-password-form button[type="submit"] {
+          width: fit-content;
         }
 
         .sf-next-action-card,
@@ -599,6 +1041,7 @@ function MyPage() {
           .sf-mypage-profile-card,
           .sf-personal-info-card,
           .sf-next-action-card,
+          .sf-password-card,
           .sf-settings-link-card {
             padding: 18px;
           }
@@ -608,8 +1051,15 @@ function MyPage() {
           }
 
           .sf-mypage-profile-stats,
-          .sf-personal-info-row {
+          .sf-personal-info-row,
+          .sf-profile-form-grid,
+          .sf-password-form-grid,
+          .sf-personal-info-heading {
             grid-template-columns: 1fr;
+          }
+
+          .sf-personal-info-heading {
+            display: grid;
           }
 
           .sf-personal-info-row em {
@@ -617,7 +1067,11 @@ function MyPage() {
           }
 
           .sf-next-action-buttons .sf-button,
-          .sf-settings-link-card .sf-button {
+          .sf-settings-link-card .sf-button,
+          .sf-profile-edit-toggle,
+          .sf-form-action-row button,
+          .sf-password-code-row button,
+          .sf-password-form button[type="submit"] {
             width: 100%;
           }
         }
@@ -689,27 +1143,121 @@ function MyPage() {
 
         <section className="sf-mypage-content-grid">
           <Card className="sf-personal-info-card">
-            <span className="sf-section-kicker">개인정보</span>
-            <h2>계정 정보</h2>
+            <div className="sf-personal-info-heading">
+              <div>
+                <span className="sf-section-kicker">개인정보</span>
+                <h2>계정 정보</h2>
+              </div>
 
-            <div className="sf-personal-info-list">
-              {personalInfoItems.map((item) => {
-                const Icon = item.icon;
-
-                return (
-                  <div className="sf-personal-info-row" key={item.label}>
-                    <span className="sf-icon-tile" aria-hidden="true">
-                      <Icon />
-                    </span>
-                    <div>
-                      <strong>{item.label}</strong>
-                      <p>{item.helper}</p>
-                    </div>
-                    <em>{item.value}</em>
-                  </div>
-                );
-              })}
+              {!isEditingProfile && (
+                <button
+                  type="button"
+                  className="sf-profile-edit-toggle"
+                  onClick={handleProfileEditOpen}
+                  disabled={isLoading}
+                >
+                  <Pencil size={14} />
+                  정보 수정
+                </button>
+              )}
             </div>
+
+            {profileFormError && <p className="form-error-text">{profileFormError}</p>}
+            {profileFormMessage && <p className="form-success-text">{profileFormMessage}</p>}
+
+            {isEditingProfile ? (
+              <form className="sf-profile-edit-form" onSubmit={handleProfileSubmit}>
+                <div className="sf-profile-form-grid">
+                  <label className="form-field">
+                    <span>이름</span>
+                    <div className="input-box">
+                      <UserRound size={17} />
+                      <input
+                        type="text"
+                        name="name"
+                        value={profileForm.name}
+                        onChange={handleProfileFormChange}
+                        placeholder="이름을 입력하세요"
+                        autoComplete="name"
+                      />
+                    </div>
+                  </label>
+
+                  <label className="form-field">
+                    <span>성별</span>
+                    <div className="input-box">
+                      <UserRound size={17} />
+                      <select name="gender" value={profileForm.gender} onChange={handleProfileFormChange}>
+                        <option value="">미입력</option>
+                        {genderOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </label>
+
+                  <label className="form-field">
+                    <span>생년월일</span>
+                    <div className="input-box">
+                      <CalendarDays size={17} />
+                      <input
+                        type="date"
+                        name="birthDate"
+                        value={profileForm.birthDate}
+                        onChange={handleProfileFormChange}
+                      />
+                    </div>
+                  </label>
+
+                  <label className="form-field">
+                    <span>피부 타입</span>
+                    <div className="input-box">
+                      <Droplets size={17} />
+                      <select name="skinType" value={profileForm.skinType} onChange={handleProfileFormChange}>
+                        <option value="">미입력</option>
+                        {skinTypeOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </label>
+                </div>
+
+                <div className="sf-form-action-row">
+                  <button type="submit" disabled={isSavingProfile}>
+                    <Save size={14} />
+                    {isSavingProfile ? "저장 중" : "저장"}
+                  </button>
+                  <button type="button" onClick={handleProfileEditCancel} disabled={isSavingProfile}>
+                    <X size={14} />
+                    취소
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="sf-personal-info-list">
+                {personalInfoItems.map((item) => {
+                  const Icon = item.icon;
+
+                  return (
+                    <div className="sf-personal-info-row" key={item.label}>
+                      <span className="sf-icon-tile" aria-hidden="true">
+                        <Icon />
+                      </span>
+                      <div>
+                        <strong>{item.label}</strong>
+                        <p>{item.helper}</p>
+                      </div>
+                      <em>{item.value}</em>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </Card>
 
           <div className="sf-mypage-side-stack">
@@ -737,6 +1285,86 @@ function MyPage() {
                   );
                 })}
               </div>
+            </Card>
+
+            <Card className="sf-password-card" style={{ marginTop: "18px" }}>
+              <div className="sf-password-card-head">
+                <span className="sf-icon-tile" aria-hidden="true">
+                  <KeyRound />
+                </span>
+                <div>
+                  <h2>비밀번호 변경</h2>
+                  <p>현재 로그인 계정 이메일로 인증 코드가 발송됩니다.</p>
+                </div>
+              </div>
+
+              <div className="sf-password-code-row">
+                <button
+                  type="button"
+                  onClick={handleSendPasswordCode}
+                  disabled={isSendingPasswordCode || isUpdatingPassword}
+                >
+                  <Send size={14} />
+                  {isSendingPasswordCode ? "발송 중" : "인증 코드 받기"}
+                </button>
+              </div>
+
+              <form className="sf-password-form" onSubmit={handlePasswordSubmit}>
+                <div className="sf-password-form-grid">
+                  <label className="form-field">
+                    <span>인증 코드</span>
+                    <div className="input-box">
+                      <KeyRound size={17} />
+                      <input
+                        type="text"
+                        name="verificationCode"
+                        value={passwordForm.verificationCode}
+                        onChange={handlePasswordFormChange}
+                        placeholder="인증 코드를 입력하세요"
+                        autoComplete="one-time-code"
+                      />
+                    </div>
+                  </label>
+
+                  <label className="form-field">
+                    <span>새 비밀번호</span>
+                    <div className="input-box">
+                      <KeyRound size={17} />
+                      <input
+                        type="password"
+                        name="newPassword"
+                        value={passwordForm.newPassword}
+                        onChange={handlePasswordFormChange}
+                        placeholder="8자 이상 입력하세요"
+                        autoComplete="new-password"
+                      />
+                    </div>
+                  </label>
+
+                  <label className="form-field">
+                    <span>새 비밀번호 확인</span>
+                    <div className="input-box">
+                      <KeyRound size={17} />
+                      <input
+                        type="password"
+                        name="confirmPassword"
+                        value={passwordForm.confirmPassword}
+                        onChange={handlePasswordFormChange}
+                        placeholder="새 비밀번호를 다시 입력하세요"
+                        autoComplete="new-password"
+                      />
+                    </div>
+                  </label>
+                </div>
+
+                {passwordFormError && <p className="form-error-text">{passwordFormError}</p>}
+                {passwordFormMessage && <p className="form-success-text">{passwordFormMessage}</p>}
+
+                <button type="submit" disabled={isSendingPasswordCode || isUpdatingPassword}>
+                  <CheckCircle2 size={14} />
+                  {isUpdatingPassword ? "변경 중" : "비밀번호 변경"}
+                </button>
+              </form>
             </Card>
 
             <Card className="sf-settings-link-card" style={{ marginTop: "18px" }}>

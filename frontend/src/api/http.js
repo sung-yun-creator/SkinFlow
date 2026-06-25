@@ -114,6 +114,14 @@ const http = {
     });
   },
 
+  patch(path, body, options = {}) {
+    return request(path, {
+      ...options,
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
+  },
+
   postForm(path, formData, options = {}) {
     return request(path, {
       ...options,

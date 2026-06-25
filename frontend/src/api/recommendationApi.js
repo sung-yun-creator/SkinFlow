@@ -31,6 +31,15 @@ function normalizeMatch(value) {
   return Number.isFinite(numericValue) ? numericValue : null;
 }
 
+function normalizePositiveNumber(value) {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "string" && value.trim() === "") return null;
+
+  const numericValue = Number(value);
+
+  return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : null;
+}
+
 function normalizeIngredient(item) {
   const name = pickText(item?.name, item?.ingredientName, item?.ingredient_name);
   const recommendationReason = pickText(
@@ -173,6 +182,9 @@ function normalizeProduct(item) {
     ),
     referenceBasis: card?.referenceBasis ?? card?.reference_basis ?? item?.referenceBasis ?? item?.reference_basis ?? null,
     tags: normalizeTags(pickValue(card?.tags, item?.tags)),
+    priceAmount: normalizePositiveNumber(
+      pickValue(card?.priceAmount, card?.price_amount, card?.price, item?.priceAmount, item?.price_amount, item?.price),
+    ),
     productUrl: pickText(card?.productUrl, card?.product_url, item?.productUrl, item?.product_url),
     productSearchUrl: pickText(card?.productSearchUrl, card?.product_search_url, item?.productSearchUrl, item?.product_search_url),
     imageUrl: pickText(

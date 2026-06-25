@@ -107,21 +107,34 @@ function getGuideReason(item) {
   return getFirstText(item?.recommendationReason, item?.recommendation_reason, item?.reason);
 }
 
-function getReferenceBasisSummary(summary) {
-  const basis = summary?.referenceBasis ?? summary?.reference_basis;
+function formatReferenceBasis(referenceBasis) {
+  if (!referenceBasis) return "";
+  if (typeof referenceBasis === "string") return referenceBasis.trim();
+  if (typeof referenceBasis !== "object") return "";
 
-  if (!basis) return "";
-  if (typeof basis === "string") return basis.trim();
-
-  return getFirstText(
-    basis.summary,
-    basis.description,
-    basis.title,
-    basis.name,
-    basis.label,
-    basis.metricName,
-    basis.metric_name
+  const parts = [];
+  const metricName = getFirstText(referenceBasis.metricName, referenceBasis.metric_name);
+  const selectedMetricName = getFirstText(
+    referenceBasis.selectedMetricName,
+    referenceBasis.selected_metric_name
   );
+  const analysisId = referenceBasis.analysisId ?? referenceBasis.analysis_id;
+  const score = referenceBasis.totalScore ?? referenceBasis.total_score ?? referenceBasis.score;
+  const grade = getFirstText(referenceBasis.gradeName, referenceBasis.grade_name, referenceBasis.grade);
+  const urlType = getFirstText(referenceBasis.urlType, referenceBasis.url_type);
+
+  if (metricName) parts.push(`${metricName} 기준`);
+  if (selectedMetricName && selectedMetricName !== metricName) parts.push(`${selectedMetricName} 기준`);
+  if (analysisId) parts.push(`분석 ID ${analysisId}`);
+  if (score !== null && score !== undefined && score !== "") parts.push(`점수 ${score}`);
+  if (grade) parts.push(grade);
+  if (urlType) parts.push(`연결 유형 ${urlType}`);
+
+  return parts.join(" · ");
+}
+
+function getReferenceBasisSummary(summary) {
+  return formatReferenceBasis(summary?.referenceBasis ?? summary?.reference_basis);
 }
 
 function hasRecentFiveRecommendationBasis(summary) {
@@ -258,15 +271,17 @@ function DietGuidePage() {
   const referenceBasisSummary = getReferenceBasisSummary(summary);
   const summaryRecommendationReason = getFirstText(summary?.recommendationReason, summary?.recommendation_reason, summary?.reason);
   const hasRecentFiveBasis = hasRecentFiveRecommendationBasis(summary);
+  const fallbackBasisTitle = isLatestGuide ? "최근 분석 결과 기준" : "기본 관리 기준";
   const basisTitle = selectedMetricName
-    ? `${selectedMetricName} 분석 결과 기준`
-    : sourceLabel;
+    ? `${selectedMetricName} 기준`
+    : fallbackBasisTitle;
   const basisDescription = selectedMetricName
     ? `이 가이드는 ${selectedMetricName} 분석 결과 기반으로 구성되었습니다.`
     : referenceBasisSummary
       ? referenceBasisSummary
     : guideSourceState.notice;
   const basisLabel = hasRecentFiveBasis ? "최근 5회 평균 기준" : recommendationModeLabel || sourceLabel;
+  const basisMetricText = selectedMetricName || (isLatestGuide ? "최근 분석 결과" : "기본 관리 기준");
 
   const handleCheckToggle = (itemId) => {
     setCheckedActionIds((currentIds) =>
@@ -1124,7 +1139,7 @@ function DietGuidePage() {
                 )}
                 <div className="sf-diet-source-item">
                   <span className="sf-diet-label">기준 지표</span>
-                  <strong>색소침착 · 주름</strong>
+                  <strong>{basisMetricText}</strong>
                 </div>
               </div>
             </div>
@@ -1174,7 +1189,7 @@ function DietGuidePage() {
                   </div>
                 </div>
 
-                {/* 체크 항목이 있을 때만 진행 상태를 보여 더미 진행률처럼 보이지 않게 합니다. */}
+                {/* 체크 항목이 있을 때만 진행 상태를 보여 실제 항목 수와 맞춰 표시합니다. */}
                 {visibleActionItems.length > 0 && (
                   <div className="sf-check-count">
                     <span className="sf-diet-label">실천 체크</span>
@@ -1222,8 +1237,8 @@ function DietGuidePage() {
                 </div>
               ) : (
                 <div className="sf-diet-empty-card">
-                  <strong>확인할 체크 항목이 아직 없습니다</strong>
-                  <p>피부 분석 후 색소침착·주름 지표와 연결된 체크 항목을 더 구체적으로 확인할 수 있습니다.</p>
+                  <strong>아직 표시할 체크 항목이 없습니다</strong>
+                  <p>분석 후 맞춤 가이드를 확인할 수 있습니다.</p>
                 </div>
               )}
             </section>
@@ -1273,8 +1288,8 @@ function DietGuidePage() {
                   </div>
                 ) : (
                   <div className="sf-diet-empty-card">
-                    <strong>표시할 식습관 가이드가 아직 없습니다</strong>
-                    <p>분석 결과가 저장되면 색소침착·주름 지표를 기준으로 더 구체적인 관리 가이드를 확인할 수 있습니다.</p>
+                    <strong>아직 표시할 가이드가 없습니다</strong>
+                    <p>분석 후 맞춤 가이드를 확인할 수 있습니다.</p>
                   </div>
                 )}
               </div>
@@ -1306,8 +1321,8 @@ function DietGuidePage() {
                   </div>
                 ) : (
                   <div className="sf-diet-empty-card">
-                    <strong>오늘 루틴 정보가 아직 준비되지 않았습니다</strong>
-                    <p>분석 후 개인별 관리 방향에 맞춘 식습관 루틴을 이 영역에서 확인할 수 있습니다.</p>
+                    <strong>아직 표시할 루틴이 없습니다</strong>
+                    <p>분석 후 맞춤 가이드를 확인할 수 있습니다.</p>
                   </div>
                 )}
               </div>

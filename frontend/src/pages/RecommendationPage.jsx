@@ -184,14 +184,45 @@ function getRecommendationReason(item) {
   return getFirstDisplayText(item?.recommendationReason, item?.recommendation_reason, item?.reason);
 }
 
+function formatReferenceBasis(referenceBasis) {
+  if (!referenceBasis) return "";
+  if (typeof referenceBasis === "string") return referenceBasis.trim();
+  if (typeof referenceBasis !== "object") return "";
+
+  const parts = [];
+  const metricName = getFirstDisplayText(referenceBasis.metricName, referenceBasis.metric_name);
+  const selectedMetricName = getFirstDisplayText(
+    referenceBasis.selectedMetricName,
+    referenceBasis.selected_metric_name,
+  );
+  const analysisId = referenceBasis.analysisId ?? referenceBasis.analysis_id;
+  const score = referenceBasis.totalScore ?? referenceBasis.total_score ?? referenceBasis.score;
+  const grade = getFirstDisplayText(referenceBasis.gradeName, referenceBasis.grade_name, referenceBasis.grade);
+  const urlType = getFirstDisplayText(referenceBasis.urlType, referenceBasis.url_type);
+
+  if (metricName) parts.push(`${metricName} 기준`);
+  if (selectedMetricName && selectedMetricName !== metricName) parts.push(`${selectedMetricName} 기준`);
+  if (analysisId) parts.push(`분석 ID ${analysisId}`);
+  if (score !== null && score !== undefined && score !== "") parts.push(`점수 ${score}`);
+  if (grade) parts.push(grade);
+  if (urlType) parts.push(`연결 유형 ${urlType}`);
+
+  return parts.join(" · ");
+}
+
 function getReferenceBasisHint(item) {
-  // referenceBasis는 백엔드 추천 기준을 짧은 태그로 보여줄 수 있을 때만 사용합니다.
-  const basis = item?.referenceBasis ?? item?.reference_basis;
+  // referenceBasis 객체는 그대로 렌더링하지 않고 표시 가능한 값만 조합합니다.
+  return formatReferenceBasis(item?.referenceBasis ?? item?.reference_basis);
+}
 
-  if (!basis) return "";
-  if (typeof basis === "string") return basis.length > 42 ? "" : basis;
+function getProductPriceAmount(item) {
+  const priceAmount = Number(item?.priceAmount ?? item?.price_amount ?? item?.price);
 
-  return getFirstDisplayText(basis.title, basis.name, basis.label, basis.metricName, basis.metric_name);
+  return Number.isFinite(priceAmount) && priceAmount > 0 ? priceAmount : null;
+}
+
+function formatProductPrice(priceAmount) {
+  return `${Math.round(priceAmount).toLocaleString("ko-KR")}원`;
 }
 
 function getFirstDisplayText(...values) {
@@ -257,7 +288,7 @@ function getRecommendationSourceState(summary, itemCount = 0) {
   if (isFallback || ["default", "fallback", "reference", "static", "seed"].includes(sourceText)) {
     return {
       tone: "reference",
-      label: "기본 관리 추천",
+      label: "기본 추천 가이드",
       message: summary?.message || "색소침착 · 주름 기준의 기본 참고 정보입니다. 최신 분석 후 관리 방향과 함께 확인해 주세요.",
     };
   }
@@ -380,9 +411,7 @@ function RecommendationPage() {
     const summaryReason = getFirstDisplayText(
       basisSummary.recommendationReason,
       basisSummary.recommendation_reason,
-      basisSummary.referenceBasis,
-      basisSummary.reference_basis,
-    );
+    ) || formatReferenceBasis(basisSummary.referenceBasis ?? basisSummary.reference_basis);
 
     return {
       metricLabel: selectedMetricName || sourceState.label,
@@ -390,7 +419,7 @@ function RecommendationPage() {
       modeLabel: modeLabel || sourceState.label,
       rangeLabel,
       text: selectedMetricName
-        ? `이 추천은 ${selectedMetricName} 분석 결과를 기준으로 생성되었습니다.`
+        ? `현재 추천 기준: ${selectedMetricName}. ${modeLabel || sourceState.label}으로 제공되는 추천 가이드입니다.`
         : summaryReason || sourceState.message,
     };
   }, [ingredientSummary, productSummary, sourceState]);
@@ -928,6 +957,15 @@ function RecommendationPage() {
           font-weight: 900;
         }
 
+        .sf-product-price {
+          display: inline-flex;
+          width: fit-content;
+          margin: 2px 0 7px;
+          color: #0f172a;
+          font-size: 12px;
+          font-weight: 950;
+        }
+
         .sf-product-detail {
           display: grid;
           gap: 7px;
@@ -1254,7 +1292,11 @@ function RecommendationPage() {
 
             <div className="sf-recommend-basis">
               <div className="sf-recommend-basis-top">
-                <strong>추천 기준</strong>
+                <strong>
+                  {recommendationBasisSummary.selectedMetricName
+                    ? `현재 추천 기준: ${recommendationBasisSummary.selectedMetricName}`
+                    : "추천 기준"}
+                </strong>
                 <span>{recommendationBasisSummary.modeLabel}</span>
               </div>
               {/* 설정값이 켜져 있을 때만 백엔드가 내려준 추천 기준 설명을 펼쳐 보여줍니다. */}
@@ -1409,6 +1451,7 @@ function RecommendationPage() {
                   const connectionIngredients = getProductConnectionIngredients(item);
                   const recommendationReason = getRecommendationReason(item);
                   const referenceBasisHint = getReferenceBasisHint(item);
+                  const priceAmount = getProductPriceAmount(item);
                   const oliveKeyword = `${item.brand ?? ""} ${String(item.name ?? "")
                     .replace(/\[[^\]]*\]/g, "")
                     .replace(/세럼|앰플|크림|토너|로션|에센스/g, "")
@@ -1420,10 +1463,10 @@ function RecommendationPage() {
                   const productSearchUrl = `https://www.oliveyoung.co.kr/store/search/getSearchMain.do?query=${encodeURIComponent(oliveKeyword)}`;
                   const hasDirectProductUrl = hasText(item.productUrl);
                   const productLinkUrl = item.productUrl || item.productSearchUrl || productSearchUrl;
-                  const productLinkLabel = hasDirectProductUrl ? "제품 링크 열기" : "제품명 검색 결과 보기";
+                  const productLinkLabel = hasDirectProductUrl ? "제품 링크 열기" : "성분 검색 결과 보기";
                   const productLinkNote = hasDirectProductUrl
-                    ? "백엔드가 제공한 제품 링크로 이동합니다."
-                    : "제품 상세 URL이 없으면 제품명 기준 검색 결과가 연결됩니다.";
+                    ? "제품 상세 화면으로 이동합니다."
+                    : "추천 성분과 연결해 참고할 수 있는 검색 결과로 이동합니다.";
 
                   return (
                     <article className="sf-product-card" key={item.id || item.name}>
@@ -1444,17 +1487,18 @@ function RecommendationPage() {
 
                       <div className="sf-product-main">
                         <span className="sf-product-brand">{item.brand}</span>
-                      
-                       <h3>
-                     <a
-                     href={productLinkUrl}
-                     target="_blank"
-                     rel="noopener noreferrer"
-                    className="sf-product-title-link"
-                    >
-                   {item.name}
-                    </a>
-                  </h3>
+
+                        <h3>
+                          <a
+                            href={productLinkUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="sf-product-title-link"
+                          >
+                            {item.name}
+                          </a>
+                        </h3>
+                        {priceAmount && <span className="sf-product-price">{formatProductPrice(priceAmount)}</span>}
                         <p>{item.description}</p>
                         {connectionIngredients.length > 0 && (
                           <div className="sf-product-detail">
@@ -1469,9 +1513,9 @@ function RecommendationPage() {
                                   <span className="sf-product-ingredient-pill" key={ingredientName}>
                                     {ingredientName}
                                     {hasMatchScore(matchedIngredient?.match) && (
-                                    <span className="sf-product-ingredient-score">
-                                      {formatMatchScore(matchedIngredient.match, scoreDisplayMode)}
-                                    </span>
+                                      <span className="sf-product-ingredient-score">
+                                        {formatMatchScore(matchedIngredient.match, scoreDisplayMode)}
+                                      </span>
                                     )}
                                   </span>
                                 );
@@ -1498,19 +1542,19 @@ function RecommendationPage() {
                           ))}
                         </div>
                         <>
-                     <a
-                  className="sf-product-link"
-                  href={productLinkUrl}
-                 target="_blank"
-                 rel="noopener noreferrer"
-                        >
-                {productLinkLabel} <ExternalLink size={13} />
-                           </a>
+                          <a
+                            className="sf-product-link"
+                            href={productLinkUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {productLinkLabel} <ExternalLink size={13} />
+                          </a>
 
                           <p className="sf-product-link-note">
-                        {productLinkNote}
-                    </p>
-                    </>
+                            {productLinkNote}
+                          </p>
+                        </>
                       </div>
 
                       <div className={`sf-match-score ${hasMatchScore(matchScore) ? "" : "is-pending"}`}>
