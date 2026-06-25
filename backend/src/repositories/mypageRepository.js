@@ -1,11 +1,13 @@
 const pool = require('../config/db');
 const userRepository = require('./userRepository');
 
+// 마이페이지 repository는 프로필 요약, 분석 요약, 최근 활동 데이터를 조회합니다.
 async function findProfileByUserId(userId) {
     return userRepository.findUserById(userId);
 }
 
 async function findAnalysisSummaryByUserId(userId) {
+    // 마이페이지 상단 요약에 필요한 분석 수와 최신 분석 정보를 계산합니다.
     const [rows] = await pool.query(
         `
             SELECT
@@ -67,6 +69,7 @@ async function findMainConcernByAnalysisId(analysisId) {
 }
 
 async function findRecentActivityByUserId(userId, limit = 5) {
+    // 분석, 추천, 식습관 가이드를 하나의 활동 목록으로 합쳐 최신순으로 보여줍니다.
     const [rows] = await pool.query(
         `
             SELECT

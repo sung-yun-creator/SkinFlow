@@ -1,6 +1,8 @@
 const pool = require('../config/db');
 
+// 이력 repository는 분석 목록/상세 화면에 필요한 분석, 지표, 추천 요약을 조회합니다.
 async function findHistorySummaryByUserId(userId) {
+    // 총 분석 수와 최신/최초 점수를 한 번에 계산해 변화량 표시 기준으로 사용합니다.
     const [rows] = await pool.query(
         `
             SELECT
@@ -51,6 +53,7 @@ async function findHistorySummaryByUserId(userId) {
 }
 
 async function findHistoryRecordsByUserId(userId, limit = 20) {
+    // 최신 분석부터 정렬해 이력 목록에 표시할 기본 정보를 가져옵니다.
     const [rows] = await pool.query(
         `
             SELECT
@@ -100,6 +103,7 @@ async function findHistoryRecordById(userId, analysisId) {
 }
 
 async function findMetricsByAnalysisIds(analysisIds) {
+    // 목록에 포함된 여러 분석의 지표를 한 번에 조회한 뒤 service에서 분석별로 묶습니다.
     if (analysisIds.length === 0) {
         return [];
     }

@@ -1,5 +1,6 @@
 const { analyzeAndSaveSkin, extractAndSaveRoi, extractRoi } = require('../services/analysisService');
 
+// 분석 controller는 요청 파일/파라미터만 검증하고 실제 AI 호출과 저장은 service에 맡깁니다.
 function validateImageFile(req, res) {
     if (!req.file) {
         res.status(400).json({
@@ -17,6 +18,7 @@ async function extractAnalysisRoi(req, res) {
         return;
     }
 
+    // 저장 없이 AI 서버 ROI 결과만 확인하는 흐름입니다.
     const roi = await extractRoi(req.file);
 
     return res.json({
@@ -30,6 +32,7 @@ async function requestSkinAnalysis(req, res) {
         return;
     }
 
+    // AI 분석 결과가 정상일 때만 분석 이력과 지표가 DB에 저장됩니다.
     const analysis = await analyzeAndSaveSkin(req.user.userId, req.file);
 
     return res.json({
@@ -52,6 +55,7 @@ async function saveAnalysisRoi(req, res) {
         });
     }
 
+    // 이미 저장된 분석 이력에 ROI 좌표를 교체 저장하는 흐름입니다.
     const roi = await extractAndSaveRoi(req.user.userId, analysisId, req.file);
 
     if (!roi) {

@@ -1,3 +1,4 @@
+// DB 성분 데이터가 없거나 보강이 필요할 때 사용하는 색소침착/주름 성분 기준표입니다.
 const INGREDIENT_REFERENCES = [
     {
         name: '나이아신아마이드',

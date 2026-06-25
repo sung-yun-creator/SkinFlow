@@ -130,6 +130,7 @@ const GENERAL_SKIN_KEYWORDS = [
     '루틴',
 ];
 
+// 챗봇 service는 질문 범위를 먼저 걸러낸 뒤 지식 검색, Gemini, fallback 순서로 답변을 만듭니다.
 function getAiServerUrl() {
     return (process.env.AI_SERVER_URL || DEFAULT_AI_SERVER_URL).replace(/\/$/, '');
 }
@@ -153,6 +154,7 @@ function toLimitedText(value, maxLength = 2200) {
 }
 
 async function requestKnowledgeSearch(message) {
+    // AI 서버의 RAG 검색 결과를 가져오되, 실패해도 fallback 답변이 가능하도록 상태만 반환합니다.
     const timeout = createTimeoutSignal(AI_SEARCH_TIMEOUT_MS);
 
     try {
@@ -283,6 +285,7 @@ function includesAnyKeyword(text, keywords) {
 }
 
 function getQuestionScope(message) {
+    // MVP 범위인 색소침착/주름/성분/선크림 관련 질문인지 먼저 판단합니다.
     if (findTopicFallbackByText(message)) {
         return 'in_scope';
     }
@@ -360,6 +363,7 @@ function isUsefulGeneratedAnswer(answer) {
 }
 
 async function requestGeminiAnswer({ message, analysisResult, knowledgeText }) {
+    // API 키가 없거나 Gemini 호출이 실패하면 null을 반환해 fallback 흐름으로 내려갑니다.
     const apiKey = process.env.CHATBOT_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
@@ -436,6 +440,7 @@ function buildFallbackAnswer(message, searchResults) {
 }
 
 async function getChatResponse({ message, analysisResult = null }) {
+    // 최종 응답은 차단, 범위 제한, 생성 답변, 지식 기반 fallback 중 하나로 정리됩니다.
     const trimmedMessage = String(message || '').trim();
     const questionScope = getQuestionScope(trimmedMessage);
 

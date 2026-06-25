@@ -1,6 +1,8 @@
 const pool = require('../config/db');
 
+// 추천 repository는 분석 이력에 연결된 성분, 제품, 식습관 추천 데이터를 조회/생성합니다.
 async function findLatestAnalysisWithMetricsByUserId(userId) {
+    // 최신 분석과 지표를 함께 가져와 추천 기준 데이터로 사용합니다.
     const [analysisRows] = await pool.query(
         `
             SELECT
@@ -178,6 +180,7 @@ async function createAnalysisRecommendation(connection, {
 }
 
 async function createDietGuidesForAnalysis(analysisId, guides) {
+    // 식습관 가이드는 공통 추천 행을 만든 뒤 상세 가이드 테이블에 여러 건 저장합니다.
     const connection = await pool.getConnection();
 
     try {
@@ -267,6 +270,7 @@ async function findIngredientRecommendationsByAnalysisId(analysisId) {
 }
 
 async function createIngredientRecommendationsForAnalysis(analysisId, ingredients) {
+    // 추천 성분은 분석 추천 묶음과 성분별 매칭 점수를 함께 저장합니다.
     const storableIngredients = ingredients.filter((ingredient) => ingredient.id);
 
     if (storableIngredients.length === 0) {
@@ -388,6 +392,7 @@ async function findProductRecommendationsByAnalysisId(analysisId) {
 }
 
 async function createProductRecommendationsForAnalysis(analysisId, products) {
+    // 추천 제품은 순위와 매칭 점수를 저장해 상세 리포트에서 같은 결과를 재사용합니다.
     const storableProducts = products.filter((product) => product.id);
 
     if (storableProducts.length === 0) {

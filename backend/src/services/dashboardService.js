@@ -6,6 +6,7 @@ const {
 } = require('../utils/analysisResponseMapper');
 const { toNumber } = require('../utils/number');
 
+// 대시보드 service는 프로필, 최신 분석, 추천, 식습관 가이드를 한 화면용 응답으로 조립합니다.
 function toMainConcern(metrics) {
     const scoredMetrics = metrics.filter((metric) => metric.score !== null);
 
