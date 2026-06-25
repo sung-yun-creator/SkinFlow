@@ -210,6 +210,21 @@ function normalizeAnalysisResult(aiResult) {
     const prediction = aiResult?.prediction || {};
     const predictionResult = prediction.result || aiResult?.result || null;
     const predictionStatus = prediction.status || aiResult?.status || 'ok';
+    const roiStatus = aiResult?.roi?.status || prediction.roi?.status || null;
+
+    if (roiStatus && roiStatus !== 'ok') {
+        return {
+            code: 'ROI_EXTRACTION_REQUIRED',
+            persistable: false,
+            status: roiStatus,
+            message: aiResult?.roi?.message
+                || prediction.message
+                || 'ROI를 추출하지 못했습니다. 얼굴이 잘 보이는 사진으로 다시 시도해 주세요.',
+            retryable: aiResult?.roi?.retryable ?? prediction.retryable ?? true,
+            roi: aiResult?.roi || prediction.roi || null,
+            raw: toSafeRawResult(aiResult),
+        };
+    }
 
     if (!predictionResult || predictionStatus === 'pending') {
         return {

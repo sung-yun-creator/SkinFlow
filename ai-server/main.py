@@ -55,7 +55,17 @@ def search_chatbot(request: ChatbotSearchRequest):
 async def analyze_skin(file: UploadFile = File(...)):
     image_bytes = await file.read()
     roi = extract_roi_with_retry(image_bytes)
-    prediction = predict_skin_condition(image_bytes, roi)
+    if roi.get("status") != "ok":
+        prediction = {
+            "status": "roi_required",
+            "message": roi.get("message") or "ROI를 추출하지 못했습니다. 얼굴이 잘 보이는 사진으로 다시 시도해 주세요.",
+            "retryable": roi.get("retryable", True),
+            "roi": roi,
+            "result": None,
+        }
+    else:
+        prediction = predict_skin_condition(image_bytes, roi)
+
     privacy_image = build_privacy_masked_image(image_bytes, roi)
 
     return {
