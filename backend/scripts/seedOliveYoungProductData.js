@@ -50,10 +50,9 @@ async function upsertProduct(connection, product) {
             FROM t_product
             WHERE brand_name = ?
                 AND product_name = ?
-                AND product_url = ?
             LIMIT 1
         `,
-        [product.brandName, product.productName, product.productUrl],
+        [product.brandName, product.productName],
     );
 
     if (rows[0]) {
