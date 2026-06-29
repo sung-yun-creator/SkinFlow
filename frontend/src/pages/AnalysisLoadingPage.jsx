@@ -4,17 +4,14 @@ import {
   ArrowRight,
   BrainCircuit,
   CheckCircle2,
-  Clock3,
   Image,
   LoaderCircle,
   RefreshCw,
   ScanFace,
-  WandSparkles,
 } from "lucide-react";
 import PageLayout from "../components/layout/PageLayout";
 import Button from "../components/common/Button";
 import Card from "../components/common/Card";
-import Badge from "../components/common/Badge";
 
 const ANALYSIS_RESULT_KEY = "skinflow_latest_analysis_result";
 
@@ -114,7 +111,8 @@ function getAnalysisStatus(analysisResult) {
       isCompleted: true,
       isPending: false,
       label: "분석 결과 저장 완료",
-      description: "색소침착·주름 분석 결과가 저장되었습니다. 실제 결과 화면 또는 분석 이력에서 확인할 수 있습니다.",
+      description:
+        "피부 분석 결과가 저장되었습니다.",
       progress: 100,
       stepStatus: "done",
     };
@@ -129,7 +127,8 @@ function getAnalysisStatus(analysisResult) {
       isCompleted: false,
       isPending: true,
       label: "AI 모델 연결 대기",
-      description: analysisResult.message || "AI 모델 분석 결과가 아직 준비되지 않았습니다.",
+      description:
+        analysisResult.message || "AI 모델 분석 결과가 아직 준비되지 않았습니다.",
       progress: 75,
       stepStatus: "active",
     };
@@ -179,6 +178,16 @@ function AnalysisLoadingPage() {
     : analysisStatus.isPending
       ? "대기"
       : "확인 중";
+  const overallStatusLabel = analysisStatus.isCompleted
+    ? "분석 완료"
+    : analysisStatus.isPending
+      ? "진행 중"
+      : "확인 필요";
+  const resultNotice = analysisStatus.isCompleted
+    ? "분석이 완료되었습니다.\n'분석 결과 보기' 버튼을 클릭해 주세요."
+    : analysisStatus.isPending
+      ? "AI 모델 분석 결과를 기다리고 있습니다.\n잠시 후 다시 확인해 주세요."
+      : "분석 요청 상태를 확인하고 있습니다.\n필요하면 다른 이미지로 다시 분석할 수 있습니다.";
 
   const summaryItems = [
     {
@@ -195,7 +204,7 @@ function AnalysisLoadingPage() {
     },
     {
       label: "얼굴 영역 확인",
-      value: roiStatus.label,
+      value: roiStatus.isReady ? "분석 완료" : roiStatus.label,
     },
     {
       label: "관심 영역 수",
@@ -230,33 +239,42 @@ function AnalysisLoadingPage() {
       description: analysisStatus.description,
     },
   ];
+
   return (
     <PageLayout>
       <style>
         {`
           .sf-loading-page {
             display: grid;
-            grid-template-columns: minmax(0, 0.96fr) minmax(420px, 1.04fr);
-            gap: 18px;
+            grid-template-columns: minmax(0, 0.95fr) minmax(420px, 1.05fr);
+            gap: 56px;
             align-items: start;
-            padding: 24px 0 24px;
+            max-width: 1080px;
+            margin: 0 auto;
+            padding: 48px 0 56px;
+          }
+
+          .sf-loading-card,
+          .sf-info-card {
+            border: 1px solid rgba(226, 232, 240, 0.94);
+            box-shadow: none !important;
           }
 
           .sf-loading-card {
-            padding: 24px;
-            border-radius: 28px;
+            padding: 28px 24px 26px;
+            border-radius: 26px;
             background:
-              radial-gradient(circle at 100% 0%, rgba(22, 125, 127, 0.08), transparent 34%),
+              radial-gradient(circle at 100% 0%, rgba(22, 125, 127, 0.07), transparent 32%),
               #ffffff;
           }
 
           .sf-loading-hero h1 {
-            max-width: 540px;
-            margin: 16px 0 12px;
+            max-width: 520px;
+            margin: 8px 0 24px;
             color: #0f172a;
-            font-size: clamp(34px, 3.55vw, 46px);
+            font-size: clamp(36px, 3.65vw, 48px);
             line-height: 1.12;
-            letter-spacing: -0.065em;
+            letter-spacing: -0.07em;
           }
 
           .sf-loading-gradient-text {
@@ -267,31 +285,21 @@ function AnalysisLoadingPage() {
             -webkit-text-fill-color: transparent;
           }
 
-          .sf-loading-hero p {
-            max-width: 520px;
-            margin: 0;
-            color: #64748b;
-            font-size: 15px;
-            line-height: 1.68;
-            word-break: keep-all;
-          }
-
           .sf-progress-card {
             display: grid;
-            grid-template-columns: 118px 1fr;
-            gap: 22px;
+            grid-template-columns: 112px 1fr;
+            gap: 24px;
             align-items: center;
-            margin-top: 22px;
-            padding: 22px;
-            border-radius: 24px;
+            padding: 20px;
+            border-radius: 22px;
             border: 1px solid rgba(226, 232, 240, 0.94);
             background: #f8fafc;
           }
 
           .sf-progress-ring-wrap {
             position: relative;
-            width: 112px;
-            height: 112px;
+            width: 104px;
+            height: 104px;
             display: grid;
             place-items: center;
           }
@@ -300,7 +308,7 @@ function AnalysisLoadingPage() {
             position: absolute;
             inset: 0;
             border-radius: 50%;
-            box-shadow: inset 0 0 0 1px rgba(226, 232, 240, 0.8);
+            box-shadow: none;
           }
 
           .sf-progress-center {
@@ -308,7 +316,7 @@ function AnalysisLoadingPage() {
             z-index: 1;
             display: grid;
             place-items: center;
-            gap: 5px;
+            gap: 6px;
             color: #167d7f;
             line-height: 1;
           }
@@ -318,7 +326,7 @@ function AnalysisLoadingPage() {
             width: 28px;
             height: 28px;
             margin: 0;
-            stroke-width: 2.2;
+            stroke-width: 2.3;
           }
 
           .sf-progress-center span {
@@ -380,22 +388,49 @@ function AnalysisLoadingPage() {
             word-break: keep-all;
           }
 
+          .sf-result-notice {
+            display: grid;
+            grid-template-columns: 46px 1fr;
+            gap: 14px;
+            align-items: center;
+            margin-top: 18px;
+            padding: 22px;
+            min-height: 118px;
+            border-radius: 22px;
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            background: linear-gradient(135deg, rgba(22, 125, 127, 0.09), rgba(34, 197, 200, 0.06));
+          }
+
+          .sf-result-notice strong {
+            display: block;
+            color: #0f172a;
+            font-size: 17px;
+            line-height: 1.55;
+            letter-spacing: -0.045em;
+            white-space: pre-line;
+            word-break: keep-all;
+          }
+
           .sf-loading-actions {
             display: flex;
             flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 20px;
+            gap: 12px;
+            margin-top: 28px;
           }
 
           .sf-loading-side {
             display: grid;
-            gap: 16px;
+            gap: 18px;
           }
 
           .sf-info-card {
-            padding: 22px;
+            padding: 20px;
             border-radius: 26px;
             background: #ffffff;
+          }
+
+          .sf-summary-card {
+            padding: 20px;
           }
 
           .sf-info-title-row {
@@ -406,15 +441,8 @@ function AnalysisLoadingPage() {
             margin-bottom: 16px;
           }
 
-          .sf-info-title-copy small {
-            display: block;
-            color: #64748b;
-            font-size: 12px;
-            font-weight: 950;
-          }
-
           .sf-info-title-copy h2 {
-            margin: 4px 0 0;
+            margin: 0;
             color: #0f172a;
             font-size: 22px;
             line-height: 1.2;
@@ -431,9 +459,9 @@ function AnalysisLoadingPage() {
             place-items: center;
             line-height: 0;
             color: #167d7f;
-            background: linear-gradient(135deg, #f2fbfb 0%, #ffffff 50%, #ecfeff 100%);
-            border: 1px solid rgba(226, 232, 240, 0.9);
-            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.055);
+            background: #ffffff;
+            border: 1px solid rgba(226, 232, 240, 0.95);
+            box-shadow: none !important;
           }
 
           .sf-icon-tile svg {
@@ -452,7 +480,7 @@ function AnalysisLoadingPage() {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-width: 78px;
+            min-width: 76px;
             padding: 8px 12px;
             border-radius: 999px;
             color: #167d7f;
@@ -465,11 +493,12 @@ function AnalysisLoadingPage() {
           .sf-summary-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px;
+            gap: 12px;
           }
 
           .sf-summary-item {
-            padding: 14px;
+            min-height: 74px;
+            padding: 14px 16px;
             border-radius: 18px;
             background: #f8fafc;
             border: 1px solid rgba(226, 232, 240, 0.9);
@@ -483,25 +512,28 @@ function AnalysisLoadingPage() {
           }
 
           .sf-summary-item strong {
-            display: block;
+            display: -webkit-box;
             margin-top: 6px;
             color: #0f172a;
             font-size: 14px;
             line-height: 1.35;
             word-break: break-word;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 1;
+            overflow: hidden;
           }
 
           .sf-step-list {
             display: grid;
-            gap: 10px;
+            gap: 12px;
           }
 
           .sf-step-item {
             display: grid;
             grid-template-columns: 46px 1fr auto;
-            gap: 13px;
+            gap: 14px;
             align-items: center;
-            min-height: 76px;
+            min-height: 78px;
             padding: 12px;
             border-radius: 20px;
             border: 1px solid rgba(226, 232, 240, 0.9);
@@ -538,38 +570,23 @@ function AnalysisLoadingPage() {
             white-space: nowrap;
           }
 
-          .sf-step-done .sf-step-state {
+          .sf-step-done .sf-step-state,
+          .sf-step-done .sf-icon-tile {
             color: #167d7f;
-            background: rgba(22, 125, 127, 0.1);
+            background: rgba(22, 125, 127, 0.08);
           }
 
-          .sf-step-active .sf-step-state {
+          .sf-step-active .sf-step-state,
+          .sf-step-active .sf-icon-tile {
             color: #14b8a6;
-            background: rgba(20, 184, 166, 0.1);
-          }
-
-          .sf-notice-card {
-            display: grid;
-            grid-template-columns: 46px 1fr;
-            gap: 13px;
-            align-items: start;
-            padding: 18px;
-            border-radius: 22px;
-            background: linear-gradient(135deg, rgba(22, 125, 127, 0.09), rgba(20, 184, 166, 0.06));
-            border: 1px solid rgba(226, 232, 240, 0.9);
-          }
-
-          .sf-notice-card p {
-            margin: 0;
-            color: #475569;
-            font-size: 13px;
-            line-height: 1.65;
-            word-break: keep-all;
+            background: rgba(20, 184, 166, 0.08);
           }
 
           @media (max-width: 980px) {
             .sf-loading-page {
               grid-template-columns: 1fr;
+              gap: 20px;
+              padding-top: 28px;
             }
           }
 
@@ -580,7 +597,17 @@ function AnalysisLoadingPage() {
               border-radius: 24px;
             }
 
+            .sf-loading-hero h1 {
+              font-size: 34px;
+            }
+
             .sf-progress-card {
+              grid-template-columns: 1fr;
+              justify-items: center;
+              text-align: center;
+            }
+
+            .sf-result-notice {
               grid-template-columns: 1fr;
               justify-items: center;
               text-align: center;
@@ -608,18 +635,11 @@ function AnalysisLoadingPage() {
 
       <section className="sf-loading-page">
         <Card className="sf-loading-card sf-loading-hero">
-          <Badge>{analysisStatus.label}</Badge>
-
           <h1>
-            피부 분석 요청을
+            피부 분석 진행 상황을
             <br />
             <span className="sf-loading-gradient-text">확인하고 있어요</span>
           </h1>
-
-          <p>
-            입력된 얼굴 이미지와 색소침착·주름 분석 결과의 처리 상태를
-            단계별로 확인합니다.
-          </p>
 
           <div className="sf-progress-card">
             <div className="sf-progress-ring-wrap" aria-label={`현재 진행률 ${progressValue}%`}>
@@ -627,7 +647,7 @@ function AnalysisLoadingPage() {
                 className="sf-progress-ring"
                 style={{
                   background: `
-                    radial-gradient(circle, #ffffff 56%, transparent 57%),
+                    radial-gradient(circle, #ffffff 57%, transparent 58%),
                     conic-gradient(#167d7f 0 ${progressValue}%, #e2e8f0 ${progressValue}% 100%)
                   `,
                 }}
@@ -656,6 +676,17 @@ function AnalysisLoadingPage() {
             </div>
           </div>
 
+          <div className="sf-result-notice">
+            <span className="sf-icon-tile" aria-hidden="true">
+              {analysisStatus.isCompleted ? (
+                <CheckCircle2 size={20} />
+              ) : (
+                <LoaderCircle className="sf-loading-spin" size={20} />
+              )}
+            </span>
+            <strong>{resultNotice}</strong>
+          </div>
+
           <div className="sf-loading-actions">
             {analysisStatus.isCompleted ? (
               <Button to="/analysis/result" size="lg">
@@ -679,18 +710,7 @@ function AnalysisLoadingPage() {
         </Card>
 
         <aside className="sf-loading-side">
-          <Card className="sf-info-card">
-            <div className="sf-info-title-row">
-              <div className="sf-info-title-copy">
-                <small>분석 요청 요약</small>
-                <h2>분석 요청 정보</h2>
-              </div>
-
-              <span className="sf-icon-tile" aria-hidden="true">
-                <WandSparkles size={20} />
-              </span>
-            </div>
-
+          <Card className="sf-info-card sf-summary-card">
             <div className="sf-summary-grid">
               {summaryItems.map((item) => (
                 <div className="sf-summary-item" key={item.label}>
@@ -704,11 +724,10 @@ function AnalysisLoadingPage() {
           <Card className="sf-info-card">
             <div className="sf-info-title-row">
               <div className="sf-info-title-copy">
-                <small>분석 진행 단계</small>
                 <h2>분석 진행 단계</h2>
               </div>
 
-              <span className="sf-status-pill">{roiStatus.label}</span>
+              <span className="sf-status-pill">{overallStatusLabel}</span>
             </div>
 
             <div className="sf-step-list">
@@ -744,16 +763,6 @@ function AnalysisLoadingPage() {
               })}
             </div>
           </Card>
-
-          <div className="sf-notice-card">
-            <span className="sf-icon-tile" aria-hidden="true">
-              <Clock3 size={20} />
-            </span>
-
-            <p>
-              현재 화면은 분석 요청 상태를 안내합니다. 결과가 준비되면 결과 화면에서 확인할 수 있습니다.
-            </p>
-          </div>
         </aside>
       </section>
     </PageLayout>

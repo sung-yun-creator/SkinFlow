@@ -16,7 +16,6 @@ import {
 import PageLayout from "../components/layout/PageLayout";
 import Button from "../components/common/Button";
 import Card from "../components/common/Card";
-import Badge from "../components/common/Badge";
 import { analyzeSkin, extractRoi } from "../api/analysisApi";
 
 
@@ -319,7 +318,6 @@ function AnalysisCapturePage() {
     };
   }, [previewUrl, selectedMethod]);
 
-  const selectedMethodLabel = selectedMethod === "webcam" ? "웹캠 촬영" : "이미지 업로드";
   const roiPreviewRegions = useMemo(() => normalizeRoiRegions(roiPreviewResult), [roiPreviewResult]);
   const roiDisplayRegions = useMemo(
     () =>
@@ -664,354 +662,264 @@ function AnalysisCapturePage() {
           .sf-capture-page {
             display: grid;
             gap: 18px;
-            padding-top: 4px;
+            padding: 26px 0 42px;
           }
 
           .sf-capture-hero {
             display: grid;
-            grid-template-columns: minmax(0, 0.92fr) minmax(440px, 1.08fr);
+            grid-template-columns: minmax(360px, 0.94fr) minmax(420px, 1.06fr);
             gap: 18px;
-            align-items: start;
-          }
-
-          .sf-capture-hero.is-webcam-mode {
-            grid-template-columns: 1fr;
-            justify-items: center;
-          }
-
-          .sf-capture-hero.is-webcam-mode .sf-capture-intro {
-            display: none;
-          }
-
-          .sf-capture-hero.is-webcam-mode .sf-capture-intro-content {
-            gap: 16px;
-          }
-
-          .sf-capture-hero.is-webcam-mode .sf-capture-intro h1 {
-            margin: 8px 0 6px;
-            font-size: clamp(30px, 3vw, 42px);
-            line-height: 1.06;
-          }
-
-          .sf-capture-hero.is-webcam-mode .sf-capture-intro p {
-            max-width: 760px;
-          }
-
-          .sf-capture-hero.is-webcam-mode .sf-capture-note {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            margin-top: 4px;
-          }
-
-          .sf-capture-hero.is-webcam-mode .sf-capture-upload-card {
-            width: min(100%, 920px);
-            justify-self: center;
+            align-items: stretch;
           }
 
           .sf-capture-intro,
-          .sf-capture-upload-card,
-          .sf-capture-flow-card,
+          .sf-capture-workspace,
           .sf-capture-guide-card {
-            border: 1px solid rgba(226, 232, 240, 0.92);
+            border: 1px solid rgba(203, 213, 225, 0.74);
             background: rgba(255, 255, 255, 0.96);
-            box-shadow: 0 18px 46px rgba(15, 23, 42, 0.07);
+            box-shadow: none;
           }
 
           .sf-capture-intro {
-            position: relative;
-            overflow: hidden;
-            align-self: start;
-            min-height: 0;
-            padding: 26px 28px;
-          }
-
-          .sf-capture-intro::after {
-            content: "";
-            position: absolute;
-            right: -90px;
-            bottom: -90px;
-            width: 220px;
-            height: 220px;
-            border-radius: 999px;
-            background: radial-gradient(circle, rgba(22, 125, 127, 0.13), transparent 68%);
-          }
-
-          .sf-capture-intro-content {
-            position: relative;
-            z-index: 1;
             display: flex;
             flex-direction: column;
-            height: auto;
+            min-height: 100%;
+            padding: 28px 24px;
           }
 
+          .sf-capture-intro h1 {
+            margin: 0 0 22px;
+            color: #0f172a;
+            font-size: clamp(34px, 3.7vw, 44px);
+            line-height: 1.06;
+            letter-spacing: -0.07em;
+            word-break: keep-all;
+          }
 
+          .sf-title-line {
+            display: block;
+            white-space: nowrap;
+          }
 
           .sf-gradient-text {
             display: inline-block;
-            background: linear-gradient(90deg, #167d7f 0%, #14b8a6 52%, #22c5c8 100%);
+            background: linear-gradient(90deg, #167d7f 0%, #14b8a6 58%, #22c5c8 100%);
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
             -webkit-text-fill-color: transparent;
           }
-          .sf-capture-intro h1 {
-            margin: 14px 0 10px;
-            color: #0f172a;
-            font-size: clamp(32px, 3.6vw, 44px);
-            line-height: 1.08;
-            letter-spacing: -0.07em;
-            word-break: keep-all;
-          }
 
-          .sf-capture-title-line {
-            display: block;
-            white-space: nowrap;
-          }
-
-          .sf-capture-intro h1 .sf-gradient-text {
-            white-space: nowrap;
-          }
-
-          .sf-capture-intro p {
-            max-width: 540px;
-            margin: 0;
-            color: #64748b;
-            font-size: 15px;
-            line-height: 1.7;
-            word-break: keep-all;
-          }
-
-          .sf-capture-methods {
+          .sf-capture-note-list {
             display: grid;
-            grid-template-columns: 1fr;
-            gap: 13px;
-            margin-top: 20px;
+            gap: 8px;
+            margin: 0 0 20px;
+          }
+
+          .sf-note-row {
+            display: grid;
+            grid-template-columns: 18px 1fr;
+            gap: 8px;
+            align-items: flex-start;
+            color: #475569;
+            font-size: 12.5px;
+            font-weight: 750;
+            line-height: 1.62;
+            word-break: keep-all;
+          }
+
+          .sf-note-row svg {
+            margin-top: 2px;
+            color: #167d7f;
+          }
+
+          .sf-flow-panel {
+            margin-top: auto;
+            padding: 14px;
+            border-radius: 22px;
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            background:
+              radial-gradient(circle at 100% 100%, rgba(22, 125, 127, 0.08), transparent 34%),
+              #ffffff;
+          }
+
+          .sf-section-label {
+            display: block;
+            margin-bottom: 10px;
+            color: #167d7f;
+            font-size: 11px;
+            font-weight: 950;
+            line-height: 1;
+          }
+
+          .sf-flow-list {
+            display: grid;
+            gap: 8px;
+          }
+
+          .sf-flow-item {
+            display: grid;
+            grid-template-columns: 40px minmax(0, 1fr) auto;
+            gap: 12px;
+            align-items: center;
+            min-height: 58px;
+            padding: 9px 10px;
+            border-radius: 16px;
+            border: 1px solid rgba(22, 125, 127, 0.12);
+            background:
+              linear-gradient(135deg, #ffffff 0%, #f8fafc 48%, #ecfeff 100%);
+          }
+
+          .sf-icon-tile {
+            display: grid !important;
+            place-items: center !important;
+            width: 38px;
+            height: 38px;
+            min-width: 38px;
+            min-height: 38px;
+            border-radius: 15px;
+            color: #167d7f;
+            background: #ffffff;
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            box-shadow: none;
+            line-height: 0;
+          }
+
+          .sf-icon-tile svg {
+            display: block;
+            width: 18px !important;
+            height: 18px !important;
+            margin: 0;
+            stroke-width: 2.2;
+          }
+
+          .sf-flow-copy strong,
+          .sf-guide-row strong,
+          .sf-method-copy strong {
+            display: block;
+            color: #0f172a;
+            letter-spacing: -0.035em;
+          }
+
+          .sf-flow-copy strong {
+            font-size: 13.5px;
+          }
+
+          .sf-flow-copy p {
+            margin: 3px 0 0;
+            color: #64748b;
+            font-size: 11.5px;
+            font-weight: 720;
+            line-height: 1.45;
+            word-break: keep-all;
+          }
+
+          .sf-flow-index {
+            display: inline-grid;
+            place-items: center;
+            min-width: 28px;
+            height: 22px;
+            border-radius: 999px;
+            color: #167d7f;
+            background: rgba(22, 125, 127, 0.08);
+            font-size: 10.5px;
+            font-weight: 950;
+          }
+
+          .sf-capture-workspace {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 14px;
+          }
+
+          .sf-method-tabs {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
           }
 
           .sf-method-card {
-            position: relative;
             display: grid;
-            grid-template-columns: 44px minmax(0, 1fr);
+            grid-template-columns: 42px minmax(0, 1fr);
             gap: 12px;
             align-items: center;
-            min-height: 68px;
+            min-height: 74px;
             padding: 12px 14px;
-            border-radius: 19px;
+            border-radius: 16px;
             border: 1px solid rgba(226, 232, 240, 0.92);
             background: #f8fafc;
+            color: inherit;
             cursor: pointer;
-            transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
             text-align: left;
-          }
-
-          .sf-method-card.is-recommended-method {
-            border-color: rgba(22, 125, 127, 0.24);
-            background: linear-gradient(135deg, #ffffff 0%, #f0fdfa 100%);
-          }
-
-          .sf-method-card.is-support-method {
-            background: #f8fafc;
+            transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
           }
 
           .sf-method-card:hover,
           .sf-method-card.is-active {
-            transform: translateY(-2px);
-            border-color: rgba(22, 125, 127, 0.28);
-            background: #ffffff;
-            box-shadow: 0 16px 36px rgba(15, 23, 42, 0.075);
+            border-color: rgba(22, 125, 127, 0.42);
+            background:
+              linear-gradient(135deg, #ffffff 0%, #f1fbfb 100%);
           }
 
-          .sf-method-copy {
-            min-width: 0;
+          .sf-method-card.is-active {
+            box-shadow: inset 0 0 0 1px rgba(22, 125, 127, 0.28);
+          }
+
+          .sf-method-card:focus {
+            outline: none;
+          }
+
+          .sf-method-card:focus-visible {
+            outline: 3px solid rgba(22, 125, 127, 0.18);
+            outline-offset: 2px;
+          }
+
+          .sf-method-card:disabled {
+            cursor: not-allowed;
+            opacity: 0.64;
           }
 
           .sf-method-copy strong {
-            display: block;
-            color: #0f172a;
-            font-size: 14px;
-            letter-spacing: -0.035em;
-          }
-
-          .sf-method-badge {
-            display: inline-flex;
-            align-items: center;
-            width: fit-content;
-            margin-top: 6px;
-            padding: 4px 7px;
-            border-radius: 999px;
-            font-size: 10.5px;
-            font-weight: 950;
-            line-height: 1;
-            white-space: nowrap;
-          }
-
-          .sf-method-badge.is-recommended {
-            color: #167d7f;
-            background: rgba(22, 125, 127, 0.1);
-          }
-
-          .sf-method-badge.is-support {
-            color: #64748b;
-            background: #e2e8f0;
+            font-size: 13.5px;
           }
 
           .sf-method-copy small {
             display: block;
             margin-top: 3px;
             color: #64748b;
-            font-size: 12px;
-            line-height: 1.38;
-            font-weight: 750;
+            font-size: 11.5px;
+            font-weight: 800;
+            line-height: 1.35;
             word-break: keep-all;
           }
 
-          .sf-icon-tile {
-            width: 44px;
-            height: 44px;
-            min-width: 44px;
-            min-height: 44px;
-            border-radius: 17px;
-            display: grid !important;
-            place-items: center !important;
-            color: #167d7f;
-            background: linear-gradient(135deg, #f2fbfb 0%, #ffffff 52%, #ecfeff 100%);
-            border: 1px solid rgba(226, 232, 240, 0.9);
-            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.055);
-          }
-
-          .sf-icon-tile svg {
-            display: block;
-            width: 19px !important;
-            height: 19px !important;
-            min-width: 19px;
-            min-height: 19px;
-            margin: 0;
-            stroke-width: 2.15;
-          }
-
-          .sf-capture-note {
-            display: grid;
-            gap: 8px;
-            margin-top: 18px;
-            padding-top: 0;
-          }
-
-          .sf-note-row {
-            display: flex;
-            gap: 10px;
-            align-items: flex-start;
-            color: #475569;
-            font-size: 13px;
-            line-height: 1.6;
-          }
-
-          .sf-note-row svg {
-            flex: 0 0 auto;
-            margin-top: 2px;
-            color: #167d7f;
-          }
-
-          .sf-capture-upload-card {
-            padding: 24px;
-            display: flex;
-            flex-direction: column;
-          }
-
-          .sf-upload-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            gap: 16px;
-            margin-bottom: 10px;
-          }
-
-          .sf-webcam-return-button {
-            border: 1px solid rgba(22, 125, 127, 0.14);
-            border-radius: 999px;
-            padding: 7px 11px;
-            color: #167d7f;
-            background: rgba(22, 125, 127, 0.075);
-            font: inherit;
-            font-size: 12px;
-            font-weight: 900;
-            line-height: 1;
-            cursor: pointer;
-            transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
-            white-space: nowrap;
-          }
-
-          .sf-webcam-return-button:hover:not(:disabled) {
-            transform: translateY(-1px);
-            border-color: rgba(22, 125, 127, 0.28);
-            background: rgba(22, 125, 127, 0.11);
-          }
-
-          .sf-webcam-return-button:disabled {
-            cursor: not-allowed;
-            opacity: 0.58;
-          }
-
-          .sf-card-label {
-            display: block;
-            color: #167d7f;
-            font-size: 12px;
-            font-weight: 950;
-          }
-
-          .sf-upload-top h2,
-          .sf-capture-flow-card h2,
-          .sf-capture-guide-card h2 {
-            margin: 6px 0 0;
-            color: #0f172a;
-            font-size: 21px;
-            line-height: 1.25;
-            letter-spacing: -0.045em;
-          }
-
-          .sf-status-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            min-width: 78px;
-            justify-content: center;
-            padding: 8px 12px;
-            border-radius: 999px;
-            color: #167d7f;
-            background: rgba(22, 125, 127, 0.1);
-            font-size: 12px;
-            font-weight: 950;
-            white-space: nowrap;
-          }
-
-          .sf-status-pill.is-locked {
-            color: #14b8a6;
-            background: rgba(20, 184, 166, 0.1);
-          }
-
-          .sf-status-pill.is-recommended {
-            color: #167d7f;
-            background: rgba(22, 125, 127, 0.1);
-          }
-
-          .sf-upload-zone {
+          .sf-upload-zone,
+          .sf-webcam-zone {
             position: relative;
             display: grid;
             place-items: center;
-            min-height: 440px;
+            min-height: 318px;
             overflow: hidden;
-            border-radius: 28px;
-            border: 1px dashed rgba(22, 125, 127, 0.35);
+            border-radius: 22px;
+            border: 1px dashed rgba(22, 125, 127, 0.33);
             background:
-              radial-gradient(circle at 80% 10%, rgba(22, 125, 127, 0.12), transparent 32%),
-              radial-gradient(circle at 18% 82%, rgba(20, 184, 166, 0.10), transparent 30%),
+              radial-gradient(circle at 78% 8%, rgba(22, 125, 127, 0.08), transparent 32%),
+              radial-gradient(circle at 18% 86%, rgba(20, 184, 166, 0.07), transparent 30%),
               #f8fafc;
-            cursor: pointer;
-            transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
           }
 
-          .sf-upload-zone:hover {
-            transform: translateY(-1px);
-            border-color: rgba(22, 125, 127, 0.55);
-            box-shadow: inset 0 0 0 1px rgba(22, 125, 127, 0.08), 0 16px 34px rgba(15, 23, 42, 0.06);
+          .sf-upload-zone {
+            cursor: pointer;
+          }
+
+          .sf-upload-zone:hover,
+          .sf-webcam-zone.is-clickable:hover {
+            border-color: rgba(22, 125, 127, 0.5);
+            background:
+              radial-gradient(circle at 78% 8%, rgba(22, 125, 127, 0.1), transparent 32%),
+              radial-gradient(circle at 18% 86%, rgba(20, 184, 166, 0.08), transparent 30%),
+              #ffffff;
           }
 
           .sf-upload-zone input {
@@ -1021,50 +929,55 @@ function AnalysisCapturePage() {
             cursor: pointer;
           }
 
-          .sf-upload-empty {
+          .sf-upload-empty,
+          .sf-webcam-placeholder-content {
             display: grid;
             justify-items: center;
             gap: 10px;
-            padding: 20px;
+            padding: 22px;
+            color: #0f172a;
             text-align: center;
           }
 
-          .sf-upload-empty h3 {
+          .sf-upload-icon-large {
+            display: grid;
+            place-items: center;
+            width: 56px;
+            height: 56px;
+            border-radius: 22px;
+            color: #167d7f;
+            background: #ffffff;
+            border: 1px solid rgba(226, 232, 240, 0.95);
+            box-shadow: none;
+          }
+
+          .sf-upload-empty h3,
+          .sf-webcam-placeholder-content h3 {
             margin: 0;
             color: #0f172a;
             font-size: 20px;
             letter-spacing: -0.04em;
           }
 
-          .sf-upload-empty p {
-            max-width: 360px;
+          .sf-upload-empty p,
+          .sf-webcam-placeholder-content p {
+            max-width: 380px;
             margin: 0;
             color: #64748b;
-            font-size: 14px;
-            line-height: 1.65;
+            font-size: 12.5px;
+            font-weight: 780;
+            line-height: 1.58;
+            word-break: keep-all;
           }
 
-          .sf-upload-icon-large {
-            width: 58px;
-            height: 58px;
-            border-radius: 24px;
-            display: grid;
-            place-items: center;
-            color: #167d7f;
-            background: linear-gradient(135deg, #effafa, #ffffff 52%, #ecfeff);
-            border: 1px solid rgba(226, 232, 240, 0.95);
-            box-shadow: 0 18px 38px rgba(15, 23, 42, 0.08);
-          }
-
-          .sf-upload-preview {
+          .sf-upload-preview,
+          .sf-webcam-panel {
             position: relative;
             width: 100%;
-            min-height: 440px;
+            min-height: 318px;
             overflow: hidden;
-            border-radius: 28px;
-            background:
-              radial-gradient(circle at 0% 0%, rgba(22, 125, 127, 0.12), transparent 34%),
-              linear-gradient(135deg, #f8fafc 0%, #ffffff 50%, #ecfeff 100%);
+            border-radius: 22px;
+            background: #f8fafc;
           }
 
           .sf-preview-media-frame {
@@ -1073,91 +986,19 @@ function AnalysisCapturePage() {
             align-items: center;
             justify-content: center;
             width: 100%;
-            height: 440px;
+            height: 318px;
           }
 
-          .sf-preview-media-frame img {
-            width: 100%;
-            height: 440px;
-            object-fit: contain;
+          .sf-preview-media-frame img,
+          .sf-webcam-panel video {
             display: block;
-          }
-
-          .sf-upload-preview.is-roi-confirmed .sf-preview-media-frame img {
-            object-fit: contain;
-            opacity: 0.92;
-          }
-
-          .sf-roi-overlay {
-            position: absolute;
-            inset: 0;
-            pointer-events: none;
-          }
-
-          .sf-roi-preview-box {
-            position: absolute;
-            border: 2px solid rgba(22, 125, 127, 0.72);
-            border-radius: 12px;
-            background: rgba(22, 125, 127, 0.035);
-          }
-
-          .sf-roi-preview-box.is-skin {
-            border-style: dashed;
-            border-color: rgba(244, 63, 94, 0.58);
-            background: rgba(244, 63, 94, 0.035);
-          }
-
-          .sf-roi-confirm-note {
-            display: grid;
-            gap: 7px;
-            margin-top: 12px;
-            padding: 13px;
-            border-radius: 17px;
-            color: #475569;
-            background: rgba(22, 125, 127, 0.07);
-            border: 1px solid rgba(22, 125, 127, 0.12);
-            font-size: 12px;
-            font-weight: 800;
-            line-height: 1.55;
-            word-break: keep-all;
-          }
-
-          .sf-roi-confirm-note strong {
-            color: #0f172a;
-            font-size: 13px;
-          }
-
-          .sf-webcam-zone {
-            cursor: default;
-          }
-
-          .sf-webcam-zone:hover {
-            transform: none;
-          }
-
-          .sf-webcam-panel {
-            position: relative;
             width: 100%;
-            min-height: 440px;
-            overflow: hidden;
-            border-radius: 28px;
-            background: #0f172a;
-          }
-
-          .sf-capture-hero.is-webcam-mode .sf-webcam-panel,
-          .sf-capture-hero.is-webcam-mode .sf-webcam-panel video,
-          .sf-capture-hero.is-webcam-mode .sf-upload-preview,
-          .sf-capture-hero.is-webcam-mode .sf-preview-media-frame,
-          .sf-capture-hero.is-webcam-mode .sf-preview-media-frame img {
-            min-height: clamp(340px, 40vw, 420px);
-            height: clamp(340px, 40vw, 420px);
+            height: 318px;
+            object-fit: contain;
           }
 
           .sf-webcam-panel video {
-            width: 100%;
-            height: 440px;
             object-fit: cover;
-            display: block;
             opacity: 0;
             transition: opacity 0.18s ease;
           }
@@ -1171,509 +1012,331 @@ function AnalysisCapturePage() {
             inset: 0;
             display: grid;
             place-items: center;
-            padding: 22px;
-            text-align: center;
             background:
-              radial-gradient(circle at 80% 10%, rgba(34, 197, 200, 0.16), transparent 34%),
-              linear-gradient(135deg, #0f172a 0%, #143d45 100%);
-          }
-
-          .sf-webcam-placeholder-content {
-            display: grid;
-            justify-items: center;
-            gap: 10px;
-            color: #ffffff;
-          }
-
-          .sf-webcam-placeholder-content h3 {
-            margin: 0;
-            color: #ffffff;
-            font-size: 20px;
-            letter-spacing: -0.04em;
-          }
-
-          .sf-webcam-placeholder-content p {
-            max-width: 360px;
-            margin: 0;
-            color: rgba(255, 255, 255, 0.72);
-            font-size: 13px;
-            line-height: 1.6;
-            word-break: keep-all;
-          }
-
-          .sf-capture-hero.is-webcam-mode .sf-webcam-placeholder-content p {
-            max-width: 520px;
+              radial-gradient(circle at 78% 8%, rgba(22, 125, 127, 0.11), transparent 34%),
+              linear-gradient(135deg, #f8fafc 0%, #ffffff 58%, #ecfeff 100%);
           }
 
           .sf-webcam-canvas {
             display: none;
           }
 
+          .sf-roi-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+          }
+
+          .sf-roi-preview-box {
+            position: absolute;
+            border: 2px solid rgba(22, 125, 127, 0.74);
+            border-radius: 12px;
+            background: rgba(22, 125, 127, 0.035);
+          }
+
+          .sf-roi-preview-box.is-skin {
+            border-style: dashed;
+            border-color: rgba(244, 63, 94, 0.58);
+            background: rgba(244, 63, 94, 0.035);
+          }
+
           .sf-webcam-actions {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 10px;
-            margin-top: 12px;
-          }
-
-          .sf-webcam-actions .sf-button {
-            min-height: 48px;
-          }
-
-          .sf-preview-overlay {
-            display: none;
-          }
-
-          .sf-upload-meta {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 10px;
-            margin: 12px 0 14px;
-          }
-
-          .sf-meta-card {
-            padding: 11px;
-            border-radius: 18px;
-            border: 1px solid rgba(226, 232, 240, 0.9);
-            background: #f8fafc;
-          }
-
-          .sf-meta-card span {
-            display: block;
-            color: #64748b;
-            font-size: 11px;
-            font-weight: 950;
-          }
-
-          .sf-meta-card strong {
-            display: block;
-            margin-top: 5px;
-            overflow: hidden;
-            color: #0f172a;
-            font-size: 13px;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-          }
-
-          .sf-capture-error {
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-            margin-bottom: 12px;
-            padding: 13px 14px;
-            border-radius: 18px;
-            color: #be123c;
-            background: rgba(20, 184, 166, 0.08);
-            font-size: 13px;
-            font-weight: 750;
-            line-height: 1.48;
-          }
-
-          .sf-capture-error svg {
-            flex: 0 0 auto;
-            margin-top: 1px;
           }
 
           .sf-upload-actions {
             display: grid;
             grid-template-columns: 1fr;
-            gap: 10px;
-            align-items: center;
-            margin-top: 4px;
-            padding-top: 4px;
+            gap: 9px;
           }
 
+          .sf-webcam-actions .sf-button,
           .sf-upload-actions .sf-button {
             display: inline-flex !important;
             align-items: center !important;
             justify-content: center !important;
-            height: 54px;
-            min-height: 58px;
-            padding: 0 24px 2px;
-            line-height: 1;
-            box-shadow: 0 18px 38px rgba(22, 125, 127, 0.2);
+            min-height: 48px;
+            box-shadow: none !important;
           }
 
-          .sf-upload-actions .sf-button:disabled {
-            box-shadow: none;
+          .sf-selected-file-chip {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            gap: 8px;
+            align-items: center;
+            padding: 10px 12px;
+            border-radius: 16px;
+            color: #475569;
+            background: #f8fafc;
+            border: 1px solid rgba(226, 232, 240, 0.88);
+            font-size: 12px;
+            font-weight: 850;
+          }
+
+          .sf-selected-file-chip strong {
+            overflow: hidden;
+            color: #0f172a;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          .sf-capture-error,
+          .sf-roi-confirm-note {
+            display: flex;
+            align-items: flex-start;
+            gap: 9px;
+            padding: 11px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 800;
+            line-height: 1.52;
+            word-break: keep-all;
+          }
+
+          .sf-capture-error {
+            color: #be123c;
+            background: rgba(244, 63, 94, 0.08);
+            border: 1px solid rgba(244, 63, 94, 0.14);
+          }
+
+          .sf-roi-confirm-note {
+            color: #475569;
+            background: rgba(22, 125, 127, 0.07);
+            border: 1px solid rgba(22, 125, 127, 0.13);
+          }
+
+          .sf-roi-confirm-note strong {
+            display: block;
+            margin-bottom: 2px;
+            color: #0f172a;
           }
 
           .sf-start-help {
             margin: 0;
             color: #64748b;
-            font-size: 12px;
-            font-weight: 800;
-            line-height: 1.55;
+            font-size: 11.5px;
+            font-weight: 850;
+            line-height: 1.5;
             text-align: center;
             word-break: keep-all;
           }
 
-          .sf-upload-actions .sf-button .sf-action-label {
+          .sf-action-label {
             display: inline-flex;
             align-items: center;
             line-height: 1;
-            transform: translateY(1px);
           }
 
-          .sf-upload-actions .sf-button svg {
-            display: block;
-            flex: 0 0 auto;
-            width: 18px !important;
-            height: 18px !important;
-            margin: 0;
-            transform: translateY(1px);
-          }
-
-          .sf-capture-bottom {
-            display: grid;
-            grid-template-columns: minmax(0, 0.72fr) minmax(420px, 1.28fr);
-            gap: 14px;
-            align-items: stretch !important;
-            margin-top: 0;
+          .sf-action-label + svg {
+            margin-left: 6px;
           }
 
           .sf-capture-guide-card {
-            box-shadow: none;
-            background:
-              radial-gradient(circle at 100% 0%, rgba(22, 125, 127, 0.05), transparent 34%),
-              #f8fafc;
-            border: 1px solid rgba(203, 213, 225, 0.9);
-          }
-
-          .sf-capture-guide-card .sf-card-label {
-            color: #64748b;
-          }
-
-          .sf-capture-guide-card .sf-badge {
-            color: #475569;
-            background: #e2e8f0;
-            border-color: #cbd5e1;
-          }
-
-          .sf-capture-flow-card,
-          .sf-capture-guide-card {
-            display: flex;
-            flex-direction: column;
-            min-height: 100%;
             padding: 14px 16px;
-            align-self: stretch !important;
-          }
-
-          .sf-bottom-title-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            gap: 12px;
-            margin-bottom: 12px;
-          }
-
-          .sf-flow-grid {
-            display: grid;
-            gap: 8px;
-            flex: 1;
-          }
-
-          .sf-flow-card {
-            display: grid;
-            grid-template-columns: 42px minmax(0, 1fr) auto;
-            gap: 12px;
-            align-items: center;
-            min-height: 66px;
-            padding: 11px 12px;
-            border-radius: 18px;
-            border: 1px solid rgba(22, 125, 127, 0.14);
             background:
-              radial-gradient(circle at 96% 18%, rgba(34, 197, 200, 0.08), transparent 34%),
-              linear-gradient(135deg, #ffffff 0%, #f8fafc 58%, #f0fdfa 100%);
+              radial-gradient(circle at 100% 0%, rgba(22, 125, 127, 0.045), transparent 34%),
+              rgba(248, 250, 252, 0.94);
           }
 
-          .sf-flow-copy {
-            min-width: 0;
-          }
-
-          .sf-flow-index {
-            justify-self: end;
-            padding: 5px 9px;
-            border-radius: 999px;
-            color: #167d7f;
-            background: rgba(22, 125, 127, 0.08);
+          .sf-guide-title {
+            margin: 0 0 10px;
+            color: #475569;
             font-size: 11px;
             font-weight: 950;
-            line-height: 1;
-          }
-
-          .sf-flow-card strong {
-            display: block;
-            color: #0f172a;
-            font-size: 13.5px;
-            letter-spacing: -0.03em;
-          }
-
-          .sf-flow-card p {
-            margin: 3px 0 0;
-            color: #64748b;
-            font-size: 11.5px;
-            line-height: 1.42;
-            word-break: keep-all;
-          }
-
-          .sf-flow-card > .sf-icon-tile {
-            width: 42px;
-            height: 42px;
-            min-width: 42px;
-            min-height: 42px;
-            margin: 0;
-            align-self: center;
-            justify-self: center;
-            border-radius: 15px;
-            display: grid !important;
-            place-items: center !important;
-            line-height: 0 !important;
-            color: #167d7f;
-            background: linear-gradient(135deg, #f2fbfb 0%, #ffffff 52%, #ecfeff 100%);
-            border: 1px solid rgba(226, 232, 240, 0.9);
-          }
-
-          .sf-flow-card > .sf-icon-tile svg {
-            display: block;
-            width: 18px !important;
-            height: 18px !important;
-            min-width: 18px;
-            min-height: 18px;
-            margin: 0;
-            transform: none;
-            stroke-width: 2.15;
           }
 
           .sf-guide-list {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 8px;
-            flex: 1;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
           }
 
           .sf-guide-row {
             display: grid;
-            grid-template-columns: 30px 1fr;
+            grid-template-columns: 32px minmax(0, 1fr);
             gap: 10px;
             align-items: center;
-            min-height: 58px;
-            padding: 9px 10px;
+            min-height: 56px;
+            padding: 10px;
             border-radius: 14px;
             border: 1px solid rgba(226, 232, 240, 0.95);
-            background: rgba(255, 255, 255, 0.72);
+            background: rgba(255, 255, 255, 0.88);
           }
 
-          .sf-guide-row > .sf-icon-tile {
+          .sf-guide-row .sf-icon-tile {
             width: 30px;
             height: 30px;
             min-width: 30px;
             min-height: 30px;
-            margin: 0;
-            align-self: center;
-            justify-self: center;
             border-radius: 999px;
-            display: grid !important;
-            place-items: center !important;
-            line-height: 0 !important;
-            color: #167d7f;
-            background: rgba(22, 125, 127, 0.08);
-            border: 1px solid rgba(22, 125, 127, 0.12);
+            background: rgba(22, 125, 127, 0.07);
+            border-color: rgba(22, 125, 127, 0.13);
           }
 
-          .sf-guide-row > .sf-icon-tile svg {
-            display: block;
+          .sf-guide-row .sf-icon-tile svg {
             width: 15px !important;
             height: 15px !important;
-            min-width: 15px;
-            min-height: 15px;
-            margin: 0;
-            transform: none;
-            stroke-width: 2.15;
           }
 
           .sf-guide-row strong {
-            display: block;
-            color: #0f172a;
-            font-size: 13.5px;
-            letter-spacing: -0.03em;
+            font-size: 13px;
           }
 
-          .sf-guide-row > div > span {
+          .sf-guide-row span:not(.sf-icon-tile) {
             display: block;
             margin-top: 3px;
             color: #64748b;
-            font-size: 11.5px;
+            font-size: 11.3px;
+            font-weight: 720;
             line-height: 1.42;
             word-break: keep-all;
           }
 
-          @media (max-width: 1060px) {
-            .sf-capture-hero,
-            .sf-capture-bottom {
+          @media (max-width: 1080px) {
+            .sf-capture-hero {
               grid-template-columns: 1fr;
             }
 
-            .sf-capture-hero.is-webcam-mode .sf-capture-intro {
-              display: block;
-              width: 100%;
-            }
-
-            .sf-capture-intro {
-              min-height: auto;
-            }
-
-            .sf-capture-note {
-              margin-top: 24px;
+            .sf-guide-list {
+              grid-template-columns: repeat(2, minmax(0, 1fr));
             }
           }
 
           @media (max-width: 720px) {
+            .sf-capture-page {
+              padding-top: 16px;
+            }
+
             .sf-capture-intro,
-            .sf-capture-upload-card,
-            .sf-capture-flow-card,
+            .sf-capture-workspace,
             .sf-capture-guide-card {
-              padding: 18px;
-            }
-
-            .sf-capture-hero.is-webcam-mode .sf-capture-intro,
-            .sf-capture-hero.is-webcam-mode .sf-capture-upload-card {
-              padding: 20px;
-            }
-
-            .sf-capture-hero.is-webcam-mode .sf-capture-note {
-              grid-template-columns: 1fr;
+              padding: 16px;
             }
 
             .sf-capture-intro h1 {
-              font-size: 34px;
+              font-size: 32px;
             }
 
-            .sf-capture-title-line {
+            .sf-title-line {
               white-space: normal;
             }
 
-            .sf-capture-methods,
-            .sf-upload-meta,
-            .sf-flow-grid,
+            .sf-method-tabs,
+            .sf-webcam-actions,
             .sf-guide-list {
               grid-template-columns: 1fr;
             }
 
+            .sf-flow-item {
+              grid-template-columns: 38px minmax(0, 1fr) auto;
+            }
+
             .sf-upload-zone,
+            .sf-webcam-zone,
             .sf-upload-preview,
+            .sf-webcam-panel,
             .sf-preview-media-frame,
             .sf-preview-media-frame img,
-            .sf-webcam-panel,
             .sf-webcam-panel video {
-              min-height: 330px;
-              height: 330px;
-            }
-
-            .sf-upload-actions,
-            .sf-webcam-actions {
-              grid-template-columns: 1fr;
-            }
-
-            .sf-preview-overlay {
-              right: 10px;
-              bottom: 10px;
+              min-height: 300px;
+              height: 300px;
             }
           }
         `}
       </style>
 
       <div className="sf-capture-page">
-        <section className={`sf-capture-hero ${selectedMethod === "webcam" ? "is-webcam-mode" : ""}`}>
+        <section className="sf-capture-hero">
           <Card className="sf-capture-intro">
-            <div className="sf-capture-intro-content">
-              <Badge>피부 분석 준비</Badge>
+            <h1>
+              <span className="sf-title-line">사진 업로드와 웹캠으로</span>
+              <span className="sf-title-line sf-gradient-text">피부 분석을 시작하세요</span>
+            </h1>
 
-              <h1>
-                <span className="sf-capture-title-line">사진 업로드와 웹캠으로</span>
-                <span className="sf-capture-title-line sf-gradient-text">피부 분석을 시작하세요</span>
-              </h1>
-
-              <p>
-                얼굴 이미지를 업로드하거나 웹캠으로 촬영해 색소침착·주름 지표를 분석합니다.
-                분석 결과는 피부 관리 참고 정보와 추천 화면에 활용됩니다.
-              </p>
-
-              <div className="sf-capture-methods" aria-label="입력 방식 선택">
-                <button
-                  type="button"
-                  className={`sf-method-card is-recommended-method ${selectedMethod === "upload" ? "is-active" : ""}`}
-                  onClick={handleSelectUpload}
-                  disabled={isSubmitting}
-                >
-                  <span className="sf-icon-tile" aria-hidden="true">
-                    <Smartphone size={21} />
-                  </span>
-                  <div className="sf-method-copy">
-                    <strong>이미지 업로드</strong>
-                    <span className="sf-method-badge is-recommended">기본 권장</span>
-                    <small>권장 방식 · 스마트폰 사진 사용</small>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  className={`sf-method-card is-support-method ${selectedMethod === "webcam" ? "is-active" : ""}`}
-                  onClick={handleSelectWebcam}
-                  disabled={isSubmitting}
-                >
-                  <span className="sf-icon-tile" aria-hidden="true">
-                    <Camera size={21} />
-                  </span>
-                  <div className="sf-method-copy">
-                    <strong>웹캠 촬영</strong>
-                    <span className="sf-method-badge is-support">보조 방식</span>
-                    <small>보조 방식 · 기기 환경 확인 필요</small>
-                  </div>
-                </button>
+            <div className="sf-capture-note-list">
+              <div className="sf-note-row">
+                <CheckCircle2 size={16} />
+                <span>얼굴이 중앙에 보이고 이마와 양볼이 가려지지 않은 사진을 사용해주세요.</span>
               </div>
+              <div className="sf-note-row">
+                <ShieldCheck size={16} />
+                <span>결과는 피부 관리 참고 정보이며 추천 화면과 함께 확인할 수 있습니다.</span>
+              </div>
+            </div>
 
-              <div className="sf-capture-note">
-                <div className="sf-note-row">
-                  <CheckCircle2 size={17} />
-                  <span>얼굴이 중앙에 보이고 주요 부위가 가려지지 않은 사진을 사용해주세요.</span>
-                </div>
-                <div className="sf-note-row">
-                  <ShieldCheck size={17} />
-                  <span>결과는 피부 관리 참고 정보이며 추천 화면과 함께 확인할 수 있습니다.</span>
-                </div>
+            <div className="sf-flow-panel">
+              <span className="sf-section-label">분석 흐름</span>
+              <div className="sf-flow-list">
+                {flowSteps.map((step, index) => {
+                  const StepIcon = index === 0 ? Upload : index === 1 ? ScanFace : Sparkles;
+
+                  return (
+                    <article className="sf-flow-item" key={step.title}>
+                      <span className="sf-icon-tile" aria-hidden="true">
+                        <StepIcon size={18} />
+                      </span>
+                      <div className="sf-flow-copy">
+                        <strong>{step.title}</strong>
+                        <p>{step.description}</p>
+                      </div>
+                      <span className="sf-flow-index">0{index + 1}</span>
+                    </article>
+                  );
+                })}
               </div>
             </div>
           </Card>
 
-          <Card className="sf-capture-upload-card">
-            <div className="sf-upload-top">
-              <div>
-                <span className="sf-card-label">
-                  {selectedMethod === "webcam" ? "보조 입력 방식" : "권장 입력 방식"}
+          <Card className="sf-capture-workspace">
+            <div className="sf-method-tabs" aria-label="분석 이미지 입력 방식 선택">
+              <button
+                type="button"
+                className={`sf-method-card ${selectedMethod === "upload" ? "is-active" : ""}`}
+                onClick={handleSelectUpload}
+                disabled={isSubmitting}
+                aria-pressed={selectedMethod === "upload"}
+              >
+                <span className="sf-icon-tile" aria-hidden="true">
+                  <Smartphone size={18} />
                 </span>
-                <h2>{selectedMethodLabel}</h2>
-              </div>
+                <div className="sf-method-copy">
+                  <strong>이미지 업로드</strong>
+                  <small>스마트폰 촬영 권장</small>
+                </div>
+              </button>
 
-              {selectedMethod === "webcam" ? (
-                <button
-                  type="button"
-                  className="sf-webcam-return-button"
-                  onClick={handleSelectUpload}
-                  disabled={isSubmitting || isStartingWebcam}
-                >
-                  ← 이미지 업로드로 돌아가기
-                </button>
-              ) : (
-                <span className={`sf-status-pill ${isLoggedIn ? "is-recommended" : "is-locked"}`}>
-                  {isLoggedIn ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
-                  {isLoggedIn ? "분석 가능" : "로그인 필요"}
+              <button
+                type="button"
+                className={`sf-method-card ${selectedMethod === "webcam" ? "is-active" : ""}`}
+                onClick={handleSelectWebcam}
+                disabled={isSubmitting}
+                aria-pressed={selectedMethod === "webcam"}
+              >
+                <span className="sf-icon-tile" aria-hidden="true">
+                  <Camera size={18} />
                 </span>
-              )}
+                <div className="sf-method-copy">
+                  <strong>웹캠 촬영</strong>
+                  <small>기기 권한 필요</small>
+                </div>
+              </button>
             </div>
 
             {selectedMethod === "webcam" ? (
-              <div className="sf-upload-zone sf-webcam-zone">
+              <div
+                className={`sf-webcam-zone ${!isWebcamActive && !selectedFile ? "is-clickable" : ""}`}
+                role={!isWebcamActive && !selectedFile ? "button" : undefined}
+                tabIndex={!isWebcamActive && !selectedFile ? 0 : undefined}
+                onClick={!isWebcamActive && !selectedFile ? handleStartWebcam : undefined}
+                onKeyDown={(event) => {
+                  if (!isWebcamActive && !selectedFile && (event.key === "Enter" || event.key === " ")) {
+                    event.preventDefault();
+                    handleStartWebcam();
+                  }
+                }}
+              >
                 {previewUrl ? (
                   <div className={`sf-upload-preview ${hasConfirmedRoi ? "is-roi-confirmed" : ""}`}>
                     <div className="sf-preview-media-frame" ref={previewFrameRef}>
@@ -1720,8 +1383,8 @@ function AnalysisCapturePage() {
                             <Camera size={30} />
                           </span>
                           <div>
-                            <h3>{webcamStatus}</h3>
-                            <p>웹캠을 켠 뒤 얼굴이 중앙에 오도록 맞추고 촬영 버튼을 눌러주세요.</p>
+                            <h3>{isStartingWebcam ? "웹캠 연결 중" : webcamStatus === "웹캠 준비 전" ? "웹캠 촬영" : webcamStatus}</h3>
+                            <p>{isStartingWebcam ? "브라우저 권한을 확인하고 있습니다." : "이 영역을 클릭하면 웹캠이 시작됩니다."}</p>
                           </div>
                         </div>
                       </div>
@@ -1768,8 +1431,8 @@ function AnalysisCapturePage() {
                       <ImagePlus size={30} />
                     </span>
                     <div>
-                      <h3>얼굴 이미지 업로드</h3>
-                      <p>JPG 또는 PNG 파일을 선택하면 얼굴 영역 확인을 시작합니다.</p>
+                      <h3>이미지 업로드</h3>
+                      <p>JPG 또는 PNG 파일을 선택하면 분석 시작 버튼이 활성화됩니다.</p>
                     </div>
                   </div>
                 )}
@@ -1783,59 +1446,45 @@ function AnalysisCapturePage() {
               </label>
             )}
 
-            {selectedMethod === "webcam" && (
+            {selectedMethod === "webcam" && !selectedFile && (
               <div className="sf-webcam-actions">
                 <Button
                   variant="secondary"
                   onClick={handleStartWebcam}
-                  disabled={isSubmitting || isStartingWebcam}
+                  disabled={isSubmitting || isStartingWebcam || isWebcamActive}
                 >
-                  {isStartingWebcam ? "웹캠 연결 중" : selectedFile ? "다시 촬영 준비" : "웹캠 켜기"}
+                  {isStartingWebcam ? "웹캠 연결 중" : isWebcamActive ? "웹캠 준비 완료" : "웹캠 켜기"}
                 </Button>
                 <Button
                   onClick={handleCaptureWebcam}
                   disabled={isSubmitting || isStartingWebcam || !isWebcamActive}
                 >
-                  얼굴 이미지 촬영
+                  촬영하기 <ArrowRight size={17} />
                 </Button>
               </div>
             )}
 
-            <div className="sf-upload-meta">
-              <div className="sf-meta-card">
-                <span>파일 형식</span>
-                <strong>{selectedFile?.type ? selectedFile.type.replace("image/", "").toUpperCase() : "JPG / PNG"}</strong>
+            {selectedFile && (
+              <div className="sf-selected-file-chip">
+                <CheckCircle2 size={15} />
+                <strong>{selectedFileName}</strong>
+                <span>{selectedFile.type.replace("image/", "").toUpperCase()}</span>
               </div>
-              <div className="sf-meta-card">
-                <span>파일명</span>
-                <strong>{selectedFileName || "선택 전"}</strong>
-              </div>
-              <div className="sf-meta-card">
-                <span>진행 상태</span>
-                <strong>
-                  {selectedFile
-                    ? selectedMethod === "webcam"
-                      ? "촬영 완료"
-                      : "업로드 준비"
-                    : selectedMethod === "webcam"
-                      ? webcamStatus
-                      : "대기 중"}
-                </strong>
-              </div>
-            </div>
+            )}
 
             {uploadError && (
               <div className="sf-capture-error">
-                <AlertCircle size={18} />
+                <AlertCircle size={17} />
                 <span>{uploadError}</span>
               </div>
             )}
 
             {hasConfirmedRoi && (
               <div className="sf-roi-confirm-note">
-                <strong>얼굴 영역 확인 결과</strong>
+                <CheckCircle2 size={17} />
                 <span>
-                  검출된 세부 ROI를 읽기 전용으로 표시했습니다. 영역을 수정하지 않고 이 사진으로 분석을 이어갈 수 있습니다.
+                  <strong>얼굴 영역 확인 완료</strong>
+                  검출된 얼굴 관심 영역을 읽기 전용으로 표시했습니다. 이 사진으로 분석을 이어갈 수 있습니다.
                 </span>
               </div>
             )}
@@ -1854,6 +1503,7 @@ function AnalysisCapturePage() {
                   </>
                 )}
               </Button>
+
               {selectedFile && (
                 <Button
                   variant="secondary"
@@ -1864,68 +1514,32 @@ function AnalysisCapturePage() {
                   {selectedMethod === "webcam" ? "다시 촬영 준비" : "다시 선택하기"}
                 </Button>
               )}
+
               <p className="sf-start-help">{startHelpText}</p>
             </div>
           </Card>
         </section>
 
-        <section className="sf-capture-bottom">
-          <Card className="sf-capture-flow-card">
-            <div className="sf-bottom-title-row">
-              <div>
-                <span className="sf-card-label">분석 흐름</span>
-                <h2>입력 후 진행 흐름</h2>
-              </div>
-              <Badge>진행 순서</Badge>
-            </div>
-
-            <div className="sf-flow-grid">
-              {flowSteps.map((step, index) => {
-                const StepIcon = index === 0 ? Upload : index === 1 ? ScanFace : Sparkles;
-
-                return (
-                  <article className="sf-flow-card" key={step.title}>
-                    <span className="sf-icon-tile" aria-hidden="true">
-                      <StepIcon size={18} />
-                    </span>
-                    <div className="sf-flow-copy">
-                      <strong>{step.title}</strong>
-                      <p>{step.description}</p>
-                    </div>
-                    <span className="sf-flow-index">0{index + 1}</span>
-                  </article>
-                );
-              })}
-            </div>
-          </Card>
-
-          <Card className="sf-capture-guide-card">
-            <div className="sf-bottom-title-row">
-              <div>
-                <span className="sf-card-label">촬영 전 확인사항</span>
-                <h2>분석 전 체크</h2>
-              </div>
-              <Badge>확인</Badge>
-            </div>
-
-            <div className="sf-guide-list">
-              {uploadGuideItems.map((item) => (
-                <div className="sf-guide-row" key={item.title}>
-                  <span className="sf-icon-tile" aria-hidden="true">
-                    <CheckCircle2 size={18} />
-                  </span>
-                  <div>
-                    <strong>{item.title}</strong>
-                    <span>{item.description}</span>
-                  </div>
+        <Card className="sf-capture-guide-card">
+          <p className="sf-guide-title">촬영 전 확인사항</p>
+          <div className="sf-guide-list">
+            {uploadGuideItems.map((item) => (
+              <div className="sf-guide-row" key={item.title}>
+                <span className="sf-icon-tile" aria-hidden="true">
+                  <CheckCircle2 size={16} />
+                </span>
+                <div>
+                  <strong>{item.title}</strong>
+                  <span>{item.description}</span>
                 </div>
-              ))}
-            </div>
-          </Card>
-        </section>
+              </div>
+            ))}
+          </div>
+        </Card>
       </div>
     </PageLayout>
   );
+
 }
 
 export default AnalysisCapturePage;
