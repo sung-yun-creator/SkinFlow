@@ -777,29 +777,27 @@ function buildPersonalizedDietRoutines(analysisContext, ingredients = []) {
     const focusMetric = concernMetrics[0] || null;
     const secondMetric = concernMetrics[1] || null;
     const focusMeta = getMetricMeta(focusMetric?.code);
-    const focusIngredient = formatIngredientNames(ingredients, focusMetric?.code, 1)[0];
-    const secondIngredient = formatIngredientNames(ingredients, secondMetric?.code, 1)[0];
 
     return [
         {
             time: '아침',
             text: focusMetric?.code === 'wrinkle'
-                ? '단백질 식품과 물 한 잔으로 탄력 관리 루틴을 시작해보세요.'
-                : '비타민 C 과일이나 채소를 곁들이고 자외선 차단도 함께 챙겨보세요.',
+                ? '아침에는 물 한 잔과 삶은 달걀, 플레인 요거트처럼 부담 없는 음식으로 하루를 시작해보세요.'
+                : '아침에는 물 한 잔과 키위, 오렌지, 토마토처럼 산뜻한 과일이나 채소를 곁들여보세요.',
             category: focusMeta.name,
         },
         {
             time: '점심',
-            text: focusIngredient
-                ? `${focusIngredient} 추천 흐름과 맞춰 채소, 단백질, 과일을 균형 있게 선택해보세요.`
-                : '채소와 단백질이 포함된 식사를 선택해 피부 컨디션을 안정적으로 유지해보세요.',
+            text: focusMetric?.code === 'wrinkle'
+                ? '점심에는 닭가슴살 샐러드나 두부 덮밥처럼 든든하지만 무겁지 않은 식사를 선택해보세요.'
+                : '점심에는 브로콜리, 파프리카, 닭가슴살 샐러드처럼 색이 다양한 식사를 골라보는 것도 좋습니다.',
             category: '맞춤추천 연계',
         },
         {
             time: '저녁',
-            text: secondIngredient
-                ? `${secondIngredient} 관리 방향을 떠올리며 단 음료와 늦은 야식 빈도를 줄여보세요.`
-                : '야식과 과한 당 섭취를 줄이고 충분한 수면으로 회복 루틴을 준비하세요.',
+            text: secondMetric?.code === 'wrinkle'
+                ? '저녁에는 늦은 야식을 잠시 줄이고, 잠들기 전 몸에 부담이 적은 루틴으로 마무리해보세요.'
+                : '저녁에는 단 음료나 달콤한 간식을 잠시 쉬고, 늦은 야식도 조금 덜어내보세요.',
             category: secondMetric?.name || '생활 루틴',
         },
     ];
