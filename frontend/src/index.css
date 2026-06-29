@@ -827,23 +827,44 @@ input {
   gap: 12px;
 }
 
+/* 로그인 버튼 아래의 계정 찾기 영역입니다.
+   LoginPage.jsx 구조상 로그인 폼 바로 다음에 배치되므로,
+   여기의 margin-top이 로그인 버튼과 "아이디, 비밀번호 찾기" 사이 간격을 결정합니다. */
 .auth-account-help {
   display: grid;
-  gap: 8px;
-  margin: -2px 0 4px;
+  gap: 12px; /* 패널이 열렸을 때 버튼과 재설정 박스 사이 간격입니다. */
+  align-items: start;
+  margin: 14px 0 8px; /* 위: 로그인 버튼과의 간격 / 아래: 회원가입 문구와의 간격 */
 }
 
+/* 텍스트 링크처럼 보이는 버튼입니다.
+   실제로는 button 태그이므로 padding과 line-height를 지정해 클릭 영역과 정렬을 안정화합니다. */
 .auth-account-help-button {
   width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
   border: 0;
-  padding: 0;
+  padding: 2px 0 3px;
   color: #167d7f;
   background: transparent;
   font: inherit;
   font-size: 13px;
   font-weight: 900;
+  line-height: 1.4;
   cursor: pointer;
   text-align: left;
+  transition: color 0.18s ease, opacity 0.18s ease;
+}
+
+.auth-account-help-button:hover {
+  color: #0f172a;
+}
+
+.auth-account-help-button:focus-visible {
+  outline: 3px solid rgba(22, 125, 127, 0.18);
+  outline-offset: 4px;
+  border-radius: 8px;
 }
 
 .auth-account-help-panel {
@@ -4974,4 +4995,141 @@ input {
       bottom: max(12px, env(safe-area-inset-bottom, 0px)) !important;
     }
   }
+}
+
+/* ==========================================================================
+   Final Flat UI Cleanup
+   목적:
+   1. 버튼 아래 먹물처럼 보이는 그림자 제거
+   2. 카드 아래 퍼지는 그림자 제거
+   3. 아이콘 타일의 과한 광택/번짐 제거
+   4. 랜딩/로그인 화면의 퍼지는 배경 그라데이션 제거
+
+   사용 방법:
+   - 이 코드를 index.css "맨 아래"에 붙여넣으면
+     위에서 작성된 기존 스타일을 아래 코드가 덮어씁니다.
+   - 초보자는 기존 코드를 직접 수정하지 말고
+     맨 아래에 추가하는 방식이 가장 안전합니다.
+   ========================================================================== */
+
+/* 1) 전체 앱 배경의 퍼지는 그라데이션 제거
+   - 현재 app-shell에 radial-gradient가 있어서
+     화면 가장자리에 먹물처럼 퍼진 느낌이 보일 수 있습니다. */
+.app-shell {
+  background: var(--color-background) !important;
+}
+
+/* 2) 카드 그림자 제거
+   - 카드 아래 퍼지는 회색 그림자를 없애고
+     대신 얇은 테두리만 남겨서 깔끔하게 보이게 합니다. */
+:root {
+  --shadow-card: none;
+}
+
+.sf-card,
+.temp-card {
+  box-shadow: none !important;
+  border: 1px solid rgba(226, 232, 240, 0.95) !important;
+}
+
+/* 3) 버튼 아래 퍼지는 그림자 제거
+   - 로그인 버튼, 무료 피부 분석 시작 버튼처럼
+     아래가 먹물처럼 퍼져 보이는 원인을 제거합니다. */
+.sf-button-primary,
+.sf-button-accent,
+.auth-submit-button,
+.logout-button {
+  box-shadow: none !important;
+}
+
+/* 4) 버튼 hover 시 더 진해지는 그림자 제거
+   - 마우스를 올렸을 때 생기는 추가 번짐도 제거합니다. */
+.sf-button:hover,
+.auth-submit-button:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* 5) 추천 카드 hover 시 그림자 제거
+   - 카드에 마우스를 올렸을 때 떠 보이면서
+     그림자가 진해지는 효과를 없앱니다. */
+.dashboard-recommend-card:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* 6) 아이콘 박스/타일의 glow(광택 그림자) 제거
+   - 작은 아이콘 주변에 퍼지는 그림자를 제거합니다. */
+.brand-icon,
+.auth-preview-icon,
+.recommend-icon,
+.guide-card-icon,
+.history-date-icon,
+.summary-icon,
+.ingredient-icon,
+.reason-icon,
+.diet-summary-icon,
+.diet-guide-icon,
+.routine-icon,
+.diet-next-icon,
+.history-summary-icon,
+.trend-insight-icon,
+.record-date-icon,
+.history-next-icon,
+.profile-avatar,
+.skin-setting-icon,
+.analysis-setting-icon,
+.activity-icon,
+.account-menu-icon,
+.logout-icon,
+.loading-summary-icon,
+.loading-notice-icon,
+.analysis-step-icon,
+.result-metric-icon,
+.result-ai-icon,
+.save-card-icon,
+.input-card-icon,
+.capture-icon-box {
+  box-shadow: none !important;
+}
+
+/* 7) 로그인 화면의 "아이디, 비밀번호 찾기" 간격도 같이 정리
+   - 버튼 바로 아래 너무 붙어 보이지 않도록 여백 보정 */
+.auth-account-help {
+  display: grid;
+  gap: 12px;
+  align-items: start;
+  margin: 14px 0 8px;
+}
+
+/* 8) 계정 찾기 버튼 클릭 영역/정렬 보정
+   - 글자가 너무 딱 붙어 보이지 않게 정리 */
+.auth-account-help-button {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  border: 0;
+  padding: 2px 0 3px;
+  color: #167d7f;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.4;
+  cursor: pointer;
+  text-align: left;
+  transition: color 0.18s ease, opacity 0.18s ease;
+}
+
+.auth-account-help-button:hover {
+  color: #0f172a;
+}
+
+/* 9) 버튼 포커스 스타일
+   - 키보드로 이동할 때도 너무 거칠지 않게 표시 */
+.auth-account-help-button:focus-visible {
+  outline: 3px solid rgba(22, 125, 127, 0.18);
+  outline-offset: 4px;
+  border-radius: 8px;
 }

@@ -220,6 +220,10 @@ function getProductPriceAmount(item) {
   return Number.isFinite(priceAmount) && priceAmount > 0 ? priceAmount : null;
 }
 
+function isSearchResultUrl(url) {
+  return /search|getSearchMain|query=/i.test(String(url || ""));
+}
+
 function formatProductPrice(priceAmount) {
   return `${Math.round(priceAmount).toLocaleString("ko-KR")}원`;
 }
@@ -1385,13 +1389,13 @@ function RecommendationPage() {
                       <div className="sf-ingredient-main">
                         <h3>{ingredientName}</h3>
                         <p>{item.description}</p>
-                        {hasText(recommendationReason) && (
+                        {expandRecommendationReason && hasText(recommendationReason) && (
                           <div className="sf-product-detail">
                             <span className="sf-product-detail-label">추천 이유</span>
                             <p className="sf-product-reason">{recommendationReason}</p>
                           </div>
                         )}
-                        {hasText(referenceBasisHint) && (
+                        {expandRecommendationReason && hasText(referenceBasisHint) && (
                           <div className="sf-tag-row">
                             <span className="sf-tag">{referenceBasisHint}</span>
                           </div>
@@ -1459,12 +1463,12 @@ function RecommendationPage() {
                     .join(" ")}`.trim();
 
                   const productSearchUrl = `https://www.oliveyoung.co.kr/store/search/getSearchMain.do?query=${encodeURIComponent(oliveKeyword)}`;
-                  const hasDirectProductUrl = hasText(item.productUrl);
                   const productLinkUrl = item.productUrl || item.productSearchUrl || productSearchUrl;
-                  const productLinkLabel = hasDirectProductUrl ? "제품 링크 열기" : "성분 검색 결과 보기";
+                  const hasDirectProductUrl = hasText(item.productUrl) && !isSearchResultUrl(item.productUrl);
+                  const productLinkLabel = hasDirectProductUrl ? "제품 링크 열기" : "검색 결과 보기";
                   const productLinkNote = hasDirectProductUrl
                     ? "제품 상세 화면으로 이동합니다."
-                    : "추천 성분과 연결해 참고할 수 있는 검색 결과로 이동합니다.";
+                    : "추천 성분과 제품명을 기준으로 참고할 수 있는 검색 결과로 이동합니다.";
 
                   return (
                     <article className="sf-product-card" key={item.id || item.name}>
@@ -1521,13 +1525,13 @@ function RecommendationPage() {
                             </div>
                           </div>
                         )}
-                        {hasText(recommendationReason) && (
+                        {expandRecommendationReason && hasText(recommendationReason) && (
                           <div className="sf-product-detail">
                             <span className="sf-product-detail-label">추천 이유</span>
                             <p className="sf-product-reason">{recommendationReason}</p>
                           </div>
                         )}
-                        {hasText(referenceBasisHint) && (
+                        {expandRecommendationReason && hasText(referenceBasisHint) && (
                           <div className="sf-tag-row">
                             <span className="sf-tag">{referenceBasisHint}</span>
                           </div>

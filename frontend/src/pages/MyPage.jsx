@@ -453,10 +453,34 @@ function MyPage() {
 
     const profilePayload = {
       name: profileForm.name.trim(),
-      gender: profileForm.gender || null,
-      birthDate: profileForm.birthDate || null,
-      skinType: profileForm.skinType || null,
+      gender: profileForm.gender,
+      birthDate: profileForm.birthDate,
+      skinType: profileForm.skinType,
     };
+
+    if (!profilePayload.name) {
+      setProfileFormError("이름을 입력해 주세요.");
+      setProfileFormMessage("");
+      return;
+    }
+
+    if (!profilePayload.gender) {
+      setProfileFormError("성별을 선택해 주세요.");
+      setProfileFormMessage("");
+      return;
+    }
+
+    if (!profilePayload.birthDate) {
+      setProfileFormError("생년월일을 선택해 주세요.");
+      setProfileFormMessage("");
+      return;
+    }
+
+    if (!profilePayload.skinType) {
+      setProfileFormError("피부 타입을 선택해 주세요.");
+      setProfileFormMessage("");
+      return;
+    }
 
     try {
       setIsSavingProfile(true);
@@ -1179,6 +1203,7 @@ function MyPage() {
                         onChange={handleProfileFormChange}
                         placeholder="이름을 입력하세요"
                         autoComplete="name"
+                        required
                       />
                     </div>
                   </label>
@@ -1187,8 +1212,8 @@ function MyPage() {
                     <span>성별</span>
                     <div className="input-box">
                       <UserRound size={17} />
-                      <select name="gender" value={profileForm.gender} onChange={handleProfileFormChange}>
-                        <option value="">미입력</option>
+                      <select name="gender" value={profileForm.gender} onChange={handleProfileFormChange} required>
+                        <option value="" disabled>성별 선택</option>
                         {genderOptions.map((option) => (
                           <option key={option.value} value={option.value}>
                             {option.label}
@@ -1207,6 +1232,7 @@ function MyPage() {
                         name="birthDate"
                         value={profileForm.birthDate}
                         onChange={handleProfileFormChange}
+                        required
                       />
                     </div>
                   </label>
@@ -1215,8 +1241,8 @@ function MyPage() {
                     <span>피부 타입</span>
                     <div className="input-box">
                       <Droplets size={17} />
-                      <select name="skinType" value={profileForm.skinType} onChange={handleProfileFormChange}>
-                        <option value="">미입력</option>
+                      <select name="skinType" value={profileForm.skinType} onChange={handleProfileFormChange} required>
+                        <option value="" disabled>피부 타입 선택</option>
                         {skinTypeOptions.map((option) => (
                           <option key={option.value} value={option.value}>
                             {option.label}
