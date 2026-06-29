@@ -114,8 +114,8 @@ function toScore(value) {
 }
 
 // 완료된 분석 결과만 점수 카드로 보여주기 위한 안전 장치입니다.
+// 상태가 명시된 응답은 completed일 때만 허용하고, 상태가 없는 기존 응답은 호환 처리합니다.
 // pending/processing 상태를 완료처럼 표시하면 사용자가 실제 분석 결과로 오해할 수 있습니다.
-// 저장 완료와 completed 상태를 모두 만족할 때만 결과 화면을 보여주도록 확인합니다.
 function isCompletedAnalysisResult(analysisResult) {
   const status =
     analysisResult?.analysisStatus ??
@@ -142,7 +142,7 @@ function isCompletedAnalysisResult(analysisResult) {
   return true;
 }
 
-// 점수 카드 생성은 saved=true와 completed 상태를 통과한 뒤에만 진행합니다.
+// 점수 카드 생성은 saved=true이고 위 완료 여부 확인을 통과한 결과에만 진행합니다.
 // 임시값이나 null 점수를 기본 점수로 채우지 않아 실제 응답 기준 UI를 유지합니다.
 // API 지표 배열을 결과 카드에서 바로 쓸 수 있는 형태로 바꿉니다.
 function buildMetricCards(analysisResult) {
@@ -156,7 +156,7 @@ function buildMetricCards(analysisResult) {
       analysisResult.total_skin_score ??
       analysisResult.score
   );
-  // 색소침착/주름 지표를 결과 카드 배열로 변환합니다.
+  // API 지표 배열 전체를 카드 표시용 데이터로 변환합니다.
   const metricCards = [];
 
   if (totalScore !== null) {
@@ -205,8 +205,8 @@ function buildMetricCards(analysisResult) {
   return metricCards;
 }
 
-// AI 요약 카드가 단순 등급 반복으로 보이지 않도록, 점수와 지표 차이를 사용자 문장으로 풀어줍니다.
-// 백엔드 점수와 지표명만 사용하고 새로운 분석값을 임의로 만들지는 않습니다.
+// 저장된 결과를 이용해 화면용 요약 문장을 구성하며 추가 AI 요청은 하지 않습니다.
+// 저장된 점수와 지표명만 사용하고 새로운 분석값을 임의로 만들지는 않습니다.
 function buildAiSummary({ analysisResult, metricCards, hasDisplayableMetrics, isPending, hasSavedResult }) {
   if (!hasDisplayableMetrics) {
     return {
@@ -321,7 +321,7 @@ const emptyResultNoticeItems = [
 
 function AnalysisResultPage() {
   const isLoggedIn = hasLoginToken();
-  // localStorage에 저장된 최신 분석 결과를 읽고, 화면에서 사용할 수 있는 형태로 보관합니다.
+  // 이 화면은 API를 다시 호출하지 않고 localStorage에 저장된 최신 분석 결과를 읽어 표시합니다.
   const latestAnalysis = useMemo(
     () => (isLoggedIn ? readLatestAnalysisResult() : null),
     [isLoggedIn],

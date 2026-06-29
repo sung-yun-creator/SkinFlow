@@ -191,7 +191,7 @@ function toSafeArray(value) {
 
 // checks 응답은 사용자가 직접 체크할 수 있는 오늘의 행동 목록으로 변환합니다.
 // 체크 상태는 서버 저장값이 아니라 현재 화면에서만 유지되는 UI 상태입니다.
-// 체크리스트와 루틴을 사용자가 실행할 수 있는 항목 목록으로 바꿉니다.
+// 체크리스트 항목을 사용자가 실행할 수 있는 형태로 바꿉니다.
 function createActionItems(checks) {
   return checks.map((item, index) => ({
     id: item.id ?? `check-${index}`,
@@ -1179,7 +1179,7 @@ function DietGuidePage() {
                 <strong>{basisTitle}</strong>
                 {basisLabel && <span>{basisLabel}</span>}
               </div>
-              {/* 추천 기준은 백엔드가 제공한 selectedMetricName/referenceBasis/source 설명만 요약 표시합니다. */}
+              {/* 백엔드 기준값을 해석해 화면용 문장과 fallback 안내를 구성합니다. */}
               <p>{basisDescription}</p>
               {hasText(summaryRecommendationReason) && (
                 <p>

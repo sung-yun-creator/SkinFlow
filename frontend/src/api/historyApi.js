@@ -28,8 +28,8 @@ const defaultHistoryDetail = {
   recommendations: [],
 };
 
-// 점수 추이 API가 비어 있거나 실패해도 그래프 영역이 깨지지 않도록 기본 구조를 고정합니다.
-// labels/series가 빈 배열이면 화면에서는 빈 상태 카드를 보여줍니다.
+// 요청이 성공한 뒤 배열 필드가 누락되거나 응답이 비어 있으면 화면용 기본 구조로 정규화합니다.
+// 요청 실패는 http.get에서 예외로 전달되며, 호출한 화면에서 별도로 처리합니다.
 // 그래프 API 기본 구조입니다.
 const defaultHistoryScoreTrends = {
   summary: {

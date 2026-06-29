@@ -83,7 +83,7 @@ function getAuthSnapshot() {
 }
 
 // 프로필 원형 아바타에 들어갈 짧은 글자를 만드는 함수입니다.
-// 이름이 있으면 첫 글자를, 없으면 기본 사용자 아이콘을 대신 보여줄 수 있게 합니다.
+// 이름이 있으면 첫 글자를, 없으면 기본 이니셜 ME를 표시합니다.
 function getInitials(name) {
   if (!name || name === "내 계정") return "ME";
 
