@@ -1006,7 +1006,7 @@ function AnalysisResultPage() {
                   <div className="sf-result-score-help-list">
                     <span>점수가 높을수록 현재 피부 상태가 양호하다는 의미입니다.</span>
                     <span>점수가 낮은 항목은 관리 우선순위가 높게 표시됩니다.</span>
-                    <span>피부 관리 참고 정보이며 의료적 판단이나 관리 확정 기준이 아닙니다.</span>
+                    <span>피부 관리 참고 정보이며 개인별 관리 방향을 돕기 위한 안내입니다.</span>
                   </div>
                   <div className="sf-result-grade-legend" aria-label="피부 상태 단계 안내">
                     <span style={{ "--legend-color": "#167D7F", "--legend-bg": "rgba(22, 125, 127, 0.11)" }}>
