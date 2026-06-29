@@ -35,6 +35,39 @@ const ANALYSIS_METRIC_TYPES = [
     },
 ];
 
+const SCORE_GRADES = [
+    {
+        code: 'A',
+        label: 'A등급',
+        description: '매우 좋은 상태입니다.',
+        minScore: 85,
+    },
+    {
+        code: 'B',
+        label: 'B등급',
+        description: '좋은 상태입니다.',
+        minScore: 70,
+    },
+    {
+        code: 'C',
+        label: 'C등급',
+        description: '보통 수준으로 일부 관리가 필요합니다.',
+        minScore: 55,
+    },
+    {
+        code: 'D',
+        label: 'D등급',
+        description: '주의가 필요한 상태입니다.',
+        minScore: 40,
+    },
+    {
+        code: 'E',
+        label: 'E등급',
+        description: '집중 관리가 필요한 상태입니다.',
+        minScore: 0,
+    },
+];
+
 function findGradeByScore(score) {
     // 점수를 등급 기준표에 맞춰 good/caution/risk 중 하나로 변환합니다.
     const numericScore = Number(score);
@@ -46,8 +79,21 @@ function findGradeByScore(score) {
     return ANALYSIS_GRADES.find((grade) => numericScore >= grade.minScore) || ANALYSIS_GRADES[1];
 }
 
+function findScoreGradeByScore(score) {
+    // 화면에서 점수 해석을 쉽게 보여주기 위한 A~E 표시용 등급입니다. DB 저장용 good/caution/risk와는 분리합니다.
+    const numericScore = Number(score);
+
+    if (!Number.isFinite(numericScore)) {
+        return SCORE_GRADES[2];
+    }
+
+    return SCORE_GRADES.find((grade) => numericScore >= grade.minScore) || SCORE_GRADES[2];
+}
+
 module.exports = {
     ANALYSIS_GRADES,
     ANALYSIS_METRIC_TYPES,
+    SCORE_GRADES,
     findGradeByScore,
+    findScoreGradeByScore,
 };

@@ -3,6 +3,7 @@ const {
     groupMetricsByAnalysisId,
     toAnalysis,
     toRecommendation,
+    toScoreGrade,
 } = require('../utils/analysisResponseMapper');
 const { toNumber } = require('../utils/number');
 
@@ -45,11 +46,14 @@ function toTrendLabel(record) {
 }
 
 function toTrendPoint(record) {
+    const totalScore = toNumber(record.total_skin_score);
+
     return {
         analysisId: record.skin_analysis_id,
         analyzedAt: record.analyzed_at || record.created_at || null,
         label: toTrendLabel(record),
-        totalScore: toNumber(record.total_skin_score),
+        totalScore,
+        scoreGrade: toScoreGrade(totalScore),
         status: record.analysis_status || null,
         gradeName: record.grade_name || null,
     };
@@ -87,6 +91,7 @@ function toScoreTrendResponse(records, metricsByAnalysisId, limit) {
                 analyzedAt: point.analyzedAt,
                 label: point.label,
                 score: point.totalScore,
+                scoreGrade: point.scoreGrade,
                 gradeName: point.gradeName,
                 status: point.status,
             })),
@@ -108,6 +113,7 @@ function toScoreTrendResponse(records, metricsByAnalysisId, limit) {
                     analyzedAt: record.analyzed_at || record.created_at || null,
                     label: toTrendLabel(record),
                     score: metric ? metric.score : null,
+                    scoreGrade: metric ? metric.scoreGrade : null,
                     gradeName: metric ? metric.grade : null,
                     status: record.analysis_status || null,
                 };
