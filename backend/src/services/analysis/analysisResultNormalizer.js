@@ -1,4 +1,7 @@
-const { findGradeByScore } = require('../../constants/analysisReference');
+const {
+    findGradeByScore,
+    findScoreGradeByScore,
+} = require('../../constants/analysisReference');
 
 // AI 서버 원본 응답을 DB 저장과 프론트 응답에 맞는 분석 결과 구조로 정규화합니다.
 function toScore(value) {
@@ -15,6 +18,115 @@ function firstDefined(...values) {
     return values.find((value) => value !== undefined && value !== null && value !== '');
 }
 
+function calculateAge(birthDate) {
+    if (!birthDate) {
+        return null;
+    }
+
+    const parsedDate = new Date(birthDate);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+        return null;
+    }
+
+    const today = new Date();
+    let age = today.getFullYear() - parsedDate.getFullYear();
+    const hasBirthdayPassed = today.getMonth() > parsedDate.getMonth()
+        || (today.getMonth() === parsedDate.getMonth() && today.getDate() >= parsedDate.getDate());
+
+    if (!hasBirthdayPassed) {
+        age -= 1;
+    }
+
+    return age >= 0 && age < 130 ? age : null;
+}
+
+function getAgeBandLabel(birthDate) {
+    const age = calculateAge(birthDate);
+
+    if (age === null) {
+        return null;
+    }
+
+    if (age < 20) {
+        return '10대 이하';
+    }
+
+    if (age >= 60) {
+        return '60대 이상';
+    }
+
+    return `${Math.floor(age / 10) * 10}대`;
+}
+
+function getGenderLabel(gender) {
+    const normalizedGender = String(gender || '').trim().toUpperCase();
+
+    if (['F', 'FEMALE', 'WOMAN', '여성'].includes(normalizedGender)) {
+        return '여성';
+    }
+
+    if (['M', 'MALE', 'MAN', '남성'].includes(normalizedGender)) {
+        return '남성';
+    }
+
+    return null;
+}
+
+function getPrimaryCareMetric(metrics) {
+    return [...metrics].sort((left, right) => left.score - right.score)[0] || null;
+}
+
+function toScoreGrade(score) {
+    const scoreGrade = findScoreGradeByScore(score);
+
+    return {
+        code: scoreGrade.code,
+        label: scoreGrade.label,
+        description: scoreGrade.description,
+    };
+}
+
+function getMetricCareLabel(metric) {
+    if (metric?.code === 'pigmentation') {
+        return '색소침착';
+    }
+
+    if (metric?.code === 'wrinkle') {
+        return '주름';
+    }
+
+    return metric?.name || '피부 지표';
+}
+
+function getMetricCareAdvice(metric) {
+    if (metric?.code === 'pigmentation') {
+        return '자외선 차단과 피부톤 관리를 우선해보세요.';
+    }
+
+    if (metric?.code === 'wrinkle') {
+        return '보습과 탄력 관리 루틴을 우선해보세요.';
+    }
+
+    return '낮게 나온 지표를 중심으로 관리해보세요.';
+}
+
+function buildProfileSummary({ totalScore, metrics, scoreGrade }, userProfile = null) {
+    const ageBandLabel = getAgeBandLabel(userProfile?.birth_date || userProfile?.birthDate);
+    const genderLabel = getGenderLabel(userProfile?.gender);
+    const profileLabel = [ageBandLabel, genderLabel].filter(Boolean).join(' ');
+    const scoreLabel = `${Math.round(totalScore)}점`;
+    const gradeLabel = scoreGrade?.label || toScoreGrade(totalScore).label;
+    const careMetric = getPrimaryCareMetric(metrics);
+    const careLabel = getMetricCareLabel(careMetric);
+    const careAdvice = getMetricCareAdvice(careMetric);
+
+    if (profileLabel) {
+        return `${profileLabel} 기준 피부 점수는 ${scoreLabel}, ${gradeLabel}입니다. ${careLabel} 점수가 낮아 ${careAdvice}`;
+    }
+
+    return `현재 피부 점수는 ${scoreLabel}, ${gradeLabel}입니다. ${careLabel} 점수가 낮아 ${careAdvice}`;
+}
 function normalizeMetric(code, label, source) {
     if (source === null || source === undefined || source === '') {
         return null;
@@ -42,6 +154,7 @@ function normalizeMetric(code, label, source) {
         score,
     ));
     const metricGrade = findGradeByScore(score);
+    const scoreGrade = toScoreGrade(score);
 
     return {
         code,
@@ -53,6 +166,7 @@ function normalizeMetric(code, label, source) {
             name: metricGrade.name,
             description: metricGrade.description,
         },
+        scoreGrade,
     };
 }
 
@@ -84,7 +198,7 @@ function toSafeRawResult(aiResult) {
     };
 }
 
-function normalizeAnalysisResult(aiResult) {
+function normalizeAnalysisResult(aiResult, userProfile = null) {
     // AI 서버 응답 형태가 조금 달라도 프론트/DB가 쓰는 공통 분석 구조로 맞춥니다.
     const prediction = aiResult?.prediction || {};
     const predictionResult = prediction.result || aiResult?.result || null;
@@ -142,6 +256,7 @@ function normalizeAnalysisResult(aiResult) {
         metrics.reduce((sum, metric) => sum + metric.score, 0) / metrics.length,
     ));
     const grade = findGradeByScore(totalScore);
+    const scoreGrade = toScoreGrade(totalScore);
 
     return {
         persistable: true,
@@ -152,11 +267,12 @@ function normalizeAnalysisResult(aiResult) {
             name: grade.name,
             description: grade.description,
         },
+        scoreGrade,
         summary: firstDefined(
+            buildProfileSummary({ totalScore, metrics, scoreGrade }, userProfile),
             predictionResult.summary,
             predictionResult.summary_text,
             prediction.message,
-            `${grade.name} 상태입니다. 색소침착과 주름 지표를 기준으로 산출한 결과입니다.`,
         ),
         metrics,
         roi: aiResult?.roi || null,
@@ -166,5 +282,7 @@ function normalizeAnalysisResult(aiResult) {
 
 
 module.exports = {
+    buildProfileSummary,
     normalizeAnalysisResult,
+    toScoreGrade,
 };

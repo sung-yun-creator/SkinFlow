@@ -1,14 +1,28 @@
+const { findScoreGradeByScore } = require('../constants/analysisReference');
 const { toNumber } = require('./number');
 
-// DB에서 가져온 분석/지표/추천 행을 API 응답용 camelCase 구조로 바꾸는 공통 mapper입니다.
+// DB에서 가져온 분석/지표/추천 row를 API 응답용 camelCase 구조로 바꾸는 공통 mapper입니다.
+function toScoreGrade(score) {
+    const scoreGrade = findScoreGradeByScore(score);
+
+    return {
+        code: scoreGrade.code,
+        label: scoreGrade.label,
+        description: scoreGrade.description,
+    };
+}
+
 function toMetric(metric) {
+    const score = toNumber(metric.metric_score);
+
     return {
         id: metric.skin_metric_id,
         code: metric.metric_code || null,
         name: metric.metric_name || null,
         value: toNumber(metric.metric_value),
-        score: toNumber(metric.metric_score),
+        score,
         grade: metric.grade_name || null,
+        scoreGrade: toScoreGrade(score),
         unit: metric.unit_name || null,
     };
 }
@@ -28,13 +42,15 @@ function groupMetricsByAnalysisId(metrics) {
 }
 
 function toAnalysis(record, { metrics } = {}) {
+    const totalScore = toNumber(record.total_skin_score);
     const analysis = {
         analysisId: record.skin_analysis_id,
         analyzedAt: record.analyzed_at || record.created_at || null,
-        totalScore: toNumber(record.total_skin_score),
+        totalScore,
         status: record.analysis_status || null,
         gradeName: record.grade_name || null,
         statusDescription: record.grade_description || null,
+        scoreGrade: toScoreGrade(totalScore),
         summary: record.summary_text || null,
     };
 
@@ -66,4 +82,5 @@ module.exports = {
     toAnalysis,
     toMetric,
     toRecommendation,
+    toScoreGrade,
 };

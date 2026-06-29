@@ -1,4 +1,5 @@
 const analysisRepository = require('../repositories/analysisRepository');
+const userRepository = require('../repositories/userRepository');
 const { deleteStoredImage, savePrivacyImage } = require('./analysisImageStorageService');
 const { analyzeSkin, extractRoi } = require('./analysis/analysisAiClient');
 const { normalizeAnalysisResult } = require('./analysis/analysisResultNormalizer');
@@ -57,8 +58,11 @@ async function extractAndSaveRoi(userId, analysisId, file) {
 }
 
 async function analyzeAndSaveSkin(userId, file) {
-    const aiResult = await analyzeSkin(file);
-    const normalized = normalizeAnalysisResult(aiResult);
+    const [aiResult, userProfile] = await Promise.all([
+        analyzeSkin(file),
+        userRepository.findUserById(userId),
+    ]);
+    const normalized = normalizeAnalysisResult(aiResult, userProfile);
 
     if (!normalized.persistable) {
         // 실패/대기/비정상 결과는 사용자에게 반환만 하고 DB 분석 이력은 만들지 않습니다.
