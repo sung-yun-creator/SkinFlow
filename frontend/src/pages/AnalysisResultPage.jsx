@@ -1,3 +1,7 @@
+// 분석 결과 페이지입니다.
+// 분석이 완료된 결과를 localStorage에서 읽어 종합 점수, 지표별 점수, 추천 이동 흐름을 보여주는 화면입니다.
+// 이 파일은 화면 표시와 사용자 동작 처리를 담당하며, 백엔드/DB/AI 로직은 여기서 직접 수정하지 않습니다.
+// 주석은 코드 흐름 이해를 돕기 위한 설명이며 실제 동작에는 영향을 주지 않습니다.
 import { useMemo } from "react";
 import {
   ArrowRight,
@@ -12,9 +16,11 @@ import {
 import PageLayout from "../components/layout/PageLayout";
 import Button from "../components/common/Button";
 import Badge from "../components/common/Badge";
+  // 분석 진행 화면에서 저장한 최신 분석 결과를 꺼내기 위한 localStorage 키입니다.
 
 
 const ANALYSIS_RESULT_KEY = "skinflow_latest_analysis_result";
+ // 분석 진행 화면에서 저장해 둔 최신 분석 결과를 localStorage에서 읽어옵니다.
 
 function readLatestAnalysisResult() {
   try {
@@ -23,12 +29,14 @@ function readLatestAnalysisResult() {
     return null;
   }
 }
+ // 색소침착/주름 지표를 화면에서 구분하기 위한 색상을 정합니다.
 
 function getMetricColor(code, index) {
   if (code === "pigmentation") return "#167D7F";
   if (code === "wrinkle") return "#22C5C8";
   return index % 2 === 0 ? "#167D7F" : "#14B8A6";
 }
+ // 백엔드나 화면 문구에서 내려온 등급 문장을 짧은 등급명으로 정리합니다.
 
 function normalizeGradeLabel(status) {
   const normalizedStatus = String(status || "").replace(/\s/g, "");
@@ -50,6 +58,7 @@ function normalizeGradeLabel(status) {
 
   return null;
 }
+ // 점수와 등급에 따라 배지 색상, 안내 문구, 관리 방향 문구를 정합니다.
 
 function getScoreGradeMeta(score, status) {
   const label =
@@ -82,6 +91,7 @@ function getScoreGradeMeta(score, status) {
 
   return gradeMap[label] || gradeMap.관리필요;
 }
+ // 점수 값을 0~100 사이의 숫자로 안전하게 변환합니다.
 
 function toScore(value) {
   if (value === null || value === undefined || value === "") {
@@ -97,6 +107,9 @@ function toScore(value) {
   return Math.max(0, Math.min(100, Math.round(score)));
 }
 
+// 완료된 분석 결과만 점수 카드로 보여주기 위한 안전 장치입니다.
+// pending/processing 상태를 완료처럼 표시하면 사용자가 실제 분석 결과로 오해할 수 있습니다.
+// 저장 완료와 completed 상태를 모두 만족할 때만 결과 화면을 보여주도록 확인합니다.
 function isCompletedAnalysisResult(analysisResult) {
   const status =
     analysisResult?.analysisStatus ??
@@ -123,6 +136,9 @@ function isCompletedAnalysisResult(analysisResult) {
   return true;
 }
 
+// 점수 카드 생성은 saved=true와 completed 상태를 통과한 뒤에만 진행합니다.
+// 임시값이나 null 점수를 기본 점수로 채우지 않아 실제 응답 기준 UI를 유지합니다.
+// API 지표 배열을 결과 카드에서 바로 쓸 수 있는 형태로 바꿉니다.
 function buildMetricCards(analysisResult) {
   if (!analysisResult?.saved || !isCompletedAnalysisResult(analysisResult)) {
     return [];
@@ -134,6 +150,7 @@ function buildMetricCards(analysisResult) {
       analysisResult.total_skin_score ??
       analysisResult.score
   );
+  // 색소침착/주름 지표를 결과 카드 배열로 변환합니다.
   const metricCards = [];
 
   if (totalScore !== null) {
@@ -181,6 +198,7 @@ function buildMetricCards(analysisResult) {
 
   return metricCards;
 }
+ // 분석 결과가 없거나 대기 상태일 때 사용자에게 보여줄 안내 문구 모음입니다.
 
 const emptyResultMessages = {
   pending: {
@@ -199,6 +217,7 @@ const emptyResultMessages = {
       "표시 가능한 점수 데이터가 없어 점수 카드와 원형 그래프를 표시하지 않습니다. 분석 완료 후 점수가 연결되면 이 영역에 표시됩니다.",
   },
 };
+ // 결과 확인 후 사용자가 이동할 수 있는 다음 행동 카드 목록입니다.
 
 const nextCards = [
   {
@@ -223,14 +242,17 @@ const nextCards = [
     badge: "이력",
   },
 ];
+ // 결과 없음 화면에서 보여줄 주의/안내 항목입니다.
 
 const emptyResultNoticeItems = [
   "저장된 분석 결과가 없을 때는 임의 점수를 표시하지 않습니다.",
   "AI 모델 연결 전에는 pending 상태를 안내하고 가짜 이력을 생성하지 않습니다.",
   "업로드 이미지와 웹캠 촬영 이미지는 같은 분석 요청 흐름으로 처리됩니다.",
 ];
+ // 분석 결과 화면 전체를 담당하는 React 컴포넌트입니다.
 
 function AnalysisResultPage() {
+  // localStorage에 저장된 최신 분석 결과를 읽고, 화면에서 사용할 수 있는 형태로 보관합니다.
   const latestAnalysis = useMemo(() => readLatestAnalysisResult(), []);
   const analysisResult = latestAnalysis?.result || null;
   const hasSavedResult = Boolean(analysisResult?.saved);
@@ -252,6 +274,7 @@ function AnalysisResultPage() {
     [analysisResult],
   );
 
+  // 화면 표시 가능 여부를 따로 계산해 빈 상태, 대기 상태, 점수 표시 상태를 명확히 나눕니다.
   const hasDisplayableMetrics = hasSavedResult && metricCards.length > 0;
   const emptyResultMessage = isPending
     ? emptyResultMessages.pending
@@ -307,6 +330,7 @@ function AnalysisResultPage() {
         ]
         : emptyResultNoticeItems;
 
+  // 아래 JSX는 결과 없음 상태, 분석 대기 상태, 완료 결과 상태를 나누어 화면에 표시합니다.
   return (
     <PageLayout>
       <style>

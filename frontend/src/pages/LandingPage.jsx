@@ -1,3 +1,7 @@
+// 랜딩 페이지입니다.
+// 로그인 전 사용자가 SkinFlow의 핵심 기능과 분석 진행 상태를 확인하는 첫 화면입니다.
+// 이 파일은 화면 표시와 사용자 동작 처리를 담당하며, 백엔드/DB/AI 로직은 여기서 직접 수정하지 않습니다.
+// 주석은 코드 흐름 이해를 돕기 위한 설명이며 실제 동작에는 영향을 주지 않습니다.
 import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
@@ -17,10 +21,13 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import Button from "../components/common/Button";
+  // 분석 진행 상태를 localStorage에 저장할 때 사용하는 키입니다.
 
 
 const ANALYSIS_PROGRESS_KEY = "skinflow_analysis_progress";
+// 다른 화면에서 분석 진행 상태가 바뀌었음을 랜딩 페이지에 알려주는 이벤트 이름입니다.
 const ANALYSIS_PROGRESS_EVENT = "skinflow-analysis-progress";
+ // 저장된 진행 상태가 없을 때 사용하는 기본 분석 진행 상태입니다.
 
 const defaultProgress = {
   status: "idle",
@@ -29,6 +36,7 @@ const defaultProgress = {
   progress: 0,
   path: "/analysis/loading",
 };
+ // 분석 진행 중 새로고침하거나 랜딩으로 돌아와도 진행 상태를 복원합니다.
 
 function getStoredAnalysisProgress() {
   try {
@@ -53,6 +61,7 @@ function getStoredAnalysisProgress() {
     return null;
   }
 }
+ // 사용자에게 보여줄 만한 분석 진행 상태인지 판단합니다.
 
 function shouldShowProgress(progress) {
   if (!progress || progress.status === "idle") return false;
@@ -66,6 +75,7 @@ function shouldShowProgress(progress) {
     "failed",
   ].includes(progress.status);
 }
+ // 분석 진행 상태에 따라 배지 색상과 분위기를 정합니다.
 
 function getProgressTone(status) {
   if (status === "failed" || status === "model_missing") {
@@ -78,10 +88,12 @@ function getProgressTone(status) {
 
   return "active";
 }
+// 닫기 버튼을 눌렀을 때 저장된 분석 진행 상태를 삭제합니다.
 function clearStoredAnalysisProgress() {
   localStorage.removeItem(ANALYSIS_PROGRESS_KEY);
   window.dispatchEvent(new Event(ANALYSIS_PROGRESS_EVENT));
 }
+  // 랜딩 페이지에서 SkinFlow의 핵심 가치를 카드로 보여주기 위한 데이터입니다.
 
 
 const valueCards = [
@@ -111,6 +123,7 @@ const valueCards = [
     description: "이전 결과와 관리 흐름을 한 화면에서 다시 확인합니다.",
   },
 ];
+ // 사용자가 분석 시작부터 추천 확인까지 어떤 순서로 이용하는지 설명하는 단계 목록입니다.
 
 const processSteps = [
   { icon: Upload, title: "사진 업로드" },
@@ -119,14 +132,18 @@ const processSteps = [
   { icon: ClipboardList, title: "리포트" },
   { icon: LineChart, title: "추천·이력" },
 ];
+ // 랜딩 화면 전체를 담당하는 React 컴포넌트입니다.
 
 function LandingPage() {
   const isLoggedIn = Boolean(localStorage.getItem("skinflow_token"));
+  // 진행 중인 분석 상태를 localStorage에서 읽어와 랜딩 화면에서도 이어서 안내합니다.
   const [analysisProgress, setAnalysisProgress] = useState(() =>
     getStoredAnalysisProgress()
   );
 
+  // 다른 화면에서 분석 진행 이벤트가 발생하면 랜딩 화면의 진행 상태도 같이 갱신합니다.
   useEffect(() => {
+    // localStorage의 분석 진행 상태를 다시 읽어 현재 화면 상태와 맞춥니다.
     const syncProgress = () => {
       setAnalysisProgress(getStoredAnalysisProgress());
     };
@@ -141,6 +158,7 @@ function LandingPage() {
       window.removeEventListener(ANALYSIS_PROGRESS_EVENT, syncProgress);
     };
   }, []);
+   // 랜딩 화면에 분석 진행 카드가 필요한지 판단합니다.
 
   const shouldRenderAnalysisStatus = useMemo(
     () => isLoggedIn && shouldShowProgress(analysisProgress),
@@ -149,6 +167,7 @@ function LandingPage() {
 
   const progressTone = getProgressTone(analysisProgress?.status);
   const progressPath = analysisProgress?.path || "/analysis/loading";
+   // 사용자가 진행 상태 카드를 닫으면 저장된 진행 정보를 지웁니다.
 
   const handleDismissProgress = () => {
     clearStoredAnalysisProgress();
@@ -159,6 +178,7 @@ function LandingPage() {
   const primaryCtaText = isLoggedIn ? "피부 분석 시작하기" : "무료 피부 분석 시작";
   const secondaryCtaText = isLoggedIn ? "내 대시보드 보기" : "로그인하기";
 
+  // 아래 JSX는 서비스 소개, 분석 진행 상태 카드, 기능 소개, 사용 흐름 안내를 화면에 그립니다.
   return (
     <div className="sf-landing-compact">
       <style>

@@ -1,13 +1,21 @@
+// recommendationApi.js
+// 맞춤 추천 페이지와 식습관 가이드 페이지에서 사용하는 추천 API 모음입니다.
+// 백엔드 응답 구조가 조금 달라도 화면에서는 같은 필드명으로 사용할 수 있도록 정규화합니다.
 import http from "./http";
 
+// 값이 배열이면 그대로 쓰고, 배열이 아니면 빈 배열로 바꿉니다.
+// map 실행 중 오류가 나지 않게 만드는 안전장치입니다.
 function toArray(value) {
   return Array.isArray(value) ? value : [];
 }
 
+// 문자열 값은 앞뒤 공백을 제거하고, 문자열이 아니면 빈 문자열로 통일합니다.
 function normalizeText(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+// 백엔드 응답은 card 객체, camelCase, snake_case가 섞여 내려올 수 있습니다.
+// 화면 컴포넌트가 필드명을 계속 신경 쓰지 않도록 여기서 첫 번째 유효값을 고릅니다.
 function pickValue(...values) {
   return values.find((value) => {
     if (value === null || value === undefined) return false;
@@ -22,6 +30,7 @@ function pickText(...values) {
   return normalizeText(pickValue(...values));
 }
 
+// 추천 매칭 점수처럼 숫자로 보여야 하는 값을 안전하게 숫자로 변환합니다.
 function normalizeMatch(value) {
   if (value === null || value === undefined) return null;
   if (typeof value === "string" && value.trim() === "") return null;
@@ -31,6 +40,7 @@ function normalizeMatch(value) {
   return Number.isFinite(numericValue) ? numericValue : null;
 }
 
+// 가격처럼 0보다 큰 숫자만 의미 있는 값으로 볼 때 사용하는 변환 함수입니다.
 function normalizePositiveNumber(value) {
   if (value === null || value === undefined) return null;
   if (typeof value === "string" && value.trim() === "") return null;
@@ -40,6 +50,9 @@ function normalizePositiveNumber(value) {
   return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : null;
 }
 
+// 성분 추천 카드는 한글 표시명과 추천 이유가 핵심입니다.
+// 이름이 없으면 사용자에게 의미 있는 카드가 아니므로 렌더링 대상에서 제외합니다.
+// 성분 추천 API의 개별 성분 객체를 화면 카드에서 쓰기 좋은 형태로 바꿉니다.
 function normalizeIngredient(item) {
   const name = pickText(item?.name, item?.ingredientName, item?.ingredient_name);
   const recommendationReason = pickText(
@@ -69,6 +82,9 @@ function normalizeIngredient(item) {
   };
 }
 
+// summary는 상단 추천 기준 안내에 사용됩니다.
+// 추천 기준은 프론트에서 임의 계산하지 않고 백엔드가 내려준 source/mode/selectedMetricName을 그대로 정리합니다.
+// 추천 상단 요약 영역에 필요한 추천 기준, 선택 지표, fallback 여부를 정리합니다.
 function normalizeSummary(response, defaultSource) {
   const summary = response?.summary ?? {};
   const source =
@@ -99,6 +115,7 @@ function normalizeTags(value) {
   return toArray(value).map(normalizeText).filter(Boolean);
 }
 
+// 제품 카드 안에 함께 표시할 연결 성분 정보를 정리합니다.
 function normalizeMatchedIngredient(item) {
   const name = pickText(item?.name, item?.ingredientName, item?.ingredient_name);
 
@@ -117,6 +134,9 @@ function normalizeMatchedIngredient(item) {
   };
 }
 
+// 제품 추천은 card 객체를 우선 사용하고, 없을 때 상위 필드로 보완합니다.
+// 가격과 이미지는 실제 값이 있을 때만 화면에서 신뢰성 있게 표시하기 위해 정규화합니다.
+// 제품 추천 API의 개별 제품 객체를 화면 카드에서 쓰기 좋은 형태로 바꿉니다.
 function normalizeProduct(item) {
   const card = item?.card ?? {};
   const brand = pickText(
@@ -205,6 +225,9 @@ function normalizeProduct(item) {
   };
 }
 
+// 식습관 가이드는 최신 분석 기반인지, 기본 가이드인지에 따라 안내 문구가 달라집니다.
+// summary의 기준 필드는 화면 상단 근거 설명에 사용합니다.
+// 식습관 가이드 상단에 보여줄 분석 기준과 가이드 출처 정보를 정리합니다.
 function normalizeDietSummary(response) {
   const summary = response?.summary ?? {};
   const hasGuideCount = summary?.guideCount !== null && summary?.guideCount !== undefined && summary?.guideCount !== "";
@@ -227,6 +250,7 @@ function normalizeDietSummary(response) {
   };
 }
 
+// 식습관 가이드 카드 한 개에 필요한 제목, 설명, 추천 이유를 정리합니다.
 function normalizeDietGuide(item) {
   const card = item?.card ?? {};
   const recommendationReason = pickText(
@@ -256,6 +280,7 @@ function normalizeDietGuide(item) {
   };
 }
 
+// 아침/점심/저녁 같은 시간대별 루틴 문구를 정리합니다.
 function normalizeDietRoutine(item) {
   return {
     time: normalizeText(item?.time),
@@ -263,6 +288,7 @@ function normalizeDietRoutine(item) {
   };
 }
 
+// 체크리스트 항목에서 제목, 분류, 설명 문구를 안전하게 꺼냅니다.
 function normalizeDietCheck(item) {
   return {
     id: item?.id ?? null,
@@ -273,6 +299,7 @@ function normalizeDietCheck(item) {
   };
 }
 
+// 기능성 성분 추천 목록을 가져와 화면에서 바로 렌더링 가능한 배열로 변환합니다.
 async function getIngredientRecommendations() {
   const response = await http.get("/api/recommendations/ingredients");
 
@@ -283,6 +310,7 @@ async function getIngredientRecommendations() {
   };
 }
 
+// 제품 추천 목록을 가져와 card 우선 구조와 상위 필드 구조를 함께 처리합니다.
 async function getProductRecommendations() {
   const response = await http.get("/api/recommendations/products");
 
@@ -293,6 +321,7 @@ async function getProductRecommendations() {
   };
 }
 
+// 식습관 가이드, 루틴, 체크리스트를 한 번에 가져와 각 영역별 배열로 정리합니다.
 async function getDietGuideRecommendations() {
   const response = await http.get("/api/recommendations/diet-guides");
 

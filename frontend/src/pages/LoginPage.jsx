@@ -1,3 +1,7 @@
+// 로그인 페이지입니다.
+// 이메일/비밀번호 로그인과 비밀번호 재설정 흐름을 담당하는 화면입니다.
+// 이 파일은 화면 표시와 사용자 동작 처리를 담당하며, 백엔드/DB/AI 로직은 여기서 직접 수정하지 않습니다.
+// 주석은 코드 흐름 이해를 돕기 위한 설명이며 실제 동작에는 영향을 주지 않습니다.
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Mail, LockKeyhole, ArrowRight, ShieldCheck, KeyRound, Send } from "lucide-react";
@@ -13,16 +17,21 @@ import {
   sendPasswordResetCode,
 } from "../api/authApi";
 
+// 비밀번호 재설정 폼은 로그인 폼과 분리합니다.
+// 로그인 실패와 재설정 실패 메시지가 섞이지 않도록 별도 상태로 관리합니다.
+// 비밀번호 재설정 폼의 초기값입니다. 로그인 폼과 별도로 관리합니다.
 const passwordResetInitialForm = {
   email: "",
   code: "",
   newPassword: "",
   confirmPassword: "",
 };
+ // 로그인 화면 전체를 담당하는 React 컴포넌트입니다.
 
 function LoginPage() {
   const navigate = useNavigate();
 
+  // 로그인 폼과 비밀번호 재설정 폼을 분리해 에러/성공 메시지가 서로 섞이지 않게 관리합니다.
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -36,9 +45,11 @@ function LoginPage() {
   const [passwordResetError, setPasswordResetError] = useState("");
   const [passwordResetMessage, setPasswordResetMessage] = useState("");
 
+  // 로그인 페이지 진입 시 예전 방식으로 저장된 인증 정보를 정리합니다.
   useEffect(() => {
     cleanupLegacyAuthStorage();
   }, []);
+   // 이메일/비밀번호 입력값을 로그인 form 상태에 반영합니다.
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -48,6 +59,7 @@ function LoginPage() {
       [name]: value,
     }));
   }
+   // 비밀번호 재설정 패널의 이메일, 인증번호, 새 비밀번호 입력값을 관리합니다.
 
   function handlePasswordResetChange(event) {
     const { name, value } = event.target;
@@ -58,6 +70,9 @@ function LoginPage() {
     }));
   }
 
+  // 계정 찾기 패널을 열 때 로그인 폼의 이메일을 재사용해 입력 부담을 줄입니다.
+  // 패널을 여닫을 때 이전 성공/실패 메시지는 초기화해 현재 행동만 보이게 합니다.
+  // 계정 도움말/비밀번호 재설정 패널을 열고 닫습니다.
   function handleAccountHelpToggle() {
     setAccountHelpOpen((currentValue) => {
       const nextValue = !currentValue;
@@ -76,6 +91,9 @@ function LoginPage() {
     });
   }
 
+  // 비밀번호 찾기는 가입 이메일 확인 → 인증 코드 발송 → 새 비밀번호 설정 순서입니다.
+  // 이메일 형식만 먼저 확인하고, 가입 여부 판단은 백엔드 응답을 따릅니다.
+  // 가입 이메일로 비밀번호 재설정 인증번호 발송을 요청합니다.
   async function handleSendPasswordResetCode() {
     const email = passwordResetForm.email.trim();
 
@@ -107,6 +125,9 @@ function LoginPage() {
     }
   }
 
+  // 새 비밀번호는 화면 상태로만 잠시 보관하고 성공 후 즉시 비웁니다.
+  // 성공하면 로그인 폼 이메일을 채워 사용자가 바로 로그인할 수 있게 합니다.
+  // 인증번호와 새 비밀번호를 확인한 뒤 비밀번호 재설정 API를 호출합니다.
   async function handleResetPassword() {
     const email = passwordResetForm.email.trim();
     const code = passwordResetForm.code.trim();
@@ -163,6 +184,9 @@ function LoginPage() {
     }
   }
 
+  // 로그인 성공 시 공통 세션 저장 함수에서 토큰과 사용자 정보를 정리합니다.
+  // 실패하거나 완료된 뒤에는 비밀번호 입력값을 비워 민감한 값이 화면 상태에 오래 남지 않게 합니다.
+  // 로그인 API를 호출하고 성공 시 세션 저장 후 대시보드로 이동합니다.
   async function handleSubmit(event) {
     event.preventDefault();
 
@@ -199,6 +223,7 @@ function LoginPage() {
     }
   }
 
+  // 아래 JSX는 로그인 입력 폼, 계정 도움말, 비밀번호 재설정 패널을 화면에 그립니다.
   return (
     <PageLayout showBottomNav={false}>
       <section className="auth-page">

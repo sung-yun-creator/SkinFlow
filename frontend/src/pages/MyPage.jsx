@@ -1,3 +1,7 @@
+// 마이페이지입니다.
+// 사용자 프로필, 분석 통계, 최근 활동, 프로필 수정, 비밀번호 변경을 관리하는 화면입니다.
+// 이 파일은 화면 표시와 사용자 동작 처리를 담당하며, 백엔드/DB/AI 로직은 여기서 직접 수정하지 않습니다.
+// 주석은 코드 흐름 이해를 돕기 위한 설명이며 실제 동작에는 영향을 주지 않습니다.
 import { useEffect, useState } from "react";
 import {
   AlertCircle,
@@ -29,6 +33,7 @@ import {
 } from "../api/mypageApi";
 import { AUTH_STORAGE_KEYS, removeSensitiveFields } from "../api/authSession";
 import { shouldShowAnalysisScore } from "../utils/analysisStatus";
+ // 프로필 수정 폼의 초기값입니다.
 
 const profileInitialForm = {
   name: "",
@@ -36,17 +41,20 @@ const profileInitialForm = {
   birthDate: "",
   skinType: "",
 };
+ // 비밀번호 변경 폼의 초기값입니다.
 
 const passwordInitialForm = {
   verificationCode: "",
   newPassword: "",
   confirmPassword: "",
 };
+ // 성별 select 박스에서 보여줄 선택지입니다.
 
 const genderOptions = [
   { value: "M", label: "남성" },
   { value: "F", label: "여성" },
 ];
+ // 피부 타입 select 박스에서 보여줄 선택지입니다.
 
 const skinTypeOptions = [
   { value: "dry", label: "건성" },
@@ -55,6 +63,7 @@ const skinTypeOptions = [
   { value: "sensitive", label: "민감성" },
   { value: "normal", label: "보통" },
 ];
+ // 가입일/최근 분석일을 한국어 날짜로 보여줍니다.
 
 function formatDate(dateValue, emptyText = "아직 없음") {
   if (!dateValue) return emptyText;
@@ -71,6 +80,7 @@ function formatDate(dateValue, emptyText = "아직 없음") {
     day: "numeric",
   });
 }
+ // 점수가 없으면 기본 안내 문구를, 있으면 점수 문구를 보여줍니다.
 
 function formatScore(score) {
   if (score === null || score === undefined || score === "") {
@@ -85,6 +95,7 @@ function formatScore(score) {
 
   return `${Math.round(numberScore)}점`;
 }
+ // 빈 값이 화면에 그대로 나오지 않도록 대체 문구를 제공합니다.
 
 function getDisplayValue(value, emptyText = "정보 없음") {
   if (value === null || value === undefined || value === "") {
@@ -93,6 +104,7 @@ function getDisplayValue(value, emptyText = "정보 없음") {
 
   return value;
 }
+ // 프로필 응답 구조가 달라도 같은 이름으로 값을 가져오게 합니다.
 
 function getProfileField(profile, camelKey, snakeKey = camelKey) {
   const value = profile?.[camelKey] ?? profile?.[snakeKey];
@@ -103,6 +115,7 @@ function getProfileField(profile, camelKey, snakeKey = camelKey) {
 
   return String(value);
 }
+ // 피부 타입 코드를 건성/지성 같은 한글 라벨로 바꿉니다.
 
 function getSkinTypeLabel(value) {
   if (!value) return "미입력";
@@ -119,6 +132,7 @@ function getSkinTypeLabel(value) {
 
   return skinTypeMap[normalizedValue] ?? String(value).trim();
 }
+ // 성별 코드를 화면에 보이는 한글 라벨로 바꿉니다.
 
 function getGenderLabel(value) {
   if (!value) return "미입력";
@@ -130,6 +144,7 @@ function getGenderLabel(value) {
 
   return String(value).trim();
 }
+ // 생년월일을 input[type=date]에서 쓸 수 있는 YYYY-MM-DD 형태로 바꿉니다.
 
 function getBirthDateInputValue(value) {
   if (!value) return "";
@@ -147,6 +162,9 @@ function getBirthDateInputValue(value) {
   return date.toISOString().slice(0, 10);
 }
 
+// 백엔드 응답은 날짜/피부 타입 필드가 camelCase 또는 snake_case로 올 수 있습니다.
+// 수정 폼에는 select/input이 이해할 수 있는 값으로 변환해서 넣습니다.
+// API 프로필 정보를 수정 폼 초기값으로 변환합니다.
 function createProfileForm(profile) {
   const genderValue = getProfileField(profile, "gender").toUpperCase();
   const skinTypeValue = getProfileField(profile, "skinType", "skin_type").toLowerCase();
@@ -159,6 +177,9 @@ function createProfileForm(profile) {
   };
 }
 
+// 프로필 수정 응답 형태가 profile 래핑형 또는 직접 객체형이어도 같은 화면 상태로 반영합니다.
+// 응답에 수정값이 없을 때는 방금 보낸 payload를 fallback으로 사용합니다.
+// 프로필 수정 API 응답에서 최신 프로필 정보를 꺼냅니다.
 function getUpdatedProfileFromResponse(data, fallbackProfile) {
   const responseProfile = data?.profile ?? data?.data?.profile;
 
@@ -181,11 +202,15 @@ function getUpdatedProfileFromResponse(data, fallbackProfile) {
 
   return fallbackProfile;
 }
+ // 마이페이지 관련 API 오류를 사용자 안내 문구로 바꿉니다.
 
 function getApiErrorMessage(error, fallbackMessage) {
   return error?.message || fallbackMessage;
 }
 
+// 헤더 등 다른 UI가 localStorage 사용자 정보를 읽을 수 있으므로 저장된 프로필도 함께 갱신합니다.
+// 이때 비밀번호 같은 민감 정보가 섞이지 않도록 removeSensitiveFields를 다시 적용합니다.
+// 프로필 수정 후 localStorage에 저장된 사용자 표시 정보도 같이 갱신합니다.
 function mergeStoredUserProfile(profile) {
   if (typeof window === "undefined") {
     return;
@@ -212,6 +237,7 @@ function mergeStoredUserProfile(profile) {
     window.localStorage.removeItem(AUTH_STORAGE_KEYS.user);
   }
 }
+ // 주요 관리 지표를 화면에서 읽기 쉬운 문구로 정리합니다.
 
 function getMainConcernLabel(value) {
   if (typeof value === "string" && value.trim()) {
@@ -248,8 +274,10 @@ function getMainConcernLabel(value) {
 
   return "분석 후 표시";
 }
+ // 마이페이지 전체를 담당하는 React 컴포넌트입니다.
 
 function MyPage() {
+  // 마이페이지 API 응답, 프로필 수정 폼, 비밀번호 변경 폼, 각 로딩/메시지 상태를 분리해 관리합니다.
   const [mypage, setMypage] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [mypageError, setMypageError] = useState("");
@@ -264,8 +292,12 @@ function MyPage() {
   const [passwordFormError, setPasswordFormError] = useState("");
   const [passwordFormMessage, setPasswordFormMessage] = useState("");
 
+  // 페이지 진입 시 마이페이지 데이터를 불러와 프로필과 통계 영역을 채웁니다.
   useEffect(() => {
+    // 페이지 이동 중 API 응답이 늦게 도착하면 언마운트된 컴포넌트에 setState가 호출될 수 있습니다.
+    // isMounted 플래그로 로딩/에러 상태가 잘못 갱신되는 것을 막습니다.
     let isMounted = true;
+     // 마이페이지 API를 호출해 프로필, 통계, 최근 활동을 불러옵니다.
 
     async function loadMyPage() {
       try {
@@ -425,6 +457,7 @@ function MyPage() {
       helper: "SkinFlow 이용을 시작한 날짜입니다.",
     },
   ];
+   // 프로필 수정 폼 입력값을 상태에 반영합니다.
 
   function handleProfileFormChange(event) {
     const { name, value } = event.target;
@@ -434,6 +467,7 @@ function MyPage() {
       [name]: value,
     }));
   }
+   // 수정 버튼을 눌렀을 때 현재 프로필 값으로 수정 폼을 엽니다.
 
   function handleProfileEditOpen() {
     setProfileForm(createProfileForm(profile));
@@ -441,6 +475,7 @@ function MyPage() {
     setProfileFormMessage("");
     setIsEditingProfile(true);
   }
+   // 프로필 수정을 취소하고 입력값과 메시지를 초기화합니다.
 
   function handleProfileEditCancel() {
     setProfileForm(createProfileForm(profile));
@@ -448,6 +483,9 @@ function MyPage() {
     setIsEditingProfile(false);
   }
 
+  // 프로필 수정은 이름/성별/생년월일/피부 타입만 백엔드에 전달합니다.
+  // 이메일은 로그인 식별값이라 이번 화면 수정 범위에서 제외합니다.
+  // 프로필 수정 API를 호출하고 성공 시 화면과 저장된 사용자 정보를 갱신합니다.
   async function handleProfileSubmit(event) {
     event.preventDefault();
 
@@ -510,6 +548,7 @@ function MyPage() {
       setIsSavingProfile(false);
     }
   }
+   // 비밀번호 변경 폼의 인증번호와 새 비밀번호 입력값을 관리합니다.
 
   function handlePasswordFormChange(event) {
     const { name, value } = event.target;
@@ -520,6 +559,9 @@ function MyPage() {
     }));
   }
 
+  // 마이페이지 비밀번호 변경은 현재 로그인 계정 이메일 기준입니다.
+  // 사용자가 이메일을 다시 입력하지 않도록 인증 코드 발송만 버튼으로 분리합니다.
+  // 현재 로그인 계정 이메일로 비밀번호 변경 인증번호를 발송합니다.
   async function handleSendPasswordCode() {
     try {
       setIsSendingPasswordCode(true);
@@ -535,6 +577,9 @@ function MyPage() {
     }
   }
 
+  // 인증 코드와 새 비밀번호를 검증한 뒤 백엔드에 전달합니다.
+  // 성공 후에는 코드/비밀번호 입력값을 초기화해 민감한 값이 남지 않게 합니다.
+  // 인증번호와 새 비밀번호를 확인한 뒤 비밀번호 변경 API를 호출합니다.
   async function handlePasswordSubmit(event) {
     event.preventDefault();
 
@@ -576,6 +621,7 @@ function MyPage() {
     }
   }
 
+  // 아래 JSX는 프로필 요약, 기본 정보, 최근 활동, 계정 관리, 로그아웃 영역을 화면에 그립니다.
   return (
     <PageLayout>
       <style>{`

@@ -1,3 +1,7 @@
+// 맞춤 추천 페이지입니다.
+// 최근 분석 결과를 기준으로 기능성 성분 추천과 제품 추천을 보여주는 화면입니다.
+// 이 파일은 화면 표시와 사용자 동작 처리를 담당하며, 백엔드/DB/AI 로직은 여기서 직접 수정하지 않습니다.
+// 주석은 코드 흐름 이해를 돕기 위한 설명이며 실제 동작에는 영향을 주지 않습니다.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
@@ -17,9 +21,12 @@ import {
   getIngredientRecommendations,
   getProductRecommendations,
 } from "../api/recommendationApi";
+ // 설정 페이지에서 피부 관리 참고 안내 표시 여부를 저장하는 localStorage 키입니다.
 
 const SHOW_CARE_NOTICE_KEY = "skinflow_show_care_notice";
+// 추천 이유 영역을 기본으로 펼칠지 저장하는 localStorage 키입니다.
 const EXPAND_RECOMMENDATION_REASON_KEY = "skinflow_expand_recommendation_reason";
+ // 설정 페이지에서 저장한 추천 설명 펼침 여부를 읽어오는 함수입니다.
 
 function readStoredSetting(key, fallbackValue) {
   if (typeof window === "undefined") return fallbackValue;
@@ -32,6 +39,7 @@ function readStoredSetting(key, fallbackValue) {
 
   return storedValue;
 }
+ // API 에러를 사용자가 이해하기 쉬운 문장으로 바꾸는 함수입니다.
 
 function getApiErrorMessage(error) {
   if (error?.status === 401) {
@@ -40,6 +48,7 @@ function getApiErrorMessage(error) {
 
   return error?.message || "추천 정보를 불러오지 못했습니다.";
 }
+ // 추천 개수처럼 숫자로 보여줄 값을 안전하게 정리하는 함수입니다.
 
 function formatCount(value) {
   const numericValue = Number(value);
@@ -50,6 +59,7 @@ function formatCount(value) {
 
   return `${numericValue}개`;
 }
+ // 추천 매칭 점수가 실제로 표시 가능한 값인지 확인합니다.
 
 function hasMatchScore(value) {
   if (value === null || value === undefined) return false;
@@ -57,6 +67,7 @@ function hasMatchScore(value) {
 
   return Number.isFinite(Number(value));
 }
+ // 추천 매칭 점수를 사용자 화면용 퍼센트 문구로 바꿉니다.
 
 function formatMatchScore(value) {
   if (!hasMatchScore(value)) {
@@ -66,21 +77,25 @@ function formatMatchScore(value) {
   // 추천 매칭 값은 0~100 범위의 적합도이므로 퍼센트 방식으로 고정 표시합니다.
   return `${Math.round(Number(value))}%`;
 }
+ // 성분/제품 응답 구조가 달라도 매칭 점수를 한 기준으로 꺼내옵니다.
 
 function getRecommendationMatchScore(item) {
   // API의 matchScore, match, score 값을 그대로 읽고 계산식은 변경하지 않습니다.
   return item?.match_score ?? item?.matchScore ?? item?.match ?? item?.score;
 }
+ // 빈 문자열을 화면에 표시하지 않도록 실제 문구가 있는지 확인합니다.
 
 function hasText(value) {
   return typeof value === "string" && value.trim() !== "";
 }
+ // 성분 객체에서 화면에 보여줄 성분명을 안전하게 가져옵니다.
 
 function getIngredientDisplayName(item) {
   const displayName = item?.name ?? item?.ingredientName ?? item?.title ?? "";
 
   return typeof displayName === "string" ? displayName : String(displayName);
 }
+ // 같은 성분명이 중복 표시되지 않도록 정리합니다.
 
 function getUniqueDisplayIngredients(items) {
   if (!Array.isArray(items)) return [];
@@ -98,12 +113,14 @@ function getUniqueDisplayIngredients(items) {
     return true;
   });
 }
+ // 제품 카드 안에 보여줄 연결 성분 목록만 추려냅니다.
 
 function getVisibleMatchedIngredients(item) {
   return Array.isArray(item?.matchedIngredients)
     ? item.matchedIngredients.filter((ingredient) => hasText(ingredient?.name)).slice(0, 3)
     : [];
 }
+ // 제품이 어떤 성분 추천과 연결되는지 설명하기 위한 성분 목록을 만듭니다.
 
 function getProductConnectionIngredients(item) {
   const names = [];
@@ -137,6 +154,7 @@ function getProductConnectionIngredients(item) {
 
   return names.slice(0, 3);
 }
+ // 현재 추천이 색소침착/주름 중 어떤 지표를 기준으로 하는지 가져옵니다.
 
 function getFocusMetricName(hasRecommendationData, ...summaries) {
   const selectedMetricName = summaries.find((summary) => hasText(summary?.selectedMetricName))?.selectedMetricName;
@@ -144,6 +162,7 @@ function getFocusMetricName(hasRecommendationData, ...summaries) {
 
   return selectedMetricName || focusMetric?.name || (hasRecommendationData ? "색소침착 · 주름 기준" : "추천 기준 확인");
 }
+ // 자동 추천 기준인지 사용자 선택 기준인지 화면 문구로 바꿉니다.
 
 function getRecommendationModeLabel(mode) {
   const normalizedMode = normalizeSourceText(mode);
@@ -153,6 +172,7 @@ function getRecommendationModeLabel(mode) {
 
   return "";
 }
+ // 추천 기준 범위를 사용자가 이해할 수 있는 문구로 변환합니다.
 
 function getRecommendationBasisRangeLabel(summary) {
   const count = Number(
@@ -177,12 +197,16 @@ function getRecommendationBasisRangeLabel(summary) {
 
   return "최근 분석 결과 기반";
 }
+ // 백엔드가 준 추천 이유를 우선 사용하고, 없으면 보조 문구를 만듭니다.
 
 function getRecommendationReason(item) {
   // 백엔드가 제공한 추천 이유 필드만 표시해 프론트에서 근거 문구를 임의 생성하지 않습니다.
   return getFirstDisplayText(item?.recommendationReason, item?.recommendation_reason, item?.reason);
 }
 
+// referenceBasis는 객체 그대로 출력하면 개발자용 데이터처럼 보일 수 있습니다.
+// 사용자가 이해할 수 있는 분석 지표, 점수, 등급, 연결 유형만 골라 짧게 표시합니다.
+// 객체 형태의 추천 기준 정보를 그대로 노출하지 않고 읽기 쉬운 문장으로 바꿉니다.
 function formatReferenceBasis(referenceBasis) {
   if (!referenceBasis) return "";
   if (typeof referenceBasis === "string") return referenceBasis.trim();
@@ -208,39 +232,47 @@ function formatReferenceBasis(referenceBasis) {
 
   return parts.join(" · ");
 }
+ // 추천 기준 설명 영역에 보여줄 간단한 도움말을 만듭니다.
 
 function getReferenceBasisHint(item) {
   // referenceBasis 객체는 그대로 렌더링하지 않고 표시 가능한 값만 조합합니다.
   return formatReferenceBasis(item?.referenceBasis ?? item?.reference_basis);
 }
+ // 제품 가격이 실제로 표시 가능한 값인지 확인합니다.
 
 function getProductPriceAmount(item) {
   const priceAmount = Number(item?.priceAmount ?? item?.price_amount ?? item?.price);
 
   return Number.isFinite(priceAmount) && priceAmount > 0 ? priceAmount : null;
 }
+ // 제품 링크가 상세 페이지인지 검색 결과 페이지인지 판단합니다.
 
 function isSearchResultUrl(url) {
   return /search|getSearchMain|query=/i.test(String(url || ""));
 }
+ // 가격 숫자를 원화 표시 문구로 바꿉니다.
 
 function formatProductPrice(priceAmount) {
   return `${Math.round(priceAmount).toLocaleString("ko-KR")}원`;
 }
+ // 여러 후보 문구 중 화면에 보여줄 첫 번째 유효 문구를 고릅니다.
 
 function getFirstDisplayText(...values) {
   const matchedValue = values.find((value) => hasText(value));
 
   return matchedValue ? matchedValue.trim() : "";
 }
+ // 추천 요약의 분석 상태 값을 안전하게 꺼냅니다.
 
 function getSummaryStatus(summary) {
   return summary?.analysisStatus ?? summary?.analysis_status ?? summary?.latestStatus ?? summary?.latest_status ?? summary?.status;
 }
+ // 추천 기준이 완료된 분석 결과 기반인지 확인합니다.
 
 function isCompletedStatus(status) {
   return String(status || "").toLowerCase() === "completed";
 }
+ // 백엔드 source 값을 비교하기 쉬운 형태로 정리합니다.
 
 function normalizeSourceText(value) {
   return String(value || "")
@@ -248,6 +280,7 @@ function normalizeSourceText(value) {
     .toLowerCase()
     .replace(/[\s-]+/g, "_");
 }
+ // 추천 출처에 따라 상단 안내 문구와 상태를 정리합니다.
 
 function getRecommendationSourceState(summary, itemCount = 0) {
   // 추천 기준 상태는 summary/source 값을 그대로 해석해 표시하고, 추천 알고리즘 자체는 변경하지 않습니다.
@@ -310,6 +343,7 @@ function getRecommendationSourceState(summary, itemCount = 0) {
     message: summary?.message || "추천 기준을 확인 중입니다. 참고 정보로 활용해 주세요.",
   };
 }
+ // 로딩/에러/빈 상태일 때 카드 목록 대신 안내 화면을 보여주는 보조 컴포넌트입니다.
 
 function RecommendationSectionState({ type, title, message }) {
   const isLoading = type === "loading";
@@ -325,8 +359,10 @@ function RecommendationSectionState({ type, title, message }) {
     </div>
   );
 }
+ // 추천 화면 전체를 담당하는 React 컴포넌트입니다.
 
 function RecommendationPage() {
+  // 성분 추천과 제품 추천은 각각 API 응답, 로딩, 에러, 추천 기준 정보를 따로 관리합니다.
   const [ingredients, setIngredients] = useState([]);
   const [products, setProducts] = useState([]);
   const [ingredientSummary, setIngredientSummary] = useState(null);
@@ -339,6 +375,9 @@ function RecommendationPage() {
     readStoredSetting(EXPAND_RECOMMENDATION_REASON_KEY, true)
   );
 
+  // 성분 추천과 제품 추천은 각각 실패할 수 있으므로 화면 상태를 분리해 관리합니다.
+  // Promise.allSettled로 한쪽 API가 실패해도 다른 추천 카드는 계속 보여줍니다.
+  // 성분 추천과 제품 추천을 병렬로 불러오는 함수입니다. 둘 중 하나가 실패해도 다른 영역은 가능한 범위에서 보여줍니다.
   const loadRecommendations = useCallback(async () => {
     setIsLoading(true);
     setIngredientError("");
@@ -371,24 +410,30 @@ function RecommendationPage() {
     setIsLoading(false);
   }, []);
 
+  // 페이지가 열리면 성분 추천 API와 제품 추천 API를 호출해 화면 데이터를 준비합니다.
   useEffect(() => {
+    // 초기 렌더 직후 비동기 로딩을 시작하고, 언마운트 시 예약된 호출을 정리합니다.
     const timeoutId = window.setTimeout(loadRecommendations, 0);
 
     return () => {
       window.clearTimeout(timeoutId);
     };
   }, [loadRecommendations]);
+   // 추천 성분 중 실제 화면에 표시할 수 있는 항목만 정리한 목록입니다.
 
   const visibleIngredients = useMemo(() => getUniqueDisplayIngredients(ingredients), [ingredients]);
   const hasRecommendationData = visibleIngredients.length > 0 || products.length > 0;
+  // 성분 추천 출처를 상단 안내 문구로 바꾸기 위한 상태입니다.
   const ingredientSourceState = useMemo(
     () => getRecommendationSourceState(ingredientSummary, visibleIngredients.length),
     [ingredientSummary, visibleIngredients.length],
   );
+  // 제품 추천 출처를 상단 안내 문구로 바꾸기 위한 상태입니다.
   const productSourceState = useMemo(
     () => getRecommendationSourceState(productSummary, products.length),
     [productSummary, products.length],
   );
+  // 성분/제품 중 화면에서 대표로 보여줄 추천 출처 상태입니다.
   const sourceState = useMemo(() => {
     if (ingredientSourceState.tone === "personalized" || productSourceState.tone === "personalized") {
       return ingredientSourceState.tone === "personalized" ? ingredientSourceState : productSourceState;
@@ -400,6 +445,7 @@ function RecommendationPage() {
 
     return ingredientSourceState;
   }, [ingredientSourceState, productSourceState, products.length, visibleIngredients.length]);
+  // 사용자가 왜 이런 추천을 받았는지 이해할 수 있도록 추천 기준 요약을 만듭니다.
   const recommendationBasisSummary = useMemo(() => {
     // selectedMetricName, recommendationMode는 백엔드 기준 설명으로만 사용합니다.
     const basisSummary =
@@ -425,6 +471,7 @@ function RecommendationPage() {
         : summaryReason || sourceState.message,
     };
   }, [ingredientSummary, productSummary, sourceState]);
+   // 상단 요약 카드에 들어갈 항목들을 배열로 정리합니다.
 
   const summaryItems = useMemo(
     () => [
@@ -454,6 +501,7 @@ function RecommendationPage() {
       visibleIngredients.length,
     ],
   );
+   // 추천 기준에 따라 상단 안내 문구를 결정합니다.
 
   const summaryNote = useMemo(() => {
     if (isLoading) {
@@ -477,6 +525,7 @@ function RecommendationPage() {
 
   const statusLabel = isLoading ? "불러오는 중" : ingredientError && productError ? "연결 확인" : sourceState.label;
 
+  // 아래 JSX는 추천 기준 요약, 성분 카드, 제품 카드, 추천 이유 안내를 화면에 그립니다.
   return (
     <PageLayout>
       <style>{`

@@ -1,3 +1,11 @@
+/* App.css 파일입니다.
+   현재 첨부된 main.jsx는 index.css를 직접 import하고 있어서,
+   이 파일은 프로젝트 초기 템플릿 스타일이거나 일부 화면에서 별도로 import될 수 있는 보조 스타일로 볼 수 있습니다.
+   아래 주석은 비전공자/초보자가 각 선택자가 어떤 화면 요소를 꾸미는지 이해하기 쉽게 적은 설명입니다. */
+
+/* 카운터 버튼 스타일입니다.
+   - 숫자나 클릭 횟수처럼 짧은 값을 보여주는 버튼에 사용할 수 있습니다.
+   - hover/focus 스타일이 있어서 마우스나 키보드 접근 시 상태가 보입니다. */
 .counter {
   font-size: 16px;
   padding: 5px 10px;
@@ -8,18 +16,25 @@
   transition: border-color 0.3s;
   margin-bottom: 24px;
 
+  /* 마우스를 올렸을 때 테두리 색을 바꿔 클릭 가능한 요소처럼 보이게 합니다. */
   &:hover {
     border-color: var(--accent-border);
   }
+
+  /* 키보드 Tab 이동으로 버튼에 포커스가 갔을 때 외곽선을 보여 접근성을 높입니다. */
   &:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
 }
 
+/* hero 영역은 메인 비주얼을 겹쳐서 보여주는 컨테이너입니다.
+   - position: relative를 주면 내부의 absolute 요소들이 이 박스를 기준으로 배치됩니다. */
 .hero {
   position: relative;
 
+  /* base, framework, vite 이미지를 가로 가운데 정렬합니다.
+     같은 정렬 규칙을 묶어서 중복 코드를 줄인 부분입니다. */
   .base,
   .framework,
   .vite {
@@ -27,17 +42,21 @@
     margin: 0 auto;
   }
 
+  /* 가장 아래에 깔리는 기본 이미지입니다.
+     z-index가 낮아서 다른 로고/프레임 이미지 뒤에 배치됩니다. */
   .base {
     width: 170px;
     position: relative;
     z-index: 0;
   }
 
+  /* framework와 vite 이미지는 base 위에 겹쳐 보여야 하므로 absolute로 배치합니다. */
   .framework,
   .vite {
     position: absolute;
   }
 
+  /* framework 이미지는 3D처럼 기울어진 느낌을 주기 위해 transform을 사용합니다. */
   .framework {
     z-index: 1;
     top: 34px;
@@ -46,6 +65,7 @@
       scale(1.4);
   }
 
+  /* vite 이미지는 framework보다 아래쪽에 작게 배치되는 보조 이미지입니다. */
   .vite {
     z-index: 0;
     top: 107px;
@@ -56,6 +76,9 @@
   }
 }
 
+/* 화면 중앙 정렬용 레이아웃입니다.
+   - flex를 세로 방향으로 사용해 안쪽 요소들을 가운데에 쌓습니다.
+   - 초기 안내 화면이나 템플릿형 홈 화면에서 자주 쓰는 구조입니다. */
 #center {
   display: flex;
   flex-direction: column;
@@ -64,37 +87,49 @@
   place-items: center;
   flex-grow: 1;
 
+  /* 태블릿/모바일에서는 여백과 요소 간격을 줄여 작은 화면에서도 답답하지 않게 합니다. */
   @media (max-width: 1024px) {
     padding: 32px 20px 24px;
     gap: 18px;
   }
 }
 
+/* 다음 단계 안내 영역입니다.
+   - 문서 링크나 배포 링크처럼 사용자가 다음에 할 일을 두 칸으로 나눠 보여줄 때 사용합니다. */
 #next-steps {
   display: flex;
   border-top: 1px solid var(--border);
   text-align: left;
 
+  /* #next-steps 바로 아래의 div 두 개를 같은 비율로 나눕니다. */
   & > div {
     flex: 1 1 0;
     padding: 32px;
+
+    /* 모바일에서는 내부 여백을 줄여 화면 폭을 아낍니다. */
     @media (max-width: 1024px) {
       padding: 24px 20px;
     }
   }
 
+  /* 안내 카드 안에 들어가는 작은 아이콘 크기입니다. */
   .icon {
     margin-bottom: 16px;
     width: 22px;
     height: 22px;
   }
 
+  /* 작은 화면에서는 좌우 2단 구성을 세로 1단으로 바꿉니다.
+     모바일에서 두 칸이 너무 좁아지는 것을 막기 위한 처리입니다. */
   @media (max-width: 1024px) {
     flex-direction: column;
     text-align: center;
   }
 }
 
+/* docs 영역은 next-steps의 왼쪽 칸으로 쓰일 수 있습니다.
+   - PC에서는 오른쪽에 구분선을 넣고,
+   - 모바일에서는 아래쪽 구분선으로 바꿔 세로 배치에 맞춥니다. */
 #docs {
   border-right: 1px solid var(--border);
 
@@ -104,6 +139,8 @@
   }
 }
 
+/* next-steps 안의 링크 목록입니다.
+   - ul 기본 점을 없애고, 링크 버튼들이 가로로 나열되도록 합니다. */
 #next-steps ul {
   list-style: none;
   padding: 0;
@@ -111,10 +148,13 @@
   gap: 8px;
   margin: 32px 0 0;
 
+  /* 링크 안에 들어가는 작은 로고 이미지 크기입니다. */
   .logo {
     height: 18px;
   }
 
+  /* 실제 링크 버튼 스타일입니다.
+     문서, GitHub, 배포 링크처럼 외부 이동 버튼에 사용할 수 있습니다. */
   a {
     color: var(--text-h);
     font-size: 16px;
@@ -127,15 +167,20 @@
     text-decoration: none;
     transition: box-shadow 0.3s;
 
+    /* 마우스를 올렸을 때 그림자를 줘서 클릭 가능한 링크임을 보여줍니다. */
     &:hover {
       box-shadow: var(--shadow);
     }
+
+    /* 링크 안쪽의 아이콘 크기를 고정합니다. */
     .button-icon {
       height: 18px;
       width: 18px;
     }
   }
 
+  /* 모바일에서는 링크가 여러 줄로 자연스럽게 내려가도록 합니다.
+     각 li를 50% 너비에 가깝게 만들어 두 개씩 배치되도록 하는 구조입니다. */
   @media (max-width: 1024px) {
     margin-top: 20px;
     flex-wrap: wrap;
@@ -153,18 +198,26 @@
   }
 }
 
+/* 화면 하단에 여백을 만드는 spacer입니다.
+   - 위쪽에는 구분선을 넣어 섹션이 끝났다는 느낌을 줍니다.
+   - 모바일에서는 높이를 줄여 불필요한 스크롤을 줄입니다. */
 #spacer {
   height: 88px;
   border-top: 1px solid var(--border);
+
   @media (max-width: 1024px) {
     height: 48px;
   }
 }
 
+/* ticks는 구분선 양 끝에 작은 삼각형 표시를 만드는 장식 요소입니다.
+   - ::before와 ::after 가상 요소를 사용해 HTML을 추가하지 않고 CSS만으로 표시합니다. */
 .ticks {
   position: relative;
   width: 100%;
 
+  /* 양쪽 삼각형의 공통 모양입니다.
+     투명한 border를 만든 뒤 한쪽 border 색만 채워 삼각형처럼 보이게 합니다. */
   &::before,
   &::after {
     content: '';
@@ -173,10 +226,13 @@
     border: 5px solid transparent;
   }
 
+  /* 왼쪽 끝 삼각형입니다. */
   &::before {
     left: 0;
     border-left-color: var(--border);
   }
+
+  /* 오른쪽 끝 삼각형입니다. */
   &::after {
     right: 0;
     border-right-color: var(--border);
