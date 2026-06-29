@@ -43,8 +43,7 @@ export async function getMyPage() {
   };
 }
 
-// 이메일은 이번 수정 범위에 포함하지 않고, 백엔드가 허용한 프로필 필드만 전달합니다.
-// 이름, 성별, 생년월일, 피부 타입처럼 백엔드가 허용한 프로필 정보만 수정합니다.
+// MyPage 호출부에서 허용 필드 중심으로 payload를 구성하고, 이 함수는 전달받은 payload를 전송합니다.
 export function updateMyPageProfile(profile) {
   return http.patch("/api/mypage/profile", profile);
 }

@@ -133,7 +133,7 @@ function getTrendPointMeta(series, fallbackPoints, index) {
 
   return seriesPoint || fallbackPoint || {};
 }
- // 그래프에 표시해도 되는 완료 상태인지 확인합니다.
+ // 상태가 명시된 응답은 completed/complete인지 확인하고, 상태가 없는 기존 응답은 호환 처리합니다.
 
 function isCompletedTrendStatus(status) {
   const normalizedStatus = String(status || "").trim().toLowerCase();
@@ -143,9 +143,8 @@ function isCompletedTrendStatus(status) {
   return normalizedStatus === "completed" || normalizedStatus === "complete";
 }
 
-// 그래프에는 completed 상태이고 표시 가능한 점수만 올립니다.
-// pending/processing 값은 null로 남겨 실제 이력 흐름처럼 보이지 않게 합니다.
-// 완료된 분석의 점수만 그래프에 표시하도록 걸러냅니다.
+// 상태가 명시된 응답은 완료 상태이고 점수가 표시 가능한 경우에만 그래프에 올립니다.
+// 상태가 없는 기존 응답은 호환 처리하고, pending/processing 값은 null로 남깁니다.
 function getDisplayableTrendScore(series, fallbackPoints, index) {
   const point = getTrendPointMeta(series, fallbackPoints, index);
   const score = getScoreNumber(series?.data?.[index] ?? point?.score);
@@ -2314,7 +2313,6 @@ function HistoryPage() {
         }
 
 
-        /* history-detail-final-polish:start */
         .sf-history-detail-section {
           display: grid;
           grid-template-columns: minmax(360px, 0.92fr) minmax(0, 1.08fr);
@@ -2601,7 +2599,6 @@ function HistoryPage() {
         }
 
 
-        /* history-detail-content-polish:start */
         .sf-detail-insight-panel,
         .sf-detail-recommend-panel {
           margin-top: 14px;
@@ -2799,7 +2796,6 @@ function HistoryPage() {
             padding: 22px;
           }
         }
-        /* history-detail-content-polish:end */
 
 
         @media (max-width: 980px) {
@@ -2831,7 +2827,6 @@ function HistoryPage() {
             grid-template-columns: 1fr;
           }
         }
-        /* history-detail-final-polish:end */
 
 
         @media (max-width: 980px) {

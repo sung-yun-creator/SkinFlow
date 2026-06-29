@@ -1,5 +1,5 @@
 // 맞춤 추천 페이지입니다.
-// 최근 분석 결과를 기준으로 기능성 성분 추천과 제품 추천을 보여주는 화면입니다.
+// 최근 분석 결과 기반 추천 또는 기본 참고 추천으로 기능성 성분과 제품을 보여주는 화면입니다.
 // 이 파일은 화면 표시와 사용자 동작 처리를 담당하며, 백엔드/DB/AI 로직은 여기서 직접 수정하지 않습니다.
 // 주석은 코드 흐름 이해를 돕기 위한 설명이며 실제 동작에는 영향을 주지 않습니다.
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -197,7 +197,7 @@ function getRecommendationBasisRangeLabel(summary) {
 
   return "최근 분석 결과 기반";
 }
- // 백엔드가 준 추천 이유를 우선 사용하고, 없으면 보조 문구를 만듭니다.
+ // 백엔드 응답에 추천 이유 필드가 있을 때만 화면에 사용할 문구를 반환합니다.
 
 function getRecommendationReason(item) {
   // 백엔드가 제공한 추천 이유 필드만 표시해 프론트에서 근거 문구를 임의 생성하지 않습니다.
@@ -375,9 +375,7 @@ function RecommendationPage() {
     readStoredSetting(EXPAND_RECOMMENDATION_REASON_KEY, true)
   );
 
-  // 성분 추천과 제품 추천은 각각 실패할 수 있으므로 화면 상태를 분리해 관리합니다.
-  // Promise.allSettled로 한쪽 API가 실패해도 다른 추천 카드는 계속 보여줍니다.
-  // 성분 추천과 제품 추천을 병렬로 불러오는 함수입니다. 둘 중 하나가 실패해도 다른 영역은 가능한 범위에서 보여줍니다.
+  // 두 추천 API를 병렬 호출하고, Promise.allSettled로 한쪽 실패 시에도 다른 영역은 계속 보여줍니다.
   const loadRecommendations = useCallback(async () => {
     setIsLoading(true);
     setIngredientError("");
@@ -388,7 +386,7 @@ function RecommendationPage() {
       getProductRecommendations(),
     ]);
 
-    // 성분/제품 추천 API 응답은 각각 items와 summary로 분리해 UI에 매핑합니다.
+    // 성분/제품 추천 API 응답은 각각 ingredients/products와 summary로 분리해 UI에 매핑합니다.
     if (ingredientResult.status === "fulfilled") {
       setIngredients(ingredientResult.value.ingredients);
       setIngredientSummary(ingredientResult.value.summary);
@@ -412,7 +410,7 @@ function RecommendationPage() {
 
   // 페이지가 열리면 성분 추천 API와 제품 추천 API를 호출해 화면 데이터를 준비합니다.
   useEffect(() => {
-    // 초기 렌더 직후 비동기 로딩을 시작하고, 언마운트 시 예약된 호출을 정리합니다.
+    // 초기 렌더 직후 로딩을 예약하고, 실행 전 언마운트되면 대기 중인 타이머만 정리합니다.
     const timeoutId = window.setTimeout(loadRecommendations, 0);
 
     return () => {
