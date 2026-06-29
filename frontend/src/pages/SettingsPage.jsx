@@ -55,8 +55,8 @@ function SettingsPage() {
     },
     {
       icon: ListCollapse,
-      title: "추천 기준 설명",
-      description: "추천 화면에서 추천 기준과 이유 설명을 기본으로 펼쳐 봅니다.",
+      title: "추천 이유와 기준 설명",
+      description: "추천 화면의 상단 기준 설명과 카드별 추천 이유를 함께 표시합니다.",
       checked: expandRecommendationReason,
       onChange: () => setExpandRecommendationReason((currentValue) => !currentValue),
     },

@@ -14,6 +14,7 @@ import {
   Legend,
   Line,
   LineChart as RechartsLineChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -108,6 +109,40 @@ function getTrendPointValue(series, fallbackPoints, index, key) {
   const point = seriesPoint || fallbackPoint || {};
 
   return point?.[key] ?? point?.[key.replace(/[A-Z]/g, (char) => `_${char.toLowerCase()}`)] ?? null;
+}
+
+function getTrendPointMeta(series, fallbackPoints, index) {
+  const seriesPoint = Array.isArray(series?.points) ? series.points[index] : null;
+  const fallbackPoint = Array.isArray(fallbackPoints) ? fallbackPoints[index] : null;
+
+  return seriesPoint || fallbackPoint || {};
+}
+
+function isCompletedTrendStatus(status) {
+  const normalizedStatus = String(status || "").trim().toLowerCase();
+
+  if (!normalizedStatus) return true;
+
+  return normalizedStatus === "completed" || normalizedStatus === "complete";
+}
+
+function getDisplayableTrendScore(series, fallbackPoints, index) {
+  const point = getTrendPointMeta(series, fallbackPoints, index);
+  const score = getScoreNumber(series?.data?.[index] ?? point?.score);
+
+  if (score === null) return null;
+
+  if (!isCompletedTrendStatus(point?.status ?? point?.analysisStatus ?? point?.analysis_status)) {
+    return null;
+  }
+
+  return shouldShowAnalysisScore({
+    score,
+    status: point?.status ?? point?.analysisStatus ?? point?.analysis_status,
+    saved: point?.saved,
+  })
+    ? score
+    : null;
 }
 
 function ScoreTrendTooltip({ active, payload, label }) {
@@ -628,7 +663,7 @@ function HistoryPage() {
 
       trendSeriesDefinitions.forEach((definition) => {
         const series = getTrendSeriesByCode(scoreTrendData.series, definition.code);
-        const score = getScoreNumber(series?.data?.[index]);
+        const score = getDisplayableTrendScore(series, fallbackPoints, index);
 
         row[definition.code] = score;
         row[`${definition.code}AnalysisId`] = getTrendPointValue(series, fallbackPoints, index, "analysisId");
@@ -1449,6 +1484,36 @@ function HistoryPage() {
           background: rgba(255, 255, 255, 0.96);
           border: 1px solid rgba(226, 232, 240, 0.95);
           box-shadow: 0 18px 44px rgba(15, 23, 42, 0.12);
+        }
+
+        .sf-trend-guide {
+          margin: 8px 4px 0;
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 7px;
+          color: #64748b;
+          font-size: 11px;
+          font-weight: 850;
+          line-height: 1.35;
+        }
+
+        .sf-trend-guide span,
+        .sf-trend-guide em {
+          min-height: 26px;
+          padding: 6px 9px;
+          border-radius: 999px;
+          background: #ffffff;
+          border: 1px solid rgba(226, 232, 240, 0.92);
+          font-style: normal;
+          white-space: nowrap;
+        }
+
+        .sf-trend-guide span {
+          color: #167d7f;
+          background: rgba(22, 125, 127, 0.08);
+          border-color: rgba(22, 125, 127, 0.16);
+          font-weight: 950;
         }
 
         .sf-trend-tooltip strong,
@@ -2914,6 +2979,18 @@ function HistoryPage() {
                         axisLine={false}
                         tickLine={false}
                       />
+                      <ReferenceLine
+                        y={80}
+                        stroke="rgba(22, 125, 127, 0.34)"
+                        strokeDasharray="5 5"
+                        label={{ value: "양호", position: "insideTopLeft", fill: "#167D7F", fontSize: 11, fontWeight: 900 }}
+                      />
+                      <ReferenceLine
+                        y={60}
+                        stroke="rgba(245, 158, 11, 0.36)"
+                        strokeDasharray="5 5"
+                        label={{ value: "주의", position: "insideTopLeft", fill: "#D97706", fontSize: 11, fontWeight: 900 }}
+                      />
                       <Tooltip content={<ScoreTrendTooltip />} />
                       <Legend
                         verticalAlign="top"
@@ -2936,6 +3013,12 @@ function HistoryPage() {
                       ))}
                     </RechartsLineChart>
                   </ResponsiveContainer>
+                  <div className="sf-trend-guide" aria-label="점수 추이 기준 안내">
+                    <span>완료된 분석 기준</span>
+                    <em>80점 이상 양호</em>
+                    <em>60~79점 주의</em>
+                    <em>60점 미만 관리필요</em>
+                  </div>
                 </div>
               ) : (
                 <div className="sf-empty-card">

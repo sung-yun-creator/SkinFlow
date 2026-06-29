@@ -282,7 +282,7 @@ function LoginPage() {
               className="auth-account-help-button"
               onClick={handleAccountHelpToggle}
             >
-              비밀번호가 기억나지 않나요?
+              아이디, 비밀번호 찾기
             </button>
 
             {accountHelpOpen && (
