@@ -6,6 +6,7 @@ import { useMemo, useRef, useState } from "react";
 import { MessageCircle, Send, Sparkles, X } from "lucide-react";
 import { sendChatMessage } from "../../api/chatApi";
 import { AUTH_STORAGE_KEYS } from "../../api/authSession";
+import { safeCareText } from "../../utils/safeCareText";
 
 // 사용자가 처음 채팅을 열었을 때 바로 눌러볼 수 있는 예시 질문입니다.
 const QUICK_QUESTIONS = [
@@ -33,7 +34,7 @@ function ChatWidget() {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef(null);
-  const isLoggedIn = useMemo(hasLoginToken, []);
+  const isLoggedIn = useMemo(() => hasLoginToken(), []);
 
   // 로그인하지 않은 사용자는 채팅 위젯을 보지 않도록 합니다.
   // 보호 API 호출을 줄이고, 비로그인 사용자가 헷갈리지 않게 하는 처리입니다.
@@ -65,15 +66,15 @@ function ChatWidget() {
         ...current,
         {
           role: "bot",
-          content: response?.answer || "답변을 만들지 못했습니다. 잠시 후 다시 질문해 주세요.",
+          content: safeCareText(response?.answer) || "답변을 만들지 못했습니다. 잠시 후 다시 질문해 주세요.",
         },
       ]);
-    } catch (error) {
+    } catch {
       setMessages((current) => [
         ...current,
         {
           role: "bot",
-          content: error?.message || "챗봇 연결을 확인해 주세요.",
+          content: "답변을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
         },
       ]);
     } finally {
@@ -98,7 +99,7 @@ function ChatWidget() {
         .sf-chatbot-launcher {
           position: fixed;
           right: 22px;
-          bottom: 92px;
+          bottom: calc(92px + env(safe-area-inset-bottom, 0px));
           z-index: 180;
           width: 58px;
           height: 58px;
@@ -121,12 +122,12 @@ function ChatWidget() {
         .sf-chatbot-panel {
           position: fixed;
           right: 22px;
-          bottom: 164px;
+          bottom: calc(164px + env(safe-area-inset-bottom, 0px));
           z-index: 181;
           width: min(380px, calc(100vw - 28px));
           height: min(560px, calc(100vh - 190px));
           display: grid;
-          grid-template-rows: auto auto minmax(0, 1fr) auto;
+          grid-template-rows: auto auto auto minmax(0, 1fr) auto;
           overflow: hidden;
           border: 1px solid rgba(226, 232, 240, 0.94);
           border-radius: 24px;
@@ -207,6 +208,18 @@ function ChatWidget() {
           font-size: 12px;
           font-weight: 850;
           cursor: pointer;
+        }
+
+        .sf-chatbot-disclaimer {
+          margin: 0;
+          padding: 9px 14px;
+          color: #64748b;
+          background: #ffffff;
+          border-bottom: 1px solid rgba(226, 232, 240, 0.86);
+          font-size: 11px;
+          font-weight: 750;
+          line-height: 1.5;
+          word-break: keep-all;
         }
 
         .sf-chatbot-body {
@@ -296,13 +309,13 @@ function ChatWidget() {
         @media (max-width: 640px) {
           .sf-chatbot-launcher {
             right: 18px;
-            bottom: 104px;
+            bottom: calc(104px + env(safe-area-inset-bottom, 0px));
           }
 
           .sf-chatbot-panel {
             left: 14px;
             right: 14px;
-            bottom: 174px;
+            bottom: calc(174px + env(safe-area-inset-bottom, 0px));
             width: auto;
             height: min(540px, calc(100vh - 200px));
           }
@@ -333,6 +346,10 @@ function ChatWidget() {
               </button>
             ))}
           </div>
+
+          <p className="sf-chatbot-disclaimer">
+            피부 관리 참고 정보이며, 개인별 상태에 따라 다를 수 있습니다.
+          </p>
 
           <div className="sf-chatbot-body">
             {messages.length === 0 && (
