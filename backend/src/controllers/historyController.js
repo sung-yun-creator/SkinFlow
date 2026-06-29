@@ -1,4 +1,4 @@
-const { getHistory, getHistoryDetail } = require('../services/historyService');
+const { getHistory, getHistoryDetail, getHistoryScoreTrends } = require('../services/historyService');
 
 // 분석 이력 controller는 목록/상세 조회 요청을 사용자 ID 기준으로 service에 위임합니다.
 async function listHistory(req, res) {
@@ -26,7 +26,16 @@ async function getHistoryById(req, res) {
     return res.json(history);
 }
 
+async function getHistoryTrendScores(req, res) {
+    const trends = await getHistoryScoreTrends(req.user.userId, {
+        limit: req.query.limit,
+    });
+
+    return res.json(trends);
+}
+
 module.exports = {
     getHistoryById,
+    getHistoryTrendScores,
     listHistory,
 };
