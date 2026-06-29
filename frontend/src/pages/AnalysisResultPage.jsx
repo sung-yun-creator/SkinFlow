@@ -3,6 +3,7 @@
 // 이 파일은 화면 표시와 사용자 동작 처리를 담당하며, 백엔드/DB/AI 로직은 여기서 직접 수정하지 않습니다.
 // 주석은 코드 흐름 이해를 돕기 위한 설명이며 실제 동작에는 영향을 주지 않습니다.
 import { useMemo } from "react";
+import { Navigate } from "react-router-dom";
 import {
   ArrowRight,
   CheckCircle2,
@@ -16,6 +17,7 @@ import {
 import PageLayout from "../components/layout/PageLayout";
 import Button from "../components/common/Button";
 import Badge from "../components/common/Badge";
+import { AUTH_STORAGE_KEYS } from "../api/authSession";
   // 분석 진행 화면에서 저장한 최신 분석 결과를 꺼내기 위한 localStorage 키입니다.
 
 
@@ -28,6 +30,10 @@ function readLatestAnalysisResult() {
   } catch {
     return null;
   }
+}
+
+function hasLoginToken() {
+  return typeof window !== "undefined" && Boolean(localStorage.getItem(AUTH_STORAGE_KEYS.token));
 }
  // 색소침착/주름 지표를 화면에서 구분하기 위한 색상을 정합니다.
 
@@ -314,8 +320,12 @@ const emptyResultNoticeItems = [
  // 분석 결과 화면 전체를 담당하는 React 컴포넌트입니다.
 
 function AnalysisResultPage() {
+  const isLoggedIn = hasLoginToken();
   // localStorage에 저장된 최신 분석 결과를 읽고, 화면에서 사용할 수 있는 형태로 보관합니다.
-  const latestAnalysis = useMemo(() => readLatestAnalysisResult(), []);
+  const latestAnalysis = useMemo(
+    () => (isLoggedIn ? readLatestAnalysisResult() : null),
+    [isLoggedIn],
+  );
   const analysisResult = latestAnalysis?.result || null;
   const hasSavedResult = Boolean(analysisResult?.saved);
   const normalizedResultStatus = String(
@@ -395,6 +405,10 @@ function AnalysisResultPage() {
           "점수 표시 가능 여부를 분리해 결과처럼 보이지 않게 안내합니다.",
         ]
         : emptyResultNoticeItems;
+
+  if (!isLoggedIn) {
+    return <Navigate to="/login" replace />;
+  }
 
   // 아래 JSX는 결과 없음 상태, 분석 대기 상태, 완료 결과 상태를 나누어 화면에 표시합니다.
   return (

@@ -35,6 +35,7 @@ import {
   getHistoryScoreTrends,
 } from "../api/historyApi";
 import { shouldShowAnalysisScore } from "../utils/analysisStatus";
+import { safeCareText } from "../utils/safeCareText";
  // 이력 API 응답이 없을 때 화면이 깨지지 않도록 사용하는 기본 데이터 구조입니다.
 
 const defaultHistoryData = {
@@ -458,25 +459,6 @@ function getRecommendationText(recommendations) {
 function hasText(value) {
   return typeof value === "string" && value.trim() !== "";
 }
- // AI 요약 리포트에 안내 문구가 없을 때 대신 보여줄 기본 참고 문구입니다.
-
-const SAFE_LLM_DISCLAIMER =
-  "이 내용은 피부 관리 참고 정보이며, 개인별 관리 방향을 돕기 위한 안내입니다.";
- // LLM 리포트 안내 문구가 없을 때 기본 참고 문구를 제공합니다.
-
-function getSafeLlmDisclaimer(disclaimer) {
-  if (!hasText(disclaimer)) return "";
-
-  const diagnosisTerm = ["진", "단"].join("");
-  const medicalTerm = ["의", "료", "적"].join("");
-  const clinicalTerm = ["의", "학", "적"].join("");
-  const careTerm = ["치", "료"].join("");
-  const unsafePattern = new RegExp(
-    `${diagnosisTerm}|${clinicalTerm}|${medicalTerm}?\\s*판단|${careTerm}`
-  );
-
-  return unsafePattern.test(disclaimer) ? SAFE_LLM_DISCLAIMER : disclaimer;
-}
  // LLM 리포트가 새로 생성/저장/재사용 중 어떤 출처인지 라벨로 바꿉니다.
 
 function getLlmReportSourceLabel(source) {
@@ -778,18 +760,25 @@ function HistoryPage() {
     getMetricGradeValue(visibleSelectedDetail?.metrics, "주름")
   );
   const llmReportBody = llmReport?.report || {};
-  const safeLlmDisclaimer = getSafeLlmDisclaimer(llmReportBody.disclaimer);
+  const safeLlmReportBody = {
+    title: safeCareText(llmReportBody.title),
+    summary: safeCareText(llmReportBody.summary),
+    skinStatus: safeCareText(llmReportBody.skinStatus),
+    recommendationSummary: safeCareText(llmReportBody.recommendationSummary),
+    careGuide: safeCareText(llmReportBody.careGuide),
+    disclaimer: safeCareText(llmReportBody.disclaimer),
+  };
   const llmReportKeyPoints = Array.isArray(llmReportBody.keyPoints)
-    ? llmReportBody.keyPoints.filter(hasText)
+    ? llmReportBody.keyPoints.map(safeCareText).filter(hasText)
     : [];
   const hasLlmReportContent =
-    hasText(llmReportBody.title) ||
-    hasText(llmReportBody.summary) ||
-    hasText(llmReportBody.skinStatus) ||
+    hasText(safeLlmReportBody.title) ||
+    hasText(safeLlmReportBody.summary) ||
+    hasText(safeLlmReportBody.skinStatus) ||
     llmReportKeyPoints.length > 0 ||
-    hasText(llmReportBody.recommendationSummary) ||
-    hasText(llmReportBody.careGuide) ||
-    hasText(safeLlmDisclaimer);
+    hasText(safeLlmReportBody.recommendationSummary) ||
+    hasText(safeLlmReportBody.careGuide) ||
+    hasText(safeLlmReportBody.disclaimer);
 
   useEffect(() => {
     if (!shouldShowDetailSection) return;
@@ -3385,24 +3374,24 @@ function HistoryPage() {
 
                   {!isLlmReportLoading && !llmReportError && hasLlmReportContent && (
                     <>
-                      {hasText(llmReportBody.title) && (
+                      {hasText(safeLlmReportBody.title) && (
                         <div className="sf-llm-report-section">
                           <span>리포트 제목</span>
-                          <strong>{llmReportBody.title}</strong>
+                          <strong>{safeLlmReportBody.title}</strong>
                         </div>
                       )}
 
-                      {hasText(llmReportBody.summary) && (
+                      {hasText(safeLlmReportBody.summary) && (
                         <div className="sf-llm-report-section">
                           <span>전체 요약</span>
-                          <p>{llmReportBody.summary}</p>
+                          <p>{safeLlmReportBody.summary}</p>
                         </div>
                       )}
 
-                      {hasText(llmReportBody.skinStatus) && (
+                      {hasText(safeLlmReportBody.skinStatus) && (
                         <div className="sf-llm-report-section">
                           <span>피부 상태 요약</span>
-                          <p>{llmReportBody.skinStatus}</p>
+                          <p>{safeLlmReportBody.skinStatus}</p>
                         </div>
                       )}
 
@@ -3417,24 +3406,24 @@ function HistoryPage() {
                         </div>
                       )}
 
-                      {hasText(llmReportBody.recommendationSummary) && (
+                      {hasText(safeLlmReportBody.recommendationSummary) && (
                         <div className="sf-llm-report-section">
                           <span>추천 요약</span>
-                          <p>{llmReportBody.recommendationSummary}</p>
+                          <p>{safeLlmReportBody.recommendationSummary}</p>
                         </div>
                       )}
 
-                      {hasText(llmReportBody.careGuide) && (
+                      {hasText(safeLlmReportBody.careGuide) && (
                         <div className="sf-llm-report-section">
                           <span>관리 가이드</span>
-                          <p>{llmReportBody.careGuide}</p>
+                          <p>{safeLlmReportBody.careGuide}</p>
                         </div>
                       )}
 
-                      {hasText(safeLlmDisclaimer) && (
+                      {hasText(safeLlmReportBody.disclaimer) && (
                         <div className="sf-llm-report-section">
                           <span>참고 안내</span>
-                          <p>{safeLlmDisclaimer}</p>
+                          <p>{safeLlmReportBody.disclaimer}</p>
                         </div>
                       )}
                     </>

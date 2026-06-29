@@ -8,6 +8,11 @@ const AUTH_STORAGE_KEYS = {
   user: "skinflow_user",
 };
 
+const ANALYSIS_STORAGE_KEYS = [
+  "skinflow_latest_analysis_result",
+  "skinflow_analysis_progress",
+];
+
 // 세션이 지워졌다는 사실을 Header 같은 다른 컴포넌트에 알려주기 위한 이벤트 이름입니다.
 const AUTH_SESSION_CLEARED_EVENT = "skinflow-auth-session-cleared";
 const LEGACY_USER_STORAGE_KEY = ["skinflow", ["mo", "ck"].join(""), "user"].join("_");
@@ -100,6 +105,11 @@ export function clearLoginSession() {
   sessionStorage.removeItem(AUTH_STORAGE_KEYS.token);
   sessionStorage.removeItem(AUTH_STORAGE_KEYS.userEmail);
   sessionStorage.removeItem(AUTH_STORAGE_KEYS.user);
+
+  ANALYSIS_STORAGE_KEYS.forEach((key) => {
+    localStorage.removeItem(key);
+    sessionStorage.removeItem(key);
+  });
 
   cleanupLegacyAuthStorage();
   notifyAuthSessionCleared();
