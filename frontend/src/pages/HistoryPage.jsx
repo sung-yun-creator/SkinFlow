@@ -5,15 +5,30 @@ import {
   Clock,
   History,
   Info,
-  LineChart,
+  LineChart as LineChartIcon,
   Search,
   Sparkles,
 } from "lucide-react";
+import {
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart as RechartsLineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import PageLayout from "../components/layout/PageLayout";
 import Button from "../components/common/Button";
 import Card from "../components/common/Card";
 import Badge from "../components/common/Badge";
-import { getHistory, getHistoryDetail, getHistoryLlmReport } from "../api/historyApi";
+import {
+  getHistory,
+  getHistoryDetail,
+  getHistoryLlmReport,
+  getHistoryScoreTrends,
+} from "../api/historyApi";
 import { shouldShowAnalysisScore } from "../utils/analysisStatus";
 
 const defaultHistoryData = {
@@ -26,6 +41,23 @@ const defaultHistoryData = {
   },
   records: [],
 };
+
+const defaultScoreTrendData = {
+  summary: {
+    pointCount: 0,
+    limit: 7,
+    metricCodes: ["total", "pigmentation", "wrinkle"],
+  },
+  labels: [],
+  points: [],
+  series: [],
+};
+
+const trendSeriesDefinitions = [
+  { code: "total", name: "종합 점수", unit: "점", color: "#167D7F" },
+  { code: "pigmentation", name: "색소침착", unit: "점", color: "#F43F5E" },
+  { code: "wrinkle", name: "주름", unit: "점", color: "#0F172A" },
+];
 
 const scoreGradeLegend = [
   { label: "양호", color: "#167D7F", bg: "rgba(22, 125, 127, 0.11)" },
@@ -41,6 +73,70 @@ function normalizeHistoryData(data) {
     },
     records: Array.isArray(data?.records) ? data.records : [],
   };
+}
+
+function normalizeScoreTrendData(data) {
+  return {
+    summary: {
+      ...defaultScoreTrendData.summary,
+      ...(data?.summary || {}),
+    },
+    labels: Array.isArray(data?.labels) ? data.labels : [],
+    points: Array.isArray(data?.points) ? data.points : [],
+    series: Array.isArray(data?.series)
+      ? data.series.map((item) => ({
+          ...item,
+          code: String(item?.code || ""),
+          name: item?.name || "점수",
+          unit: item?.unit || "점",
+          data: Array.isArray(item?.data) ? item.data : [],
+          points: Array.isArray(item?.points) ? item.points : [],
+        }))
+      : [],
+  };
+}
+
+function getTrendSeriesByCode(series, code) {
+  if (!Array.isArray(series)) return null;
+
+  return series.find((item) => item?.code === code) || null;
+}
+
+function getTrendPointValue(series, fallbackPoints, index, key) {
+  const seriesPoint = Array.isArray(series?.points) ? series.points[index] : null;
+  const fallbackPoint = Array.isArray(fallbackPoints) ? fallbackPoints[index] : null;
+  const point = seriesPoint || fallbackPoint || {};
+
+  return point?.[key] ?? point?.[key.replace(/[A-Z]/g, (char) => `_${char.toLowerCase()}`)] ?? null;
+}
+
+function ScoreTrendTooltip({ active, payload, label }) {
+  if (!active || !Array.isArray(payload)) return null;
+
+  const visiblePayload = payload.filter((item) => item?.value !== null && item?.value !== undefined);
+
+  if (visiblePayload.length === 0) return null;
+
+  const row = visiblePayload[0]?.payload || {};
+  const analyzedAt = row.totalAnalyzedAt || row.pigmentationAnalyzedAt || row.wrinkleAnalyzedAt;
+  const gradeName = row.totalGradeName || row.pigmentationGradeName || row.wrinkleGradeName;
+
+  return (
+    <div className="sf-trend-tooltip">
+      <strong>{label}</strong>
+      {analyzedAt && <span>{formatDate(analyzedAt, "분석일 확인")}</span>}
+      {gradeName && <em>{gradeName}</em>}
+      <div>
+        {visiblePayload.map((item) => (
+          <p key={item.dataKey} style={{ "--tooltip-color": item.color }}>
+            <i aria-hidden="true" />
+            <span>{item.name}</span>
+            <b>{Math.round(Number(item.value))}점</b>
+          </p>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function formatDate(dateValue, emptyText = "아직 없음") {
@@ -75,10 +171,6 @@ function getScoreNumber(score) {
   if (Number.isNaN(numericScore)) return null;
 
   return Math.max(0, Math.min(100, Math.round(numericScore)));
-}
-
-function hasScoreValue(score) {
-  return getScoreNumber(score) !== null;
 }
 
 function getStatusLabel(status) {
@@ -386,11 +478,14 @@ function filterHistoryRecords(records, keyword) {
 
 function HistoryPage() {
   const [historyData, setHistoryData] = useState(defaultHistoryData);
+  const [scoreTrendData, setScoreTrendData] = useState(defaultScoreTrendData);
   const [selectedDetail, setSelectedDetail] = useState(null);
   const [selectedAnalysisId, setSelectedAnalysisId] = useState(null);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isTrendLoading, setIsTrendLoading] = useState(true);
   const [historyError, setHistoryError] = useState("");
+  const [scoreTrendError, setScoreTrendError] = useState("");
   const [detailError, setDetailError] = useState("");
   const [llmReport, setLlmReport] = useState(null);
   const [isLlmReportLoading, setIsLlmReportLoading] = useState(false);
@@ -403,29 +498,40 @@ function HistoryPage() {
     let isMounted = true;
 
     async function loadHistory() {
-      try {
-        setIsLoading(true);
-        setHistoryError("");
+      setIsLoading(true);
+      setIsTrendLoading(true);
+      setHistoryError("");
+      setScoreTrendError("");
 
-        const data = await getHistory();
+      const [historyResult, trendResult] = await Promise.allSettled([
+        getHistory(),
+        getHistoryScoreTrends(7),
+      ]);
 
-        if (isMounted) {
-          setHistoryData(normalizeHistoryData(data));
-        }
-      } catch (error) {
-        console.error("분석 이력 API 호출 실패:", error);
+      if (!isMounted) return;
 
-        if (isMounted) {
-          setHistoryError(
-            "분석 이력을 불러오지 못했습니다. 로그인 상태를 확인한 후 다시 시도해주세요."
-          );
-          setHistoryData(defaultHistoryData);
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+      if (historyResult.status === "fulfilled") {
+        setHistoryData(normalizeHistoryData(historyResult.value));
+      } else {
+        console.error("분석 이력 API 호출 실패:", historyResult.reason);
+        setHistoryError(
+          "분석 이력을 불러오지 못했습니다. 로그인 상태를 확인한 후 다시 시도해주세요."
+        );
+        setHistoryData(defaultHistoryData);
       }
+
+      if (trendResult.status === "fulfilled") {
+        setScoreTrendData(normalizeScoreTrendData(trendResult.value));
+      } else {
+        console.error("분석 이력 점수 추이 API 호출 실패:", trendResult.reason);
+        setScoreTrendError(
+          "점수 추이를 불러오지 못했습니다. 날짜별 분석 기록은 계속 확인할 수 있습니다."
+        );
+        setScoreTrendData(defaultScoreTrendData);
+      }
+
+      setIsLoading(false);
+      setIsTrendLoading(false);
     }
 
     loadHistory();
@@ -439,7 +545,6 @@ function HistoryPage() {
     () => (Array.isArray(historyData.records) ? historyData.records : []),
     [historyData.records]
   );
-  const hasRecords = records.length > 0;
   const recentAverageSummary = useMemo(() => {
     const orderedRecords = records
       .map((record, index) => ({
@@ -514,52 +619,43 @@ function HistoryPage() {
     activeSelectedDetailId || visibleSelectedDetail || isDetailLoading || detailError
   );
 
-  const trendItems = useMemo(() => {
-    const withOrder = records.map((record, index) => ({
-      record,
-      index,
-      time: getRecordTime(record),
-    }));
-    const hasDatedRecords = withOrder.some((item) => item.time !== null);
-    const source = hasDatedRecords
-      ? withOrder
-        .slice()
-        .sort((a, b) => {
-          if (a.time !== null && b.time !== null) return b.time - a.time;
-          if (a.time !== null) return -1;
-          if (b.time !== null) return 1;
-          return b.index - a.index;
-        })
-        .slice(0, 4)
-        .sort((a, b) => {
-          if (a.time !== null && b.time !== null) return a.time - b.time;
-          if (a.time !== null) return -1;
-          if (b.time !== null) return 1;
-          return a.index - b.index;
-        })
-        .map((item) => item.record)
-      : records.slice(-4);
+  const scoreTrendChartData = useMemo(() => {
+    const labels = Array.isArray(scoreTrendData.labels) ? scoreTrendData.labels : [];
+    const fallbackPoints = Array.isArray(scoreTrendData.points) ? scoreTrendData.points : [];
 
-    return source.map((record, index) => {
-      const recordScore = getRecordScore(record);
-      const canShowScore = shouldShowAnalysisScore({
-        score: recordScore,
-        status: getRecordStatus(record),
-        saved: record.saved,
+    return labels.map((label, index) => {
+      const row = { label };
+
+      trendSeriesDefinitions.forEach((definition) => {
+        const series = getTrendSeriesByCode(scoreTrendData.series, definition.code);
+        const score = getScoreNumber(series?.data?.[index]);
+
+        row[definition.code] = score;
+        row[`${definition.code}AnalysisId`] = getTrendPointValue(series, fallbackPoints, index, "analysisId");
+        row[`${definition.code}AnalyzedAt`] = getTrendPointValue(series, fallbackPoints, index, "analyzedAt");
+        row[`${definition.code}GradeName`] = getTrendPointValue(series, fallbackPoints, index, "gradeName");
       });
 
-      return {
-        label: formatDate(getRecordDate(record), `${index + 1}회차`),
-        score: canShowScore ? getScoreNumber(recordScore) : null,
-        hasScore: canShowScore && hasScoreValue(recordScore),
-        gradeMeta: getScoreGradeMeta(canShowScore ? recordScore : null, getRecordGradeStatus(record)),
-      };
+      return row;
     });
-  }, [records]);
+  }, [scoreTrendData]);
 
-  const maxTrendScore = Math.max(
-    ...trendItems.filter((item) => item.hasScore).map((item) => item.score),
-    100
+  const activeTrendSeries = useMemo(
+    () =>
+      trendSeriesDefinitions.map((definition) => {
+        const apiSeries = getTrendSeriesByCode(scoreTrendData.series, definition.code);
+
+        return {
+          ...definition,
+          name: apiSeries?.name || definition.name,
+          unit: apiSeries?.unit || definition.unit,
+        };
+      }),
+    [scoreTrendData.series]
+  );
+
+  const hasScoreTrendPoints = scoreTrendChartData.some((item) =>
+    activeTrendSeries.some((series) => Number.isFinite(item[series.code]))
   );
   const selectedDetailStatus = getRecordStatus(visibleSelectedDetail);
   const selectedDetailGradeStatus = getRecordGradeStatus(visibleSelectedDetail);
@@ -1333,8 +1429,76 @@ function HistoryPage() {
           min-height: 300px;
           margin: 18px 0 14px;
           display: grid;
-          grid-template-rows: repeat(4, minmax(58px, 1fr));
-          gap: 14px;
+        }
+
+        .sf-trend-chart-frame {
+          width: 100%;
+          min-height: 310px;
+          padding: 16px 12px 8px;
+          border-radius: 22px;
+          background:
+            radial-gradient(circle at 100% 0%, rgba(22, 125, 127, 0.07), transparent 32%),
+            #f8fafc;
+          border: 1px solid rgba(226, 232, 240, 0.9);
+        }
+
+        .sf-trend-tooltip {
+          min-width: 180px;
+          padding: 12px 13px;
+          border-radius: 16px;
+          background: rgba(255, 255, 255, 0.96);
+          border: 1px solid rgba(226, 232, 240, 0.95);
+          box-shadow: 0 18px 44px rgba(15, 23, 42, 0.12);
+        }
+
+        .sf-trend-tooltip strong,
+        .sf-trend-tooltip span,
+        .sf-trend-tooltip em {
+          display: block;
+        }
+
+        .sf-trend-tooltip strong {
+          color: #0f172a;
+          font-size: 13px;
+          font-weight: 950;
+        }
+
+        .sf-trend-tooltip > span,
+        .sf-trend-tooltip > em {
+          margin-top: 4px;
+          color: #64748b;
+          font-size: 11px;
+          font-style: normal;
+          font-weight: 850;
+        }
+
+        .sf-trend-tooltip div {
+          display: grid;
+          gap: 7px;
+          margin-top: 10px;
+        }
+
+        .sf-trend-tooltip p {
+          display: grid;
+          grid-template-columns: 9px minmax(0, 1fr) auto;
+          align-items: center;
+          gap: 7px;
+          margin: 0;
+          color: #475569;
+          font-size: 12px;
+          font-weight: 850;
+        }
+
+        .sf-trend-tooltip i {
+          width: 8px;
+          height: 8px;
+          border-radius: 999px;
+          background: var(--tooltip-color);
+        }
+
+        .sf-trend-tooltip b {
+          color: #0f172a;
+          font-weight: 950;
         }
 
         .sf-history-grid.is-expanded .sf-trend-chart {
@@ -2707,38 +2871,79 @@ function HistoryPage() {
             <div className="sf-card-title-row">
               <div>
                 <small>점수 흐름</small>
-                <h2>종합 점수 변화</h2>
+                <h2>피부 점수 추이</h2>
               </div>
-              <Badge>{hasRecords ? "기록 있음" : "분석 전"}</Badge>
+              <Badge>{isTrendLoading ? "불러오는 중" : hasScoreTrendPoints ? "최근 7회" : "분석 전"}</Badge>
             </div>
 
             <div className="sf-trend-chart">
-              {hasRecords ? (
-                trendItems.map((item, index) => (
-                  <div className="sf-trend-row" key={`${item.label}-${index}`}>
-                    <span>{item.label}</span>
-                    <div className="sf-trend-bar">
-                      {item.hasScore && (
-                        <span
-                          style={{
-                            width: `${Math.max(6, (item.score / maxTrendScore) * 100)}%`,
-                            background: item.gradeMeta.color,
-                          }}
+              {isTrendLoading ? (
+                <div className="sf-empty-card">
+                  <span className="sf-icon-tile" aria-hidden="true">
+                    <LineChartIcon size={21} />
+                  </span>
+                  <strong>점수 추이를 불러오는 중입니다</strong>
+                  <p>분석 이력의 종합 점수, 색소침착, 주름 흐름을 준비하고 있습니다.</p>
+                </div>
+              ) : scoreTrendError ? (
+                <div className="sf-empty-card">
+                  <span className="sf-icon-tile" aria-hidden="true">
+                    <LineChartIcon size={21} />
+                  </span>
+                  <strong>점수 추이를 불러오지 못했습니다</strong>
+                  <p>{scoreTrendError}</p>
+                </div>
+              ) : hasScoreTrendPoints ? (
+                <div className="sf-trend-chart-frame">
+                  <ResponsiveContainer width="100%" height={310}>
+                    <RechartsLineChart
+                      data={scoreTrendChartData}
+                      margin={{ top: 12, right: 18, bottom: 8, left: -12 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.28)" vertical={false} />
+                      <XAxis
+                        dataKey="label"
+                        tick={{ fill: "#64748B", fontSize: 11, fontWeight: 800 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        domain={[0, 100]}
+                        ticks={[0, 20, 40, 60, 80, 100]}
+                        tick={{ fill: "#64748B", fontSize: 11, fontWeight: 800 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <Tooltip content={<ScoreTrendTooltip />} />
+                      <Legend
+                        verticalAlign="top"
+                        align="right"
+                        iconType="circle"
+                        wrapperStyle={{ fontSize: 12, fontWeight: 900, paddingBottom: 8 }}
+                      />
+                      {activeTrendSeries.map((series) => (
+                        <Line
+                          key={series.code}
+                          type="monotone"
+                          dataKey={series.code}
+                          name={series.name}
+                          stroke={series.color}
+                          strokeWidth={series.code === "total" ? 3 : 2.2}
+                          dot={{ r: 3.5, strokeWidth: 2, fill: "#ffffff" }}
+                          activeDot={{ r: 5 }}
+                          connectNulls
                         />
-                      )}
-                    </div>
-                    <div className="sf-trend-score">
-                      {item.hasScore ? `${item.score}점` : "점수 없음"}
-                    </div>
-                  </div>
-                ))
+                      ))}
+                    </RechartsLineChart>
+                  </ResponsiveContainer>
+                </div>
               ) : (
                 <div className="sf-empty-card">
                   <span className="sf-icon-tile" aria-hidden="true">
-                    <LineChart size={21} />
+                    <LineChartIcon size={21} />
                   </span>
                   <strong>아직 비교할 분석 이력이 없습니다</strong>
-                  <p>첫 분석 후 변화 흐름이 표시됩니다.</p>
+                  <p>첫 분석 후 종합 점수, 색소침착, 주름 변화 흐름이 표시됩니다.</p>
                 </div>
               )}
             </div>

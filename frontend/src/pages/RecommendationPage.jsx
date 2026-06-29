@@ -18,7 +18,6 @@ import {
   getProductRecommendations,
 } from "../api/recommendationApi";
 
-const SCORE_DISPLAY_MODE_KEY = "skinflow_score_display_mode";
 const SHOW_CARE_NOTICE_KEY = "skinflow_show_care_notice";
 const EXPAND_RECOMMENDATION_REASON_KEY = "skinflow_expand_recommendation_reason";
 
@@ -59,13 +58,13 @@ function hasMatchScore(value) {
   return Number.isFinite(Number(value));
 }
 
-function formatMatchScore(value, displayMode = "percent") {
+function formatMatchScore(value) {
   if (!hasMatchScore(value)) {
     return "매칭 정보 없음";
   }
 
-  // 추천 매칭 값은 0~100 범위의 적합도이므로 사용자가 더 직관적으로 읽도록 표시 단위만 바꿉니다.
-  return displayMode === "score" ? `${Math.round(Number(value))}점` : `${Math.round(Number(value))}%`;
+  // 추천 매칭 값은 0~100 범위의 적합도이므로 퍼센트 방식으로 고정 표시합니다.
+  return `${Math.round(Number(value))}%`;
 }
 
 function getRecommendationMatchScore(item) {
@@ -331,7 +330,6 @@ function RecommendationPage() {
   const [ingredientError, setIngredientError] = useState("");
   const [productError, setProductError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [scoreDisplayMode] = useState(() => readStoredSetting(SCORE_DISPLAY_MODE_KEY, "percent"));
   const [showCareNotice] = useState(() => readStoredSetting(SHOW_CARE_NOTICE_KEY, true));
   const [expandRecommendationReason] = useState(() =>
     readStoredSetting(EXPAND_RECOMMENDATION_REASON_KEY, true)
@@ -1409,7 +1407,7 @@ function RecommendationPage() {
 
                       <div className={`sf-match-score ${hasMatchScore(matchScore) ? "" : "is-pending"}`}>
                         <span>매칭</span>
-                        {formatMatchScore(matchScore, scoreDisplayMode)}
+                        {formatMatchScore(matchScore)}
                       </div>
                     </article>
                   );
@@ -1514,7 +1512,7 @@ function RecommendationPage() {
                                     {ingredientName}
                                     {hasMatchScore(matchedIngredient?.match) && (
                                       <span className="sf-product-ingredient-score">
-                                        {formatMatchScore(matchedIngredient.match, scoreDisplayMode)}
+                                        {formatMatchScore(matchedIngredient.match)}
                                       </span>
                                     )}
                                   </span>
@@ -1559,7 +1557,7 @@ function RecommendationPage() {
 
                       <div className={`sf-match-score ${hasMatchScore(matchScore) ? "" : "is-pending"}`}>
                         <span>매칭</span>
-                        {formatMatchScore(matchScore, scoreDisplayMode)}
+                        {formatMatchScore(matchScore)}
                       </div>
                     </article>
                   );

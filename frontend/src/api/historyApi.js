@@ -22,6 +22,17 @@ const defaultHistoryDetail = {
   recommendations: [],
 };
 
+const defaultHistoryScoreTrends = {
+  summary: {
+    pointCount: 0,
+    limit: 7,
+    metricCodes: ["total", "pigmentation", "wrinkle"],
+  },
+  labels: [],
+  points: [],
+  series: [],
+};
+
 export async function getHistory() {
   const data = await http.get("/api/history");
 
@@ -49,4 +60,28 @@ export async function getHistoryDetail(analysisId) {
 
 export async function getHistoryLlmReport(analysisId) {
   return http.get(`/api/history/${analysisId}/llm-report`);
+}
+
+export async function getHistoryScoreTrends(limit = 7) {
+  const numericLimit = Number(limit);
+  const safeLimit = Number.isFinite(numericLimit)
+    ? Math.max(1, Math.round(numericLimit))
+    : defaultHistoryScoreTrends.summary.limit;
+  const data = await http.get(`/api/history/score-trends?limit=${encodeURIComponent(safeLimit)}`);
+
+  return {
+    summary: {
+      ...defaultHistoryScoreTrends.summary,
+      ...(data?.summary || {}),
+    },
+    labels: Array.isArray(data?.labels) ? data.labels : [],
+    points: Array.isArray(data?.points) ? data.points : [],
+    series: Array.isArray(data?.series)
+      ? data.series.map((item) => ({
+          ...item,
+          data: Array.isArray(item?.data) ? item.data : [],
+          points: Array.isArray(item?.points) ? item.points : [],
+        }))
+      : [],
+  };
 }
