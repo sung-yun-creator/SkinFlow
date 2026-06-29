@@ -198,6 +198,68 @@ function buildMetricCards(analysisResult) {
 
   return metricCards;
 }
+
+// AI 요약 카드가 단순 등급 반복으로 보이지 않도록, 점수와 지표 차이를 사용자 문장으로 풀어줍니다.
+// 백엔드 점수와 지표명만 사용하고 새로운 분석값을 임의로 만들지는 않습니다.
+function buildAiSummary({ analysisResult, metricCards, hasDisplayableMetrics, isPending, hasSavedResult }) {
+  if (!hasDisplayableMetrics) {
+    return {
+      title: isPending ? "AI 모델 연결 대기" : "분석 상태 안내",
+      lead: isPending
+        ? analysisResult?.message || "AI 모델 분석 결과가 아직 준비되지 않았습니다."
+        : hasSavedResult
+          ? "저장된 응답에 표시 가능한 점수 데이터가 없어 실제 결과처럼 보이는 점수는 표시하지 않습니다."
+          : "아직 표시할 실제 분석 결과가 없습니다. 분석을 진행하면 저장된 결과를 기준으로 표시합니다.",
+      points: [],
+    };
+  }
+
+  const totalCard = metricCards.find((card) => card.label === "종합 점수");
+  const detailCards = metricCards.filter((card) => card.label !== "종합 점수");
+  const lowestMetric = detailCards.reduce(
+    (lowest, card) => (!lowest || card.value < lowest.value ? card : lowest),
+    null,
+  );
+  const highestMetric = detailCards.reduce(
+    (highest, card) => (!highest || card.value > highest.value ? card : highest),
+    null,
+  );
+  const totalLabel = totalCard?.gradeMeta?.label || analysisResult?.grade?.name || "분석 완료";
+  const totalScoreText = totalCard ? `${totalCard.value}점` : "저장된 분석 결과";
+
+  const leadMap = {
+    양호: "전반적으로 양호한 피부 관리 흐름을 유지하고 있습니다.",
+    주의: "일부 지표에서 관리 우선순위를 확인할 필요가 있습니다.",
+    관리필요: "낮게 표시된 지표를 우선 관리 항목으로 보고 꾸준히 관리 방향을 확인해보세요.",
+  };
+
+  const points = [
+    `종합 점수 ${totalScoreText} 기준으로 현재 상태는 ${totalLabel} 범위로 표시됩니다.`,
+  ];
+
+  if (lowestMetric && highestMetric && lowestMetric.label !== highestMetric.label) {
+    points.push(
+      `${lowestMetric.label} ${lowestMetric.value}점, ${highestMetric.label} ${highestMetric.value}점으로 확인되며 ${lowestMetric.label} 항목을 먼저 살펴보면 좋습니다.`,
+    );
+    points.push(
+      `추천 성분과 식습관 가이드에서 ${lowestMetric.label} 관리 방향을 이어서 확인해보세요.`,
+    );
+  } else if (lowestMetric) {
+    points.push(
+      `${lowestMetric.label} ${lowestMetric.value}점 기준으로 추천 성분과 관리 가이드를 함께 확인해보세요.`,
+    );
+  } else {
+    points.push("분석 결과 기반 추천 화면에서 성분, 제품, 식습관 가이드를 이어서 확인할 수 있습니다.");
+  }
+
+  return {
+    title: "AI 분석 요약",
+    lead: analysisResult?.summary && analysisResult.summary.length > 35
+      ? analysisResult.summary
+      : leadMap[totalLabel] || "분석 결과를 기준으로 관리 방향을 정리했습니다.",
+    points,
+  };
+}
  // 분석 결과가 없거나 대기 상태일 때 사용자에게 보여줄 안내 문구 모음입니다.
 
 const emptyResultMessages = {
@@ -302,13 +364,17 @@ function AnalysisResultPage() {
         ? "분석 결과 없음"
         : "실제 분석 결과 대기";
 
-  const summaryText = hasDisplayableMetrics
-    ? analysisResult.summary || "색소침착과 주름 지표를 기준으로 정리한 분석 결과입니다."
-    : isPending
-      ? analysisResult.message || "AI 모델 분석 결과가 아직 준비되지 않았습니다."
-      : hasSavedResult
-        ? "저장된 응답에 표시 가능한 점수 데이터가 없어 실제 결과처럼 보이는 점수는 표시하지 않습니다."
-        : "아직 표시할 실제 분석 결과가 없습니다. 분석을 진행하면 저장된 결과를 기준으로 표시합니다.";
+  const aiSummary = useMemo(
+    () =>
+      buildAiSummary({
+        analysisResult,
+        metricCards,
+        hasDisplayableMetrics,
+        isPending,
+        hasSavedResult,
+      }),
+    [analysisResult, metricCards, hasDisplayableMetrics, isPending, hasSavedResult],
+  );
 
   const noticeItems = hasDisplayableMetrics
     ? [
@@ -720,20 +786,71 @@ function AnalysisResultPage() {
             padding: 18px;
             border-radius: 22px;
             color: #ffffff;
-            background: #0f172a;
+            background:
+              radial-gradient(circle at 92% 12%, rgba(94, 234, 212, 0.18), transparent 28%),
+              linear-gradient(135deg, #0f172a 0%, #10262b 100%);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
           }
 
           .sf-result-comment strong {
             display: block;
-            margin-bottom: 5px;
+            margin-bottom: 6px;
             color: #5eead4;
             font-size: 13px;
             font-weight: 950;
           }
 
           .sf-result-comment p {
-            color: rgba(255, 255, 255, 0.88);
-            font-weight: 700;
+            color: rgba(255, 255, 255, 0.92);
+            font-weight: 800;
+          }
+
+          .sf-result-comment-lead {
+            margin-bottom: 10px !important;
+            color: #ffffff !important;
+            font-size: 15px !important;
+            line-height: 1.7 !important;
+          }
+
+          .sf-result-comment-list {
+            display: grid;
+            gap: 7px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+          }
+
+          .sf-result-comment-list li {
+            position: relative;
+            padding-left: 14px;
+            color: rgba(255, 255, 255, 0.82);
+            font-size: 13px;
+            font-weight: 750;
+            line-height: 1.62;
+            word-break: keep-all;
+          }
+
+          .sf-result-comment-list li::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0.72em;
+            width: 5px;
+            height: 5px;
+            border-radius: 999px;
+            background: #5eead4;
+          }
+
+          .sf-result-comment-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 14px;
+          }
+
+          .sf-result-comment-actions .sf-button {
+            background: rgba(255, 255, 255, 0.94);
+            box-shadow: none;
           }
 
           .sf-result-icon-tile {
@@ -942,6 +1059,14 @@ function AnalysisResultPage() {
             .sf-result-comment {
               grid-template-columns: 1fr;
             }
+
+            .sf-result-comment-actions {
+              flex-direction: column;
+            }
+
+            .sf-result-comment-actions .sf-button {
+              width: 100%;
+            }
           }
         `}
       </style>
@@ -1062,8 +1187,25 @@ function AnalysisResultPage() {
                 <Sparkles size={20} />
               </span>
               <div>
-                <strong>{hasDisplayableMetrics ? "AI 분석 요약" : isPending ? "AI 모델 연결 대기" : "분석 상태 안내"}</strong>
-                <p>{summaryText}</p>
+                <strong>{aiSummary.title}</strong>
+                <p className="sf-result-comment-lead">{aiSummary.lead}</p>
+                {aiSummary.points.length > 0 && (
+                  <ul className="sf-result-comment-list">
+                    {aiSummary.points.map((point) => (
+                      <li key={point}>{point}</li>
+                    ))}
+                  </ul>
+                )}
+                {hasDisplayableMetrics && (
+                  <div className="sf-result-comment-actions">
+                    <Button to="/recommendations" variant="secondary" size="sm">
+                      추천 성분 보기
+                    </Button>
+                    <Button to="/diet-guide" variant="secondary" size="sm">
+                      식습관 가이드 보기
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
 
