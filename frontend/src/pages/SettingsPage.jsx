@@ -1,17 +1,26 @@
+// 설정 페이지입니다.
+// 추천 기준 설명 펼침 여부, 피부 관리 안내 표시 여부처럼 사용자 화면 표시 방식을 관리하는 화면입니다.
+// 이 파일은 화면 표시와 사용자 동작 처리를 담당하며, 백엔드/DB/AI 로직은 여기서 직접 수정하지 않습니다.
+// 주석은 코드 흐름 이해를 돕기 위한 설명이며 실제 동작에는 영향을 주지 않습니다.
 import { useEffect, useState } from "react";
 import { CheckCircle2, ChevronRight, Eye, ListCollapse, SlidersHorizontal, ToggleLeft, UserRound } from "lucide-react";
 import PageLayout from "../components/layout/PageLayout";
 import Card from "../components/common/Card";
 import Button from "../components/common/Button";
+ // 점수 표시 방식을 저장하기 위한 localStorage 키입니다.
 
 const SCORE_DISPLAY_MODE_KEY = "skinflow_score_display_mode";
+// 피부 관리 참고 안내 표시 여부를 저장하기 위한 localStorage 키입니다.
 const SHOW_CARE_NOTICE_KEY = "skinflow_show_care_notice";
+// 추천 이유를 기본으로 펼칠지 저장하기 위한 localStorage 키입니다.
 const EXPAND_RECOMMENDATION_REASON_KEY = "skinflow_expand_recommendation_reason";
+ // localStorage에 저장된 설정이 없을 때 사용할 기본 설정입니다.
 
 const defaultSettings = {
   showCareNotice: true,
   expandRecommendationReason: true,
 };
+ // localStorage에서 설정값을 읽어오고, 저장된 값이 없으면 기본값을 돌려주는 함수입니다.
 
 function readStoredSetting(key, fallbackValue) {
   if (typeof window === "undefined") return fallbackValue;
@@ -24,8 +33,10 @@ function readStoredSetting(key, fallbackValue) {
 
   return storedValue;
 }
+ // 설정 화면 전체를 담당하는 React 컴포넌트입니다.
 
 function SettingsPage() {
+  // 설정값은 localStorage와 연결되어 새로고침 후에도 사용자가 선택한 화면 표시 방식이 유지됩니다.
   const [showCareNotice, setShowCareNotice] = useState(() =>
     readStoredSetting(SHOW_CARE_NOTICE_KEY, defaultSettings.showCareNotice)
   );
@@ -33,6 +44,7 @@ function SettingsPage() {
     readStoredSetting(EXPAND_RECOMMENDATION_REASON_KEY, defaultSettings.expandRecommendationReason)
   );
 
+  // 설정 상태가 바뀔 때마다 localStorage에 저장해 다음 접속에도 같은 설정을 유지합니다.
   useEffect(() => {
     window.localStorage.setItem(SCORE_DISPLAY_MODE_KEY, "percent");
   }, []);
@@ -62,6 +74,7 @@ function SettingsPage() {
     },
   ];
 
+  // 아래 JSX는 설정 요약 카드, 표시 방식 카드, 안내 카드들을 화면에 배치합니다.
   return (
     <PageLayout>
       <style>{`

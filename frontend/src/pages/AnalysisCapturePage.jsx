@@ -1,3 +1,7 @@
+// AnalysisCapturePage.jsx
+// 사용자가 피부 분석에 사용할 이미지를 준비하는 "분석 촬영/업로드 화면"입니다.
+// 이 파일의 큰 흐름은 1) 이미지 업로드 또는 웹캠 촬영 → 2) 얼굴 관심 영역(ROI) 확인 → 3) 실제 피부 분석 요청입니다.
+// 비전공자 기준으로는 "사용자가 분석할 사진을 고르고, 서버에 보내기 전 확인하는 페이지"라고 이해하면 됩니다.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -19,10 +23,15 @@ import Card from "../components/common/Card";
 import { analyzeSkin, extractRoi } from "../api/analysisApi";
 
 
+// 분석 촬영 화면과 진행 화면은 서로 다른 라우트라서 진행 상태를 localStorage로 잠시 공유합니다.
+// 사용자가 새로고침하거나 진행 화면으로 이동해도 같은 분석 흐름을 이어서 보여주기 위한 값입니다.
 const ANALYSIS_PROGRESS_KEY = "skinflow_analysis_progress";
 const ANALYSIS_RESULT_KEY = "skinflow_latest_analysis_result";
 const ANALYSIS_PROGRESS_EVENT = "skinflow-analysis-progress";
 
+// 분석 진행 화면에서 보여줄 현재 단계 정보를 저장합니다.
+// 예를 들어 "얼굴 영역 확인 중", "피부 지표 분석 요청 중" 같은 상태를 localStorage에 넣어둡니다.
+// 이렇게 해두면 /analysis/loading 페이지로 이동하거나 새로고침해도 진행 상태를 이어서 보여줄 수 있습니다.
 function saveAnalysisProgress(progress) {
   const progressPayload = {
     updatedAt: new Date().toISOString(),
@@ -35,6 +44,9 @@ function saveAnalysisProgress(progress) {
 }
 
 
+// 가장 최근 분석 API 응답을 저장합니다.
+// 분석 진행 화면과 결과 화면에서 같은 응답을 다시 확인할 수 있도록 임시 보관하는 역할입니다.
+// 실제 DB 저장은 백엔드가 담당하고, 여기서는 프론트 화면 흐름을 위한 값만 저장합니다.
 function saveLatestAnalysisResult(payload) {
   const resultPayload = {
     updatedAt: new Date().toISOString(),
@@ -44,6 +56,8 @@ function saveLatestAnalysisResult(payload) {
   localStorage.setItem(ANALYSIS_RESULT_KEY, JSON.stringify(resultPayload));
 }
 
+// 분석 API 응답은 완료(saved=true)와 대기(saved=false/pending)를 명확히 구분해야 합니다.
+// 대기 상태에서는 점수 화면으로 착각하지 않도록 진행률과 안내 문구만 저장합니다.
 function getProgressFromAnalysisResult(analysisResult) {
   if (analysisResult?.saved) {
     return {
@@ -71,6 +85,9 @@ function getProgressFromAnalysisResult(analysisResult) {
   };
 }
 
+// ROI API 응답을 사용자가 이해할 수 있는 진행 상태 문구로 바꿉니다.
+// ROI는 얼굴에서 이마/양볼처럼 분석에 필요한 영역을 찾는 단계입니다.
+// 이 함수는 성공, 얼굴 미검출, 모델 준비 필요 같은 상태를 화면 안내 문구로 정리합니다.
 function getProgressFromRoiResult(roiResult) {
   const status = roiResult?.status || roiResult?.roi?.status || roiResult?.result?.status;
 
@@ -109,12 +126,18 @@ function getProgressFromRoiResult(roiResult) {
   };
 }
 
+// 사용자가 업로드할 수 있는 이미지 형식입니다.
+// 현재 분석 요청은 JPG/PNG만 허용해 파일 형식 문제로 API가 실패하는 상황을 줄입니다.
 const allowedImageTypes = ["image/jpeg", "image/png"];
 
+// ROI 응답은 백엔드/AI 서버 응답 구조에 따라 roi, result.roi, result 형태로 올 수 있습니다.
+// 화면에서는 같은 방식으로 쓰기 위해 가능한 위치를 순서대로 확인해 실제 ROI 데이터를 꺼냅니다.
 function getRoiData(roiResult) {
   return roiResult?.roi || roiResult?.result?.roi || roiResult?.result || roiResult || null;
 }
 
+// ROI 결과가 실제 분석 단계로 넘어갈 수 있는 상태인지 확인합니다.
+// status가 없거나 ok이면 정상으로 보고, no_face/model_missing 같은 값이면 분석 버튼 흐름을 막습니다.
 function isRoiResultReady(roiResult) {
   const roiData = getRoiData(roiResult);
   const status = roiData?.status || roiResult?.status;
@@ -122,6 +145,8 @@ function isRoiResultReady(roiResult) {
   return !status || status === "ok";
 }
 
+// ROI 좌표는 이미지 위에 박스로 표시되므로 0~1 범위의 정규화 좌표만 사용합니다.
+// 좌표가 비정상인 항목은 표시하지 않아 사용자가 잘못된 영역을 확인하지 않게 합니다.
 function normalizeRoiRegions(roiResult) {
   const roiData = getRoiData(roiResult);
   const regions = [];
@@ -160,6 +185,10 @@ function normalizeRoiRegions(roiResult) {
     .filter(Boolean);
 }
 
+// 이미지가 object-fit: contain 형태로 보일 때 실제 표시 영역과 프레임 크기가 달라질 수 있습니다.
+// 이 계산은 ROI 박스가 원본 이미지 비율에 맞춰 정확히 겹쳐 보이도록 보정합니다.
+// 정규화된 ROI 좌표를 실제 화면의 미리보기 이미지 위에 표시할 CSS 위치값으로 바꿉니다.
+// 서버가 보내는 좌표는 0~1 비율값이고, 화면 이미지는 기기마다 크기가 다르기 때문에 변환 과정이 필요합니다.
 function getRoiRegionStyle(region, frameSize, imageSize) {
   const normalized = region.normalized;
 
@@ -187,6 +216,8 @@ function getRoiRegionStyle(region, frameSize, imageSize) {
   };
 }
 
+// 웹캠 사용이 끝났을 때 카메라 스트림을 정리합니다.
+// 이 처리를 하지 않으면 브라우저에서 카메라가 계속 켜져 있거나 다른 화면에서도 점유될 수 있습니다.
 function stopMediaStream(stream) {
   if (!stream) return;
 
@@ -195,6 +226,8 @@ function stopMediaStream(stream) {
   });
 }
 
+// 웹캠으로 찍은 이미지는 처음에는 Blob 형태입니다.
+// 분석 API는 File 객체를 보내는 흐름이므로, 촬영한 Blob을 JPG 파일처럼 사용할 수 있게 변환합니다.
 function createCapturedImageFile(blob) {
   const capturedAt = new Date().toISOString().replace(/[:.]/g, "-");
 
@@ -203,6 +236,8 @@ function createCapturedImageFile(blob) {
   });
 }
 
+// 화면 하단의 촬영/업로드 안내 카드에 들어가는 문구 목록입니다.
+// 사용자가 어떤 사진을 선택해야 분석이 잘 진행되는지 알려주는 UX 안내 데이터입니다.
 const uploadGuideItems = [
   {
     title: "얼굴이 프레임 안에 들어오게 촬영",
@@ -222,6 +257,8 @@ const uploadGuideItems = [
   },
 ];
 
+// 왼쪽 카드에 표시되는 분석 흐름 3단계입니다.
+// 실제 버튼 동작과 연결된 설명이므로 사용자가 현재 어떤 순서로 진행되는지 이해할 수 있습니다.
 const flowSteps = [
   {
     title: "이미지 입력",
@@ -237,6 +274,8 @@ const flowSteps = [
   },
 ];
 
+// API 요청 실패 메시지를 사용자에게 보여줄 문장으로 바꿉니다.
+// 서버 주소 문제, 로그인 만료, AI 서버 대기처럼 개발자용 에러를 그대로 보여주지 않기 위한 함수입니다.
 function getAnalysisRequestErrorMessage(error) {
   const rawMessage = String(error?.message || "");
   const lowerMessage = rawMessage.toLowerCase();
@@ -258,13 +297,21 @@ function getAnalysisRequestErrorMessage(error) {
   return rawMessage;
 }
 
+// 분석 촬영 페이지 컴포넌트입니다.
+// 이 안에서 업로드/웹캠 선택 상태, 선택된 파일, ROI 미리보기, 분석 요청 상태를 관리합니다.
 function AnalysisCapturePage() {
   const navigate = useNavigate();
+  // useRef는 화면 요소나 웹캠 스트림처럼 "다시 렌더링되어도 유지해야 하는 값"을 담을 때 사용합니다.
+  // videoRef/canvasRef는 웹캠 촬영에, previewFrameRef는 ROI 박스를 이미지 위에 맞추는 데 사용합니다.
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const webcamStreamRef = useRef(null);
   const previewFrameRef = useRef(null);
 
+  // 아래 useState들은 이 화면의 현재 상태를 저장합니다.
+  // selectedMethod는 업로드/웹캠 중 어떤 입력 방식을 선택했는지,
+  // selectedFile은 실제 분석에 보낼 이미지 파일,
+  // uploadError는 사용자에게 보여줄 안내/오류 문구를 담당합니다.
   const [selectedMethod, setSelectedMethod] = useState("upload");
   const [selectedFile, setSelectedFile] = useState(null);
   const [selectedFileName, setSelectedFileName] = useState("");
@@ -277,13 +324,19 @@ function AnalysisCapturePage() {
   const [previewFrameSize, setPreviewFrameSize] = useState({ width: 0, height: 0 });
   const [previewImageSize, setPreviewImageSize] = useState({ width: 0, height: 0 });
 
+  // 분석 API는 로그인 토큰이 필요한 보호 기능입니다.
+  // 토큰이 없으면 분석 요청 대신 로그인 페이지로 이동시킵니다.
   const isLoggedIn = Boolean(localStorage.getItem("skinflow_token"));
 
+  // 선택한 이미지 파일을 브라우저에서 미리보기로 보여주기 위한 임시 URL입니다.
+  // useMemo를 사용해 selectedFile이 바뀔 때만 새 URL을 만들도록 합니다.
   const previewUrl = useMemo(() => {
     if (!selectedFile) return "";
     return URL.createObjectURL(selectedFile);
   }, [selectedFile]);
 
+  // 미리보기 URL은 브라우저 메모리를 사용하므로, 더 이상 쓰지 않을 때 해제합니다.
+  // 이미지 선택을 여러 번 해도 메모리가 계속 쌓이지 않도록 하는 정리 코드입니다.
   useEffect(() => {
     return () => {
       if (previewUrl) {
@@ -292,12 +345,16 @@ function AnalysisCapturePage() {
     };
   }, [previewUrl]);
 
+  // 페이지를 벗어날 때 웹캠 스트림을 종료합니다.
+  // 사용자가 다른 화면으로 이동했는데도 카메라가 계속 켜지는 문제를 막습니다.
   useEffect(() => {
     return () => {
       stopMediaStream(webcamStreamRef.current);
     };
   }, []);
 
+  // ROI 박스를 이미지 위에 정확히 올리려면 미리보기 영역의 실제 크기를 알아야 합니다.
+  // 화면 크기가 바뀔 수 있으므로 resize 이벤트에서도 다시 계산합니다.
   useEffect(() => {
     const updatePreviewFrameSize = () => {
       const frame = previewFrameRef.current;
@@ -318,6 +375,8 @@ function AnalysisCapturePage() {
     };
   }, [previewUrl, selectedMethod]);
 
+  // 서버에서 받은 ROI 결과를 화면에 그릴 수 있는 영역 배열로 변환합니다.
+  // useMemo를 사용해 ROI 결과가 바뀔 때만 다시 계산합니다.
   const roiPreviewRegions = useMemo(() => normalizeRoiRegions(roiPreviewResult), [roiPreviewResult]);
   const roiDisplayRegions = useMemo(
     () =>
@@ -327,8 +386,12 @@ function AnalysisCapturePage() {
       })),
     [previewFrameSize, previewImageSize, roiPreviewRegions],
   );
+  // 얼굴 관심 영역 확인이 끝났는지 판단하는 값입니다.
+  // true가 되어야 실제 색소침착·주름 분석 요청 버튼 흐름으로 넘어갑니다.
   const hasConfirmedRoi = Boolean(roiPreviewResult) && isRoiResultReady(roiPreviewResult);
   const canStartAnalysis = Boolean(selectedFile) && !isSubmitting;
+  // 버튼 문구는 현재 화면 흐름을 그대로 설명합니다.
+  // 로그인 필요, 얼굴 영역 확인 전, 분석 요청 중 상태를 분리해 사용자가 다음 행동을 이해하게 합니다.
   const startButtonLabel = !isLoggedIn
     ? "로그인 후 분석하기"
     : isSubmitting
@@ -350,6 +413,8 @@ function AnalysisCapturePage() {
       ? "웹캠을 켜고 얼굴 이미지를 촬영하면 분석 시작 버튼이 활성화됩니다."
       : "JPG 또는 PNG 이미지를 선택하면 분석 시작 버튼이 활성화됩니다.";
 
+  // 선택한 이미지와 ROI 미리보기를 초기화합니다.
+  // 업로드 ↔ 웹캠을 전환하거나 새 사진을 고를 때 이전 사진의 ROI가 남지 않게 합니다.
   const resetSelectedImage = () => {
     setSelectedFile(null);
     setSelectedFileName("");
@@ -357,6 +422,8 @@ function AnalysisCapturePage() {
     setPreviewImageSize({ width: 0, height: 0 });
   };
 
+  // 사용자가 "웹캠 촬영" 탭을 눌렀을 때 실행됩니다.
+  // 입력 방식을 웹캠으로 바꾸고, 필요하면 이전 업로드 이미지를 초기화합니다.
   const handleSelectWebcam = () => {
     setSelectedMethod("webcam");
     setUploadError("");
@@ -366,6 +433,8 @@ function AnalysisCapturePage() {
     }
   };
 
+  // 사용자가 "이미지 업로드" 탭을 눌렀을 때 실행됩니다.
+  // 웹캠이 켜져 있었다면 정리하고, 업로드 방식에 맞게 화면 상태를 되돌립니다.
   const handleSelectUpload = () => {
     setSelectedMethod("upload");
     setUploadError("");
@@ -383,6 +452,8 @@ function AnalysisCapturePage() {
     }
   };
 
+  // 파일 선택 시에는 JPG/PNG만 허용하고, 기존 ROI 미리보기는 초기화합니다.
+  // 다른 이미지를 고른 뒤 이전 ROI 박스가 남으면 사용자가 잘못된 사진을 확인할 수 있기 때문입니다.
   const handleFileChange = (event) => {
     const file = event.target.files?.[0];
 
@@ -409,6 +480,8 @@ function AnalysisCapturePage() {
     setUploadError("");
   };
 
+  // 브라우저에 웹캠 권한을 요청하고 카메라 화면을 시작합니다.
+  // 권한 거부, 브라우저 미지원, 기기 연결 문제를 사용자가 이해할 수 있는 문구로 처리합니다.
   const handleStartWebcam = async () => {
     if (isSubmitting || isStartingWebcam) return;
 
@@ -462,6 +535,8 @@ function AnalysisCapturePage() {
     }
   };
 
+  // 현재 웹캠 화면을 캔버스에 그린 뒤 이미지 파일로 변환합니다.
+  // 변환된 파일은 업로드 이미지와 같은 흐름으로 ROI 확인/분석 요청에 사용됩니다.
   const handleCaptureWebcam = async () => {
     if (isSubmitting) return;
 
@@ -522,6 +597,8 @@ function AnalysisCapturePage() {
     }
   };
 
+  // 첫 번째 단계는 얼굴 관심 영역 확인입니다.
+  // 실제 점수 분석 전에 ROI를 먼저 보여줘 촬영 품질 문제를 사용자가 바로 알 수 있게 합니다.
   const handleConfirmFaceRegion = async () => {
     if (isSubmitting) return;
 
@@ -574,6 +651,8 @@ function AnalysisCapturePage() {
     }
   };
 
+  // 두 번째 단계는 같은 이미지로 색소침착·주름 분석을 요청하는 흐름입니다.
+  // ROI 확인 없이 바로 분석하지 않도록 막아 실패 가능성과 사용자 혼란을 줄입니다.
   const handleStartAnalysis = async () => {
     if (isSubmitting) return;
 
@@ -646,6 +725,8 @@ function AnalysisCapturePage() {
     }
   };
 
+  // 화면 하단의 주요 버튼이 눌렸을 때 실행됩니다.
+  // ROI 확인 전이면 "얼굴 영역 확인", ROI 확인 후이면 "실제 분석 요청"으로 분기합니다.
   const handlePrimaryAction = () => {
     if (hasConfirmedRoi) {
       handleStartAnalysis();
@@ -657,6 +738,8 @@ function AnalysisCapturePage() {
 
   return (
     <PageLayout>
+      {/* 이 페이지 전용 스타일입니다.
+          index.css 전체를 건드리지 않고 분석 촬영 화면만 빠르게 다듬기 위해 컴포넌트 안에 작성되어 있습니다. */}
       <style>
         {`
           .sf-capture-page {
@@ -1247,6 +1330,8 @@ function AnalysisCapturePage() {
         `}
       </style>
 
+      {/* 분석 촬영 화면의 전체 컨테이너입니다.
+          왼쪽은 분석 흐름 안내, 오른쪽은 업로드/웹캠 작업 영역입니다. */}
       <div className="sf-capture-page">
         <section className="sf-capture-hero">
           <Card className="sf-capture-intro">
@@ -1290,6 +1375,7 @@ function AnalysisCapturePage() {
           </Card>
 
           <Card className="sf-capture-workspace">
+            {/* 사용자가 이미지 업로드와 웹캠 촬영 중 하나를 고르는 탭 영역입니다. */}
             <div className="sf-method-tabs" aria-label="분석 이미지 입력 방식 선택">
               <button
                 type="button"
@@ -1324,6 +1410,7 @@ function AnalysisCapturePage() {
               </button>
             </div>
 
+            {/* 선택한 입력 방식에 따라 웹캠 촬영 UI 또는 이미지 업로드 UI를 보여줍니다. */}
             {selectedMethod === "webcam" ? (
               <div
                 className={`sf-webcam-zone ${!isWebcamActive && !selectedFile ? "is-clickable" : ""}`}

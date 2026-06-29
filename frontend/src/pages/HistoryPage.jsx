@@ -1,3 +1,7 @@
+// 분석 이력 페이지입니다.
+// 과거 분석 기록, 점수 추이 그래프, 상세 분석 정보, AI 요약 리포트를 보여주는 화면입니다.
+// 이 파일은 화면 표시와 사용자 동작 처리를 담당하며, 백엔드/DB/AI 로직은 여기서 직접 수정하지 않습니다.
+// 주석은 코드 흐름 이해를 돕기 위한 설명이며 실제 동작에는 영향을 주지 않습니다.
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
@@ -31,6 +35,7 @@ import {
   getHistoryScoreTrends,
 } from "../api/historyApi";
 import { shouldShowAnalysisScore } from "../utils/analysisStatus";
+ // 이력 API 응답이 없을 때 화면이 깨지지 않도록 사용하는 기본 데이터 구조입니다.
 
 const defaultHistoryData = {
   summary: {
@@ -42,6 +47,7 @@ const defaultHistoryData = {
   },
   records: [],
 };
+ // score-trends 그래프 API 응답이 없을 때 사용하는 기본 데이터 구조입니다.
 
 const defaultScoreTrendData = {
   summary: {
@@ -53,18 +59,21 @@ const defaultScoreTrendData = {
   points: [],
   series: [],
 };
+ // 그래프에 표시할 지표 코드와 이름, 색상 기준을 모아둔 목록입니다.
 
 const trendSeriesDefinitions = [
   { code: "total", name: "종합 점수", unit: "점", color: "#167D7F" },
   { code: "pigmentation", name: "색소침착", unit: "점", color: "#F43F5E" },
   { code: "wrinkle", name: "주름", unit: "점", color: "#0F172A" },
 ];
+ // 점수 구간별 의미를 화면에서 설명하기 위한 범례 목록입니다.
 
 const scoreGradeLegend = [
   { label: "양호", color: "#167D7F", bg: "rgba(22, 125, 127, 0.11)" },
   { label: "주의", color: "#F59E0B", bg: "rgba(245, 158, 11, 0.14)" },
   { label: "관리필요", color: "#F43F5E", bg: "rgba(244, 63, 94, 0.12)" },
 ];
+ // 이력 API 응답이 없거나 일부 필드가 빠져도 화면이 깨지지 않게 기본 구조를 채웁니다.
 
 function normalizeHistoryData(data) {
   return {
@@ -76,6 +85,9 @@ function normalizeHistoryData(data) {
   };
 }
 
+// score-trends 응답은 그래프 전용 데이터입니다.
+// labels, series, points의 배열 형태를 보장해 Recharts에서 빈 데이터 오류가 나지 않게 합니다.
+// score-trends 그래프 API 응답을 안전한 기본 구조와 합칩니다.
 function normalizeScoreTrendData(data) {
   return {
     summary: {
@@ -96,12 +108,14 @@ function normalizeScoreTrendData(data) {
       : [],
   };
 }
+ // 그래프 series 배열에서 종합/색소침착/주름 데이터를 코드로 찾아옵니다.
 
 function getTrendSeriesByCode(series, code) {
   if (!Array.isArray(series)) return null;
 
   return series.find((item) => item?.code === code) || null;
 }
+ // 그래프의 특정 날짜와 특정 지표 점수를 안전하게 꺼냅니다.
 
 function getTrendPointValue(series, fallbackPoints, index, key) {
   const seriesPoint = Array.isArray(series?.points) ? series.points[index] : null;
@@ -110,6 +124,7 @@ function getTrendPointValue(series, fallbackPoints, index, key) {
 
   return point?.[key] ?? point?.[key.replace(/[A-Z]/g, (char) => `_${char.toLowerCase()}`)] ?? null;
 }
+ // 그래프 툴팁에서 보여줄 분석 ID, 날짜, 등급 같은 보조 정보를 꺼냅니다.
 
 function getTrendPointMeta(series, fallbackPoints, index) {
   const seriesPoint = Array.isArray(series?.points) ? series.points[index] : null;
@@ -117,6 +132,7 @@ function getTrendPointMeta(series, fallbackPoints, index) {
 
   return seriesPoint || fallbackPoint || {};
 }
+ // 그래프에 표시해도 되는 완료 상태인지 확인합니다.
 
 function isCompletedTrendStatus(status) {
   const normalizedStatus = String(status || "").trim().toLowerCase();
@@ -126,6 +142,9 @@ function isCompletedTrendStatus(status) {
   return normalizedStatus === "completed" || normalizedStatus === "complete";
 }
 
+// 그래프에는 completed 상태이고 표시 가능한 점수만 올립니다.
+// pending/processing 값은 null로 남겨 실제 이력 흐름처럼 보이지 않게 합니다.
+// 완료된 분석의 점수만 그래프에 표시하도록 걸러냅니다.
 function getDisplayableTrendScore(series, fallbackPoints, index) {
   const point = getTrendPointMeta(series, fallbackPoints, index);
   const score = getScoreNumber(series?.data?.[index] ?? point?.score);
@@ -145,6 +164,9 @@ function getDisplayableTrendScore(series, fallbackPoints, index) {
     : null;
 }
 
+// 툴팁은 그래프 점에 연결된 분석일, 등급, 점수를 한 번에 보여주는 보조 UI입니다.
+// 값이 없는 선은 제외해 빈 항목이 툴팁에 노출되지 않게 합니다.
+// 그래프에 마우스를 올렸을 때 보이는 상세 툴팁 컴포넌트입니다.
 function ScoreTrendTooltip({ active, payload, label }) {
   if (!active || !Array.isArray(payload)) return null;
 
@@ -173,6 +195,7 @@ function ScoreTrendTooltip({ active, payload, label }) {
     </div>
   );
 }
+ // 이력 날짜를 한국어 날짜 형식으로 바꿉니다.
 
 function formatDate(dateValue, emptyText = "아직 없음") {
   if (!dateValue) return emptyText;
@@ -189,6 +212,7 @@ function formatDate(dateValue, emptyText = "아직 없음") {
     day: "2-digit",
   });
 }
+ // 점수가 없을 때 빈칸 대신 안내 문구를 보여줍니다.
 
 function formatScore(score, emptyText = "분석 전") {
   const numericScore = getScoreNumber(score);
@@ -197,6 +221,7 @@ function formatScore(score, emptyText = "분석 전") {
 
   return `${numericScore}점`;
 }
+ // 점수 값을 숫자로 변환하고 화면 기준에 맞게 보정합니다.
 
 function getScoreNumber(score) {
   if (score === null || score === undefined || score === "") return null;
@@ -207,6 +232,7 @@ function getScoreNumber(score) {
 
   return Math.max(0, Math.min(100, Math.round(numericScore)));
 }
+ // 분석 상태 코드를 사용자가 이해할 수 있는 한글 상태로 바꿉니다.
 
 function getStatusLabel(status) {
   if (!status) return "분석 전";
@@ -233,6 +259,7 @@ function getStatusLabel(status) {
 
   return statusMap[normalizedStatus] || status;
 }
+  // 등급 문구를 양호/주의/관리 필요처럼 짧은 라벨로 정리합니다.
 
 
 function normalizeGradeLabel(status) {
@@ -255,6 +282,7 @@ function normalizeGradeLabel(status) {
 
   return null;
 }
+ // 점수와 등급에 맞는 설명, 배지, 상태 문구를 만듭니다.
 
 function getScoreGradeMeta(score, status) {
   const numericScore = getScoreNumber(score);
@@ -295,6 +323,7 @@ function getScoreGradeMeta(score, status) {
 
   return gradeMap[label] || gradeMap.분석전;
 }
+ // 등급에 따라 화면 색상 스타일을 정합니다.
 
 function getGradeStyle(meta) {
   return {
@@ -303,6 +332,7 @@ function getGradeStyle(meta) {
     "--grade-bar-bg": meta.barBg,
   };
 }
+ // 점수 구간에 따른 사용자 안내 문구를 만듭니다.
 
 function getScoreInterpretation(score, label) {
   const numericScore = getScoreNumber(score);
@@ -321,6 +351,7 @@ function getScoreInterpretation(score, label) {
 
   return `${label} 지표는 우선 관리 항목으로 보고 추천 정보와 함께 확인해보세요.`;
 }
+ // 지표 코드를 색소침착/주름 같은 한글 이름으로 바꿉니다.
 
 function getMetricName(metric) {
   return (
@@ -333,6 +364,7 @@ function getMetricName(metric) {
     "피부 지표"
   );
 }
+ // 지표별 등급 값을 여러 응답 구조에서 안전하게 가져옵니다.
 
 function getGradeStatusValue(source) {
   const grade = source?.grade;
@@ -350,10 +382,12 @@ function getGradeStatusValue(source) {
     source?.status
   );
 }
+ // 이력 카드에 보여줄 등급 상태를 정리합니다.
 
 function getRecordGradeStatus(record) {
   return getGradeStatusValue(record);
 }
+ // 지표 객체에서 점수 값을 안전하게 꺼냅니다.
 
 function getMetricScoreValue(metrics, keyword) {
   if (!Array.isArray(metrics) || metrics.length === 0) return null;
@@ -373,6 +407,7 @@ function getMetricScoreValue(metrics, keyword) {
     null
   );
 }
+ // 지표 객체에서 등급 값을 안전하게 꺼냅니다.
 
 function getMetricGradeValue(metrics, keyword) {
   if (!Array.isArray(metrics) || metrics.length === 0) return null;
@@ -384,10 +419,12 @@ function getMetricGradeValue(metrics, keyword) {
 
   return getGradeStatusValue(matchedMetric);
 }
+ // 이력 카드에서 특정 지표의 점수를 찾습니다.
 
 function getMetricScore(metrics, keyword) {
   return formatScore(getMetricScoreValue(metrics, keyword));
 }
+ // 이력 상세에 보여줄 추천 요약 문구를 고릅니다.
 
 function getRecommendationText(recommendations) {
   if (!Array.isArray(recommendations) || recommendations.length === 0) {
@@ -416,13 +453,16 @@ function getRecommendationText(recommendations) {
     ? uniqueTextList.join(" · ")
     : "이 분석 이력에 연결된 추천 요약이 없습니다.";
 }
+ // 화면에 표시할 수 있는 실제 문구인지 확인합니다.
 
 function hasText(value) {
   return typeof value === "string" && value.trim() !== "";
 }
+ // AI 요약 리포트에 안내 문구가 없을 때 대신 보여줄 기본 참고 문구입니다.
 
 const SAFE_LLM_DISCLAIMER =
   "이 내용은 피부 관리 참고 정보이며, 개인별 관리 방향을 돕기 위한 안내입니다.";
+ // LLM 리포트 안내 문구가 없을 때 기본 참고 문구를 제공합니다.
 
 function getSafeLlmDisclaimer(disclaimer) {
   if (!hasText(disclaimer)) return "";
@@ -437,6 +477,7 @@ function getSafeLlmDisclaimer(disclaimer) {
 
   return unsafePattern.test(disclaimer) ? SAFE_LLM_DISCLAIMER : disclaimer;
 }
+ // LLM 리포트가 새로 생성/저장/재사용 중 어떤 출처인지 라벨로 바꿉니다.
 
 function getLlmReportSourceLabel(source) {
   const normalizedSource = String(source || "").trim().toLowerCase();
@@ -448,6 +489,7 @@ function getLlmReportSourceLabel(source) {
 
   return sourceMap[normalizedSource] || "리포트 출처 확인 중";
 }
+ // LLM 리포트 API 오류를 사용자 안내 문장으로 바꿉니다.
 
 function getLlmReportErrorMessage(error) {
   if (error?.status === 404) {
@@ -464,14 +506,17 @@ function getLlmReportErrorMessage(error) {
 
   return "리포트를 불러오지 못했습니다. 기존 분석 상세 정보는 계속 확인할 수 있습니다.";
 }
+ // 이력 상세 조회에 사용할 분석 ID를 여러 응답 구조에서 찾습니다.
 
 function getRecordId(record) {
   return record?.analysisId || record?.analysis_id || record?.id || record?.resultId;
 }
+ // 이력 카드의 분석 날짜를 가져옵니다.
 
 function getRecordDate(record) {
   return record?.analyzedAt || record?.analyzed_at || record?.createdAt || record?.created_at;
 }
+ // 이력 카드의 분석 시간을 가져옵니다.
 
 function getRecordTime(record) {
   const dateValue = getRecordDate(record);
@@ -482,14 +527,17 @@ function getRecordTime(record) {
 
   return Number.isNaN(time) ? null : time;
 }
+ // 이력 카드의 분석 상태를 가져옵니다.
 
 function getRecordStatus(record) {
   return record?.analysisStatus || record?.analysis_status || record?.status;
 }
+ // 이력 카드의 종합 점수를 가져옵니다.
 
 function getRecordScore(record) {
   return record?.totalScore ?? record?.total_score ?? record?.totalSkinScore ?? record?.total_skin_score;
 }
+ // 검색어에 맞는 이력 카드만 남깁니다.
 
 function filterHistoryRecords(records, keyword) {
   const normalizedKeyword = keyword.trim().toLowerCase();
@@ -510,8 +558,10 @@ function filterHistoryRecords(records, keyword) {
     );
   });
 }
+ // 분석 이력 화면 전체를 담당하는 React 컴포넌트입니다.
 
 function HistoryPage() {
+  // 이력 목록, 그래프 데이터, 상세 선택 상태, LLM 리포트 상태, 검색어, 로딩/에러 상태를 나눠서 관리합니다.
   const [historyData, setHistoryData] = useState(defaultHistoryData);
   const [scoreTrendData, setScoreTrendData] = useState(defaultScoreTrendData);
   const [selectedDetail, setSelectedDetail] = useState(null);
@@ -529,8 +579,10 @@ function HistoryPage() {
   const detailSectionRef = useRef(null);
   const recordSectionRef = useRef(null);
 
+  // 페이지 진입 시 이력 목록과 score-trends 그래프 데이터를 함께 불러옵니다.
   useEffect(() => {
     let isMounted = true;
+     // 이력 목록 API와 그래프 API를 함께 호출해 화면 데이터를 준비합니다.
 
     async function loadHistory() {
       setIsLoading(true);
@@ -538,6 +590,8 @@ function HistoryPage() {
       setHistoryError("");
       setScoreTrendError("");
 
+      // 목록 API와 그래프 API는 서로 독립적입니다.
+      // 하나가 실패해도 다른 영역을 계속 보여주기 위해 Promise.allSettled를 사용합니다.
       const [historyResult, trendResult] = await Promise.allSettled([
         getHistory(),
         getHistoryScoreTrends(7),
@@ -575,11 +629,13 @@ function HistoryPage() {
       isMounted = false;
     };
   }, []);
+   // API 이력 목록이 없을 때도 빈 배열로 처리해 map 오류를 막습니다.
 
   const records = useMemo(
     () => (Array.isArray(historyData.records) ? historyData.records : []),
     [historyData.records]
   );
+  // 최근 분석 점수를 평균으로 요약해 상단 카드에 보여줄 문구를 만듭니다.
   const recentAverageSummary = useMemo(() => {
     const orderedRecords = records
       .map((record, index) => ({
@@ -636,6 +692,7 @@ function HistoryPage() {
     null
   );
   const trimmedSearchText = searchText.trim();
+   // 검색어와 일치하는 분석 이력만 화면에 보여주도록 필터링합니다.
 
   const filteredRecords = useMemo(
     () => filterHistoryRecords(records, trimmedSearchText),
@@ -654,6 +711,9 @@ function HistoryPage() {
     activeSelectedDetailId || visibleSelectedDetail || isDetailLoading || detailError
   );
 
+  // labels를 기준으로 Recharts가 읽을 행 단위 데이터로 변환합니다.
+  // 각 지표의 점수와 툴팁 메타 정보를 같은 row에 넣어 차트와 툴팁이 같은 기준을 사용합니다.
+  // score-trends API 응답을 Recharts가 읽을 수 있는 행 배열로 변환합니다.
   const scoreTrendChartData = useMemo(() => {
     const labels = Array.isArray(scoreTrendData.labels) ? scoreTrendData.labels : [];
     const fallbackPoints = Array.isArray(scoreTrendData.points) ? scoreTrendData.points : [];
@@ -674,6 +734,7 @@ function HistoryPage() {
       return row;
     });
   }, [scoreTrendData]);
+   // 그래프에 실제로 그릴 수 있는 지표 series만 추립니다.
 
   const activeTrendSeries = useMemo(
     () =>
@@ -742,6 +803,7 @@ function HistoryPage() {
 
     return () => window.cancelAnimationFrame(frameId);
   }, [shouldShowDetailSection, isDetailLoading, visibleSelectedDetail, detailError]);
+   // 사용자가 상세 보기를 눌렀을 때 분석 상세와 LLM 리포트를 불러옵니다.
 
   async function handleDetailClick(analysisId) {
     if (!analysisId) {
@@ -786,6 +848,7 @@ function HistoryPage() {
       setIsLlmReportLoading(false);
     }
   }
+   // 상세 영역의 지표 이름을 화면용 라벨로 바꿉니다.
 
   function getHistoryDetailMetricLabel(metric) {
     return (
@@ -798,6 +861,7 @@ function HistoryPage() {
       "피부 지표"
     );
   }
+   // 상세 영역의 지표 점수를 안전하게 표시합니다.
 
   function getHistoryDetailMetricScore(metric) {
     const value =
@@ -811,6 +875,7 @@ function HistoryPage() {
     const numberValue = Number(value);
     return Number.isFinite(numberValue) ? Math.round(numberValue) : null;
   }
+   // 가장 관리가 필요한 지표를 상세 정보에서 찾습니다.
 
   function getHistoryDetailLowestMetric(detail) {
     const metrics = Array.isArray(detail?.metrics) ? detail.metrics : [];
@@ -823,6 +888,7 @@ function HistoryPage() {
       .filter((metric) => Number.isFinite(metric.score))
       .sort((a, b) => a.score - b.score)[0];
   }
+   // 상세 분석 정보 카드에 보여줄 핵심 항목을 만듭니다.
 
   function getHistoryDetailInsightItems(detail) {
     const lowestMetric = getHistoryDetailLowestMetric(detail);
@@ -846,6 +912,7 @@ function HistoryPage() {
       },
     ];
   }
+   // 상세 영역의 추천 요약 항목을 만듭니다.
 
   function getHistoryDetailRecommendationItems(recommendations) {
     const text = getRecommendationText(recommendations);
@@ -856,6 +923,7 @@ function HistoryPage() {
 
     return [...new Set(items)].slice(0, 4);
   }
+   // 상세 보기 영역을 닫거나 초기화할 때 관련 상태를 비웁니다.
 
   function clearSelectedDetailState() {
     setSelectedDetail(null);
@@ -866,6 +934,7 @@ function HistoryPage() {
     setLlmReportError("");
     setIsLlmReportLoading(false);
   }
+   // 검색 입력값이 바뀔 때 이력 검색어 상태를 갱신합니다.
 
   function handleSearchTextChange(nextSearchText) {
     setSearchText(nextSearchText);
@@ -882,6 +951,7 @@ function HistoryPage() {
       clearSelectedDetailState();
     }
   }
+   // 상세 보기 영역을 닫는 버튼 동작을 처리합니다.
 
   function handleCloseDetail() {
     clearSelectedDetailState();
@@ -895,6 +965,7 @@ function HistoryPage() {
   }
 
 
+  // 아래 JSX는 이력 요약, score-trends 그래프, 검색, 이력 카드, 상세 영역을 화면에 그립니다.
   return (
     <PageLayout>
       <style>{`

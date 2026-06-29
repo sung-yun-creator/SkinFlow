@@ -1,3 +1,7 @@
+// 식습관 가이드 페이지입니다.
+// 분석 결과 또는 기본 기준을 바탕으로 식습관/생활 루틴 가이드를 보여주는 화면입니다.
+// 이 파일은 화면 표시와 사용자 동작 처리를 담당하며, 백엔드/DB/AI 로직은 여기서 직접 수정하지 않습니다.
+// 주석은 코드 흐름 이해를 돕기 위한 설명이며 실제 동작에는 영향을 주지 않습니다.
 import { useEffect, useState } from "react";
 import {
   ArrowRight,
@@ -10,8 +14,10 @@ import {
 import PageLayout from "../components/layout/PageLayout";
 import Button from "../components/common/Button";
 import { getDietGuideRecommendations } from "../api/recommendationApi";
+ // 설정 페이지에서 피부 관리 참고 안내 표시 여부를 저장하는 localStorage 키입니다.
 
 const SHOW_CARE_NOTICE_KEY = "skinflow_show_care_notice";
+ // 백엔드 source 코드를 사용자가 이해하기 쉬운 가이드 출처 문구로 바꾸는 표입니다.
 
 const sourceLabelMap = {
   latest_analysis: "최근 분석 결과 기반 가이드",
@@ -20,6 +26,7 @@ const sourceLabelMap = {
   fallback: "식습관 관리 가이드",
   unknown: "식습관 관리 가이드",
 };
+ // 설정 페이지에서 저장한 관리 안내 표시 여부를 읽어옵니다.
 
 function readStoredSetting(key, fallbackValue) {
   if (typeof window === "undefined") return fallbackValue;
@@ -32,6 +39,7 @@ function readStoredSetting(key, fallbackValue) {
 
   return storedValue;
 }
+ // API source 값을 비교하기 쉬운 소문자 코드로 정리합니다.
 
 function normalizeSourceValue(value) {
   return String(value || "")
@@ -39,10 +47,12 @@ function normalizeSourceValue(value) {
     .toLowerCase()
     .replace(/[\s-]+/g, "_");
 }
+ // source 코드값을 사용자에게 보이는 한글 라벨로 바꿉니다.
 
 function getSourceLabel(source) {
   return sourceLabelMap[source] ?? "식습관 참고 가이드";
 }
+ // 가이드가 최근 분석 기반인지 기본 가이드인지 판단해 안내 상태를 만듭니다.
 
 function getGuideSourceState(source, summary) {
   // source와 summary는 백엔드가 내려준 추천 기준 상태이므로 프론트에서 기준을 새로 계산하지 않습니다.
@@ -84,14 +94,17 @@ function getGuideSourceState(source, summary) {
           : "피부 관리 방향을 확인하기 위한 식습관 참고 정보입니다.",
   };
 }
+ // 빈 문구가 화면에 나오지 않도록 유효한 텍스트인지 확인합니다.
 
 function hasText(value) {
   return typeof value === "string" && value.trim() !== "";
 }
+ // 여러 후보 문구 중 가장 먼저 사용할 수 있는 문장을 고릅니다.
 
 function getFirstText(...values) {
   return values.find((value) => hasText(value))?.trim() ?? "";
 }
+ // 추천 기준이 자동인지 수동인지 표시하기 위한 문구를 만듭니다.
 
 function getRecommendationModeLabel(mode) {
   const normalizedMode = normalizeSourceValue(mode);
@@ -101,11 +114,13 @@ function getRecommendationModeLabel(mode) {
 
   return "";
 }
+ // 가이드별 추천 이유를 화면에 표시할 문장으로 정리합니다.
 
 function getGuideReason(item) {
   // 개별 카드의 추천 이유는 API 응답 필드가 있을 때만 노출합니다.
   return getFirstText(item?.recommendationReason, item?.recommendation_reason, item?.reason);
 }
+ // 객체 형태의 추천 기준을 초보자도 읽을 수 있는 문장으로 바꿉니다.
 
 function formatReferenceBasis(referenceBasis) {
   if (!referenceBasis) return "";
@@ -132,10 +147,12 @@ function formatReferenceBasis(referenceBasis) {
 
   return parts.join(" · ");
 }
+ // 추천 기준 요약 문구를 만듭니다.
 
 function getReferenceBasisSummary(summary) {
   return formatReferenceBasis(summary?.referenceBasis ?? summary?.reference_basis);
 }
+ // 최근 5개 분석을 기준으로 한 가이드인지 확인합니다.
 
 function hasRecentFiveRecommendationBasis(summary) {
   const basisText = normalizeSourceValue(
@@ -166,11 +183,15 @@ function hasRecentFiveRecommendationBasis(summary) {
     (basisCount === 5 || basisText.includes("recent_5") || basisText.includes("5회") || basisText.includes("five"))
   );
 }
+ // API 응답이 배열이 아닐 때도 화면이 깨지지 않도록 빈 배열로 바꿉니다.
 
 function toSafeArray(value) {
   return Array.isArray(value) ? value : [];
 }
 
+// checks 응답은 사용자가 직접 체크할 수 있는 오늘의 행동 목록으로 변환합니다.
+// 체크 상태는 서버 저장값이 아니라 현재 화면에서만 유지되는 UI 상태입니다.
+// 체크리스트와 루틴을 사용자가 실행할 수 있는 항목 목록으로 바꿉니다.
 function createActionItems(checks) {
   return checks.map((item, index) => ({
     id: item.id ?? `check-${index}`,
@@ -180,12 +201,15 @@ function createActionItems(checks) {
     sourceType: "check",
   }));
 }
+ // 체크 상태를 관리하기 위해 각 항목의 고유 ID를 만듭니다.
 
 function getActionItemId(item, index) {
   return String(item.id ?? `${item.sourceType || "action"}-${index}`);
 }
+ // 식습관 가이드 화면 전체를 담당하는 React 컴포넌트입니다.
 
 function DietGuidePage() {
+  // 가이드 목록, 루틴, 체크리스트, 사용자가 체크한 항목, 로딩/에러 상태를 관리합니다.
   const [dietGuide, setDietGuide] = useState({
     source: "unknown",
     summary: {},
@@ -198,8 +222,12 @@ function DietGuidePage() {
   const [checkedActionIds, setCheckedActionIds] = useState([]);
   const [showCareNotice] = useState(() => readStoredSetting(SHOW_CARE_NOTICE_KEY, true));
 
+  // 페이지가 열리면 식습관 가이드 API를 호출해 가이드/루틴/체크리스트를 준비합니다.
   useEffect(() => {
+    // 식습관 가이드는 분석 이력이 없어도 기본 가이드를 보여줄 수 있습니다.
+    // API 실패와 빈 데이터는 다른 의미이므로 에러 메시지와 빈 상태를 분리합니다.
     let isMounted = true;
+     // 식습관 가이드 API를 호출해 화면에 표시할 데이터를 불러옵니다.
 
     async function loadDietGuides() {
       try {
@@ -282,6 +310,7 @@ function DietGuidePage() {
     : guideSourceState.notice;
   const basisLabel = hasRecentFiveBasis ? "최근 5회 평균 기준" : recommendationModeLabel || sourceLabel;
   const basisMetricText = selectedMetricName || (isLatestGuide ? "최근 분석 결과" : "기본 관리 기준");
+   // 사용자가 체크리스트를 눌렀을 때 완료/미완료 상태를 바꿉니다.
 
   const handleCheckToggle = (itemId) => {
     setCheckedActionIds((currentIds) =>
@@ -291,6 +320,7 @@ function DietGuidePage() {
     );
   };
 
+  // 아래 JSX는 가이드 카드, 시간대별 루틴, 체크리스트, 주의 안내를 화면에 그립니다.
   return (
     <PageLayout>
       <style>{`

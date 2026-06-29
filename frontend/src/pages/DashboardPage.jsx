@@ -1,3 +1,7 @@
+// 대시보드 페이지입니다.
+// 로그인 후 사용자가 가장 먼저 보는 홈 화면으로, 최근 분석 요약과 다음 행동을 안내합니다.
+// 이 파일은 화면 표시와 사용자 동작 처리를 담당하며, 백엔드/DB/AI 로직은 여기서 직접 수정하지 않습니다.
+// 주석은 코드 흐름 이해를 돕기 위한 설명이며 실제 동작에는 영향을 주지 않습니다.
 import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
@@ -9,8 +13,10 @@ import PageLayout from "../components/layout/PageLayout";
 import Button from "../components/common/Button";
 import { getDashboard } from "../api/dashboardApi";
 import { shouldShowAnalysisScore } from "../utils/analysisStatus";
+ // 대시보드 상단에서 SkinFlow 핵심 기능을 짧게 보여주는 라벨 목록입니다.
 
 const featureChips = ["색소침착 분석", "주름 분석", "맞춤 추천", "분석 이력"];
+ // 서버 오류나 네트워크 오류를 사용자 친화적인 문장으로 바꿉니다.
 
 function getDashboardErrorMessage(error) {
   const rawMessage = String(error?.message || "").toLowerCase();
@@ -27,6 +33,7 @@ function getDashboardErrorMessage(error) {
 
   return "대시보드 정보를 불러오지 못했습니다. 잠시 후 다시 확인해 주세요.";
 }
+ // 분석 날짜를 한국어 날짜 형식으로 보여주고, 값이 없으면 기본 문구를 표시합니다.
 
 function formatDate(dateValue, fallback = "분석 후 표시") {
   if (!dateValue) return fallback;
@@ -43,6 +50,7 @@ function formatDate(dateValue, fallback = "분석 후 표시") {
     day: "2-digit",
   });
 }
+ // 대시보드 점수를 0~100 사이 숫자로 안전하게 변환합니다.
 
 function toScoreNumber(value) {
   if (typeof value === "number" && Number.isFinite(value)) return Math.round(value);
@@ -55,6 +63,7 @@ function toScoreNumber(value) {
 
   return null;
 }
+ // 최근 분석 결과 안에서 색소침착/주름 같은 지표 목록을 꺼냅니다.
 
 function getMetricList(latestAnalysis) {
   if (!latestAnalysis || typeof latestAnalysis !== "object") return [];
@@ -71,6 +80,7 @@ function getMetricList(latestAnalysis) {
 
   return Array.isArray(matchedList) ? matchedList : [];
 }
+ // 지표 코드에 맞는 점수를 찾아 화면 표시용 숫자로 바꿉니다.
 
 function getMetricScore(latestAnalysis, metricCodes) {
   const metricList = getMetricList(latestAnalysis);
@@ -101,10 +111,12 @@ function getMetricScore(latestAnalysis, metricCodes) {
 
   return score;
 }
+ // 점수가 있을 때는 점수 문구를, 없을 때는 분석 후 표시 문구를 반환합니다.
 
 function getScoreLabel(score) {
   return typeof score === "number" ? `${score}점` : "분석 후 표시";
 }
+ // 피부 관리 단계 문구를 화면에 표시하기 좋게 정리합니다.
 
 function getGradeLabel(score) {
   if (typeof score !== "number") return "분석 후 표시";
@@ -112,6 +124,7 @@ function getGradeLabel(score) {
   if (score >= 60) return "주의";
   return "관리 필요";
 }
+ // 등급에 따라 배지 스타일 클래스를 선택합니다.
 
 function getGradeClass(score) {
   if (typeof score !== "number") return "is-empty";
@@ -119,6 +132,7 @@ function getGradeClass(score) {
   if (score >= 60) return "is-caution";
   return "is-care";
 }
+ // 빈 값이 화면에 그대로 보이지 않도록 기본 문구로 보완합니다.
 
 function getDisplayText(value, fallback = "첫 분석 후 표시") {
   if (typeof value === "string" && value.trim()) return value.trim();
@@ -148,14 +162,18 @@ function getDisplayText(value, fallback = "첫 분석 후 표시") {
 
   return fallback;
 }
+ // 대시보드 화면 전체를 담당하는 React 컴포넌트입니다.
 
 function DashboardPage() {
+  // 대시보드 API 응답, 로딩 상태, 에러 메시지를 분리해 첫 분석 전/분석 후 화면을 다르게 보여줍니다.
   const [dashboard, setDashboard] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [dashboardError, setDashboardError] = useState("");
 
+  // 페이지 진입 시 대시보드 데이터를 한 번 불러와 홈 화면을 구성합니다.
   useEffect(() => {
     let isMounted = true;
+     // 대시보드 API를 호출해 최근 분석 요약과 추천 미리보기 데이터를 불러옵니다.
 
     async function loadDashboard() {
       try {
@@ -205,11 +223,13 @@ function DashboardPage() {
     summary.latest_status ??
     summary.status;
   const latestAnalysisSaved = latestAnalysis?.saved ?? summary.latestSaved ?? summary.latest_saved;
+   // 최근 분석에서 색소침착 점수만 꺼내 대시보드 카드에 표시합니다.
 
   const pigmentationScore = useMemo(
     () => getMetricScore(latestAnalysis, ["pigmentation", "색소침착"]),
     [latestAnalysis],
   );
+  // 최근 분석에서 주름 점수만 꺼내 대시보드 카드에 표시합니다.
   const wrinkleScore = useMemo(
     () => getMetricScore(latestAnalysis, ["wrinkle", "wrinkles", "주름"]),
     [latestAnalysis],
@@ -263,6 +283,7 @@ function DashboardPage() {
     ? "색소침착·주름 지표를 확인하고, 추천 성분·제품·식습관 가이드로 바로 이어갈 수 있습니다."
     : "첫 분석을 완료하면 점수, 관리 기준, 맞춤 추천 흐름을 이 화면에서 이어서 확인할 수 있습니다.";
 
+  // 아래 JSX는 상단 요약, 최근 분석 카드, 추천/식습관/이력 이동 카드를 화면에 그립니다.
   return (
     <PageLayout>
       <style>

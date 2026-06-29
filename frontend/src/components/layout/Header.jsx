@@ -1,4 +1,8 @@
-﻿import { useEffect, useRef, useState } from "react";
+﻿// Header.jsx
+// SkinFlow 상단 헤더 컴포넌트입니다.
+// 로그인 상태에 따라 상단 메뉴, 분석 시작 버튼, 로그인/회원가입 링크, 프로필 드롭다운을 다르게 보여줍니다.
+// 사용자가 어느 화면에 있든 주요 페이지로 이동할 수 있게 만드는 전역 내비게이션 역할입니다.
+import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   ChevronDown,
@@ -15,6 +19,8 @@ import {
   clearLoginSession,
 } from "../../api/authSession";
 
+// 로그인한 사용자에게 보여줄 상단 메뉴 목록입니다.
+// 모바일에서는 BottomNav가 주요 이동을 맡고, PC에서는 이 메뉴가 상단에 표시됩니다.
 const navItems = [
   { label: "대시보드", to: "/dashboard" },
   { label: "분석 이력", to: "/history" },
@@ -22,6 +28,8 @@ const navItems = [
   { label: "식습관 가이드", to: "/diet-guide" },
 ];
 
+// localStorage에 저장된 사용자 정보에서 화면에 보여줄 이름을 찾습니다.
+// 저장 구조가 조금 달라도 name, userName, nickname, email 순서로 후보를 확인해 최대한 안전하게 표시합니다.
 function getStoredUserName() {
   const storedUser = localStorage.getItem(AUTH_STORAGE_KEYS.user);
 
@@ -63,6 +71,8 @@ function getStoredUserName() {
   return "내 계정";
 }
 
+// 현재 로그인 상태를 한 번에 읽어오는 함수입니다.
+// 토큰 유무와 사용자 이름을 함께 가져와 Header 화면이 로그인/비로그인 상태를 판단하게 합니다.
 function getAuthSnapshot() {
   const token = localStorage.getItem(AUTH_STORAGE_KEYS.token);
 
@@ -72,6 +82,8 @@ function getAuthSnapshot() {
   };
 }
 
+// 프로필 원형 아바타에 들어갈 짧은 글자를 만드는 함수입니다.
+// 이름이 있으면 첫 글자를, 없으면 기본 사용자 아이콘을 대신 보여줄 수 있게 합니다.
 function getInitials(name) {
   if (!name || name === "내 계정") return "ME";
 
@@ -89,6 +101,8 @@ function getInitials(name) {
     .toUpperCase();
 }
 
+// Header 컴포넌트입니다.
+// 라우터 위치, 로그인 세션, 프로필 메뉴 열림/닫힘 상태를 관리합니다.
 function Header() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -100,6 +114,8 @@ function Header() {
   const initials = getInitials(userName);
   const isLoginPage = location.pathname === "/login";
 
+  // 로그인 정보가 다른 탭에서 바뀌거나 세션 만료 이벤트가 발생하면 헤더도 즉시 갱신합니다.
+  // 또한 드롭다운 바깥 클릭과 ESC 키 입력으로 메뉴를 닫아 사용성이 자연스럽게 보이도록 합니다.
   useEffect(() => {
     function refreshAuthSnapshot() {
       setAuthSnapshot(getAuthSnapshot());
@@ -133,10 +149,13 @@ function Header() {
     };
   }, []);
 
+  // 프로필 메뉴 안의 링크를 클릭한 뒤 드롭다운을 닫을 때 사용합니다.
   function closeProfileMenu() {
     setIsProfileOpen(false);
   }
 
+  // 로그아웃 버튼을 누르면 저장된 로그인 정보를 지우고 로그인 페이지로 이동합니다.
+  // Header 상태도 즉시 다시 읽어 화면에 로그아웃 상태가 반영되게 합니다.
   function handleLogout() {
     clearLoginSession();
     setAuthSnapshot(getAuthSnapshot());
@@ -146,6 +165,8 @@ function Header() {
 
   return (
     <header className="sf-app-header">
+      {/* Header 전용 스타일입니다.
+          상단 고정 위치, 프로필 드롭다운, 반응형 숨김 처리를 이 컴포넌트 안에서 관리합니다. */}
       <style>{`
         .sf-app-header {
           position: sticky;
@@ -588,6 +609,8 @@ function Header() {
       `}</style>
 
       <div className="sf-header-inner">
+        {/* 로고 영역입니다.
+            로그인 상태이면 대시보드로, 비로그인 상태이면 랜딩 페이지로 이동합니다. */}
         <Link
           className="sf-header-brand"
           to={isLoggedIn ? "/dashboard" : "/"}
@@ -599,6 +622,7 @@ function Header() {
           <span className="sf-header-brand-text">SkinFlow</span>
         </Link>
 
+        {/* 로그인한 사용자에게만 PC 상단 메뉴를 보여줍니다. */}
         {isLoggedIn && (
           <nav className="sf-header-nav" aria-label="주요 메뉴">
             {navItems.map((item) => (
@@ -615,6 +639,8 @@ function Header() {
           </nav>
         )}
 
+        {/* 우측 액션 영역입니다.
+            로그인 상태에 따라 분석 시작 버튼 또는 로그인/회원가입 링크가 표시됩니다. */}
         <div className="sf-header-actions">
           {isLoggedIn ? (
             <Link className="sf-header-cta" to="/analysis/capture">
@@ -631,6 +657,7 @@ function Header() {
             </Link>
           )}
 
+          {/* 로그인한 사용자에게만 프로필 드롭다운 메뉴를 제공합니다. */}
           {isLoggedIn && (
           <div className="sf-profile-menu-wrap" ref={menuRef}>
             <button

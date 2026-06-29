@@ -1,3 +1,7 @@
+// 회원가입 페이지입니다.
+// 이름, 이메일, 비밀번호, 성별, 생년월일, 피부 타입을 입력하고 이메일 인증까지 마친 뒤 회원가입을 완료하는 화면입니다.
+// 이 파일은 화면 표시와 사용자 동작 처리를 담당하며, 백엔드/DB/AI 로직은 여기서 직접 수정하지 않습니다.
+// 주석은 코드 흐름 이해를 돕기 위한 설명이며 실제 동작에는 영향을 주지 않습니다.
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -21,10 +25,12 @@ import {
   verifyEmailCode,
   signup,
 } from "../api/authApi";
+ // 회원가입 화면 전체를 담당하는 React 컴포넌트입니다.
 
 function SignupPage() {
   const navigate = useNavigate();
 
+  // 회원가입 입력값과 이메일 중복 확인, 인증번호 발송/검증, 로딩/성공/실패 메시지를 나눠서 관리합니다.
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -42,9 +48,11 @@ function SignupPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [signupMessage, setSignupMessage] = useState("");
   const [signupError, setSignupError] = useState("");
+  // 페이지 진입 시 예전 방식으로 저장된 로그인 정보를 정리해 회원가입 화면이 꼬이지 않게 합니다.
   useEffect(() => {
     cleanupLegacyAuthStorage();
   }, []);
+   // 사용자가 입력한 값을 form 상태에 반영하고, 이메일이 바뀌면 기존 인증 상태를 초기화합니다.
 
   function handleChange(event) {
     const { name, value, type, checked } = event.target;
@@ -64,6 +72,7 @@ function SignupPage() {
       setCodeVerified(false);
     }
   }
+   // 회원가입 전에 이메일 중복 여부를 백엔드에 확인하는 함수입니다.
 
   async function handleCheckEmail() {
     if (!form.email) {
@@ -93,6 +102,7 @@ function SignupPage() {
       setIsLoading(false);
     }
   }
+   // 중복 확인이 끝난 이메일로 인증번호 발송을 요청하는 함수입니다.
 
   async function handleSendEmailCode() {
     if (!emailChecked) {
@@ -122,6 +132,7 @@ function SignupPage() {
       setIsLoading(false);
     }
   }
+   // 사용자가 입력한 인증번호가 맞는지 백엔드에 확인하는 함수입니다.
 
   async function handleVerifyEmailCode() {
     if (!form.code) {
@@ -154,6 +165,7 @@ function SignupPage() {
       setIsLoading(false);
     }
   }
+   // 모든 필수 조건을 확인한 뒤 최종 회원가입 API를 호출하는 함수입니다.
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -226,6 +238,7 @@ function SignupPage() {
     }
   }
 
+  // 아래 JSX는 왼쪽 서비스 소개 영역과 오른쪽 회원가입 입력 폼 카드를 화면에 그립니다.
   return (
     <PageLayout showBottomNav={false}>
       <section className="auth-page signup-page">

@@ -1,14 +1,20 @@
+// ChatWidget.jsx
+// 로그인한 사용자가 화면 어디서든 간단한 피부 관리 질문을 보낼 수 있는 채팅 위젯입니다.
+// PageLayout에 포함되어 있어 대부분의 주요 페이지에서 공통으로 표시됩니다.
+// 답변은 참고용 안내이며, 의료적 판단처럼 보이지 않도록 사용자가 이해하기 쉬운 흐름을 우선합니다.
 import { useMemo, useRef, useState } from "react";
 import { MessageCircle, Send, Sparkles, X } from "lucide-react";
 import { sendChatMessage } from "../../api/chatApi";
 import { AUTH_STORAGE_KEYS } from "../../api/authSession";
 
+// 사용자가 처음 채팅을 열었을 때 바로 눌러볼 수 있는 예시 질문입니다.
 const QUICK_QUESTIONS = [
   "색소침착 관리는 어떻게 해야 하나요?",
   "주름 관리에 레티놀을 써도 되나요?",
   "선크림은 얼마나 자주 발라야 하나요?",
 ];
 
+// 채팅은 로그인 사용자에게만 보여주기 때문에 토큰이 있는지 먼저 확인합니다.
 function hasLoginToken() {
   if (typeof window === "undefined") {
     return false;
@@ -17,7 +23,11 @@ function hasLoginToken() {
   return Boolean(localStorage.getItem(AUTH_STORAGE_KEYS.token));
 }
 
+// ChatWidget 컴포넌트입니다.
+// 열림/닫힘 상태, 입력 메시지, 대화 목록, API 요청 중 상태를 관리합니다.
 function ChatWidget() {
+  // isOpen은 채팅창이 열렸는지, message는 입력창의 현재 글자입니다.
+  // messages는 화면에 쌓이는 대화 목록, isLoading은 답변을 기다리는 중인지 표시합니다.
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
@@ -25,10 +35,14 @@ function ChatWidget() {
   const inputRef = useRef(null);
   const isLoggedIn = useMemo(hasLoginToken, []);
 
+  // 로그인하지 않은 사용자는 채팅 위젯을 보지 않도록 합니다.
+  // 보호 API 호출을 줄이고, 비로그인 사용자가 헷갈리지 않게 하는 처리입니다.
   if (!isLoggedIn) {
     return null;
   }
 
+  // 사용자가 직접 입력하거나 예시 질문을 눌렀을 때 메시지를 전송합니다.
+  // 빈 메시지이거나 이미 답변을 기다리는 중이면 중복 요청을 막습니다.
   async function submitMessage(nextMessage = message) {
     const trimmedMessage = nextMessage.trim();
 
@@ -44,6 +58,8 @@ function ChatWidget() {
     setIsLoading(true);
 
     try {
+      // 실제 채팅 API 호출입니다.
+      // 성공하면 사용자 메시지와 AI 응답을 messages 배열에 추가해 화면에 보여줍니다.
       const response = await sendChatMessage(trimmedMessage);
       setMessages((current) => [
         ...current,
@@ -66,6 +82,8 @@ function ChatWidget() {
     }
   }
 
+  // Enter 키로 메시지를 보낼 수 있게 하는 키보드 UX 처리입니다.
+  // Shift+Enter는 줄바꿈으로 남겨두고, Enter만 눌렀을 때 전송합니다.
   function handleKeyDown(event) {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
@@ -75,6 +93,7 @@ function ChatWidget() {
 
   return (
     <>
+      {/* 플로팅 채팅 버튼과 채팅 패널을 함께 반환합니다. */}
       <style>{`
         .sf-chatbot-launcher {
           position: fixed;
