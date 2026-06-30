@@ -1217,17 +1217,6 @@ function LandingPage() {
             opacity: 0.92;
           }
 
-          .sf-preview-dot {
-            position: absolute;
-            left: 50%;
-            bottom: 43px;
-            width: 24px;
-            height: 24px;
-            border-radius: 999px;
-            background: rgba(15, 23, 42, 0.06);
-            transform: translateX(-50%);
-          }
-
           .sf-roi-box {
             position: absolute;
             display: grid;
@@ -1607,7 +1596,6 @@ function LandingPage() {
 
             <div className="sf-skin-canvas">
               <span className="sf-preview-blob" aria-hidden="true" />
-              <span className="sf-preview-dot" aria-hidden="true" />
               <span className="sf-roi-box sf-roi-forehead">
                 <span className="sf-roi-label">T-zone</span>
               </span>

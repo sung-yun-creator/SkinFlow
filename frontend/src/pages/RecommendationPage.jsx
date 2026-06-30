@@ -613,7 +613,10 @@ function RecommendationPage() {
           box-shadow: 0 18px 44px rgba(15, 23, 42, 0.065);
         }
 
+        /* 같은 높이의 상단 카드 안에서 안내와 CTA가 자연스럽게 분산되도록 세로 흐름을 만듭니다. */
         .sf-recommend-hero-card {
+          display: flex;
+          flex-direction: column;
           padding: 26px;
           background:
             radial-gradient(circle at 0% 0%, rgba(22, 125, 127, 0.10), transparent 34%),
@@ -645,21 +648,65 @@ function RecommendationPage() {
           word-break: keep-all;
         }
 
-        .sf-recommend-actions {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 10px;
+        /* 왼쪽 카드의 빈 공간을 실제 추천 흐름 안내로 채워 다음 행동을 빠르게 이해하도록 합니다. */
+        .sf-recommend-hero-guide {
+          display: grid;
+          gap: 9px;
           margin-top: 20px;
+          padding: 14px;
+          border: 1px solid rgba(22, 125, 127, 0.12);
+          border-radius: 18px;
+          background: rgba(248, 250, 252, 0.9);
+        }
+
+        .sf-recommend-hero-guide-list {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 8px;
+        }
+
+        .sf-recommend-hero-guide-list span {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 38px;
+          padding: 8px 10px;
+          border-radius: 13px;
+          color: #334155;
+          background: #ffffff;
+          border: 1px solid rgba(226, 232, 240, 0.9);
+          font-size: 12px;
+          font-weight: 900;
+          text-align: center;
+          word-break: keep-all;
+        }
+
+        /* 주요 CTA는 첫 버튼을 강조하고 나머지 행동은 같은 줄에 정렬해 떠 보이지 않게 합니다. */
+        .sf-recommend-actions {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 10px;
+          margin-top: auto;
+          padding-top: 20px;
+        }
+
+        .sf-recommend-actions .sf-button {
+          width: 100%;
+        }
+
+        .sf-recommend-actions .sf-button:first-child {
+          grid-column: 1 / -1;
         }
 
         .sf-recommend-summary-card {
           padding: 22px;
         }
 
+        /* 추천 기준 선택은 요약 카드 안에서 필요한 만큼만 차지하도록 컴팩트하게 유지합니다. */
         .sf-focus-selector {
           display: grid;
-          gap: 9px;
-          margin-bottom: 16px;
+          gap: 7px;
+          margin-bottom: 12px;
         }
 
         .sf-focus-options {
@@ -672,8 +719,8 @@ function RecommendationPage() {
         }
 
         .sf-focus-option {
-          min-height: 40px;
-          padding: 9px 12px;
+          min-height: 36px;
+          padding: 7px 10px;
           border: 1px solid transparent;
           border-radius: 12px;
           color: #64748b;
@@ -702,12 +749,32 @@ function RecommendationPage() {
           outline-offset: 2px;
         }
 
+        /* 출처 상태 아이콘과 제목을 한 묶음으로 보여 추천 연결 상태를 먼저 이해하게 합니다. */
         .sf-recommend-summary-top {
           display: flex;
-          align-items: flex-start;
+          align-items: center;
           justify-content: space-between;
           gap: 16px;
           margin-bottom: 16px;
+        }
+
+        .sf-recommend-summary-heading {
+          display: grid;
+          grid-template-columns: 42px minmax(0, 1fr);
+          gap: 12px;
+          align-items: center;
+          min-width: 0;
+        }
+
+        .sf-recommend-summary-icon {
+          width: 42px;
+          height: 42px;
+          display: grid;
+          place-items: center;
+          border-radius: 15px;
+          color: #167d7f;
+          background: #ecfdfd;
+          border: 1px solid #cfedec;
         }
 
         .sf-recommend-label {
@@ -767,9 +834,10 @@ function RecommendationPage() {
           background: rgba(100, 116, 139, 0.1);
         }
 
+        /* API 응답 기반의 네 요약값을 항상 정돈된 2x2 구조로 보여줍니다. */
         .sf-recommend-summary-grid {
           display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
+          grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 10px;
         }
 
@@ -1351,8 +1419,33 @@ function RecommendationPage() {
             font-size: 36px;
           }
 
-          .sf-recommend-summary-grid {
+          /* 모바일에서는 상단 카드와 CTA를 1열로 내리고 요약 정보는 읽기 쉬운 2열을 유지합니다. */
+          .sf-recommend-hero-guide-list,
+          .sf-recommend-actions {
             grid-template-columns: 1fr;
+          }
+
+          .sf-recommend-actions .sf-button:first-child {
+            grid-column: auto;
+          }
+
+          .sf-recommend-summary-top {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+
+          .sf-recommend-summary-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+          }
+
+          .sf-summary-metric {
+            padding: 12px;
+          }
+
+          .sf-summary-metric strong {
+            font-size: 18px;
+            word-break: keep-all;
           }
 
           .sf-recommend-flow-card {
@@ -1416,6 +1509,15 @@ function RecommendationPage() {
               화장품 제품, 식습관 가이드까지 다음 관리 방향을 짧게 정리합니다.
             </p>
 
+            <div className="sf-recommend-hero-guide" aria-label="추천 연결 흐름 요약">
+              <span className="sf-recommend-label">추천 연결 흐름</span>
+              <div className="sf-recommend-hero-guide-list">
+                <span>최근 분석 결과</span>
+                <span>기능성 추천 성분</span>
+                <span>화장품 추천 제품</span>
+              </div>
+            </div>
+
             <div className="sf-recommend-actions">
               <Button to={dietGuidePath} size="lg">
                 식습관 가이드 보기 <Leaf size={18} />
@@ -1431,9 +1533,18 @@ function RecommendationPage() {
 
           <Card className="sf-recommend-summary-card">
             <div className="sf-recommend-summary-top">
-              <div>
-                <span className="sf-recommend-label">추천 요약</span>
-                <h2>오늘의 관리 방향</h2>
+              <div className="sf-recommend-summary-heading">
+                <span className="sf-recommend-summary-icon" aria-hidden="true">
+                  <ShieldCheck size={19} />
+                </span>
+                <div>
+                  <span className="sf-recommend-label">분석 연결 상태</span>
+                  <h2>
+                    {sourceState.tone === "personalized"
+                      ? `${sourceState.label} 가이드`
+                      : sourceState.label}
+                  </h2>
+                </div>
               </div>
               <span className="sf-status-pill">
                 <ShieldCheck size={14} /> {statusLabel}

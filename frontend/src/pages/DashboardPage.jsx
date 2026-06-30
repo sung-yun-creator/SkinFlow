@@ -317,11 +317,30 @@ function DashboardPage() {
             overflow: visible;
           }
 
-          /* 화면 바깥으로 퍼지는 장식 안개만 숨기고, 우측 ROI 미리보기 배경은 유지합니다. */
-          .dashboard-home-like::before,
+          .dashboard-home-like::before {
+            content: "";
+            position: absolute;
+            left: max(-220px, -16vw);
+            top: 4%;
+            width: min(520px, 46vw);
+            height: min(520px, 46vw);
+            border-radius: 999px;
+            background: radial-gradient(circle, rgba(22, 125, 127, 0.14), transparent 64%);
+            filter: blur(8px);
+            pointer-events: none;
+          }
+
           .dashboard-home-like::after {
-            content: none;
-            display: none;
+            content: "";
+            position: absolute;
+            right: max(-240px, -18vw);
+            bottom: -14%;
+            width: min(620px, 50vw);
+            height: min(620px, 50vw);
+            border-radius: 999px;
+            background: radial-gradient(circle, rgba(34, 197, 200, 0.12), transparent 64%);
+            filter: blur(12px);
+            pointer-events: none;
           }
 
           .dashboard-landing-hero {
@@ -507,17 +526,6 @@ function DashboardPage() {
             background: linear-gradient(135deg, #5eead4 0%, #2dd4bf 100%);
             box-shadow: inset 0 -24px 50px rgba(15, 23, 42, 0.06);
             opacity: 0.92;
-          }
-
-          .dashboard-preview-dot {
-            position: absolute;
-            left: 50%;
-            bottom: 43px;
-            width: 24px;
-            height: 24px;
-            border-radius: 999px;
-            background: rgba(15, 23, 42, 0.06);
-            transform: translateX(-50%);
           }
 
           .dashboard-roi-box {
@@ -906,7 +914,6 @@ function DashboardPage() {
 
               <div className="dashboard-preview-panel" aria-label="피부 분석 리포트 미리보기">
                 <div className="dashboard-preview-blob" aria-hidden="true" />
-                <div className="dashboard-preview-dot" aria-hidden="true" />
                 <span className="dashboard-roi-box is-zone" data-label="T-zone" />
                 <span className="dashboard-roi-box is-pigment" data-label="색소" />
                 <span className="dashboard-roi-box is-wrinkle" data-label="주름" />

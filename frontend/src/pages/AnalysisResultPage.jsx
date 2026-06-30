@@ -1112,7 +1112,6 @@ function AnalysisResultPage() {
             align-items: stretch;
           }
 
-          .sf-result-next-strip,
           .sf-result-follow-panel,
           .sf-result-final-disclaimer {
             border: 1px solid rgba(226, 232, 240, 0.95);
@@ -1121,26 +1120,28 @@ function AnalysisResultPage() {
             box-shadow: none;
           }
 
+          /* 주요 이동 CTA는 긴 스트립 대신 독립 카드로 구분해 각 행동을 빠르게 찾게 합니다. */
           .sf-result-next-strip {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
-            overflow: hidden;
+            gap: 12px;
           }
 
           .sf-result-next-strip .sf-result-next-item {
             display: grid;
-            grid-template-columns: 42px 1fr;
+            grid-template-columns: 1fr;
             gap: 12px;
-            min-height: 164px;
+            min-height: 188px;
             padding: 20px;
-            border: 0;
-            border-right: 1px solid rgba(226, 232, 240, 0.95);
-            border-radius: 0;
+            border: 1px solid rgba(226, 232, 240, 0.95);
+            border-radius: 22px;
             background: #ffffff;
           }
 
-          .sf-result-next-strip .sf-result-next-item:last-child {
-            border-right: 0;
+          .sf-result-next-strip .sf-result-next-item > div {
+            display: flex;
+            flex-direction: column;
+            min-height: 116px;
           }
 
           .sf-result-next-strip .sf-result-next-item h3 {
@@ -1150,6 +1151,11 @@ function AnalysisResultPage() {
           .sf-result-next-strip .sf-result-next-item p {
             font-size: 13px;
             line-height: 1.65;
+          }
+
+          .sf-result-next-strip .sf-result-next-item .sf-button {
+            width: 100%;
+            margin-top: auto;
           }
 
           .sf-result-follow-panel {
@@ -1211,16 +1217,23 @@ function AnalysisResultPage() {
 
             .sf-result-next-strip {
               grid-template-columns: 1fr;
-              border-radius: 22px;
+              gap: 10px;
             }
 
+            /* 좁은 화면에서는 아이콘과 내용을 가로로 묶어 CTA 카드 길이를 줄입니다. */
             .sf-result-next-strip .sf-result-next-item {
-              border-right: 0;
-              border-bottom: 1px solid rgba(226, 232, 240, 0.95);
+              grid-template-columns: 42px minmax(0, 1fr);
+              min-height: auto;
+              padding: 16px;
+              border-radius: 20px;
             }
 
-            .sf-result-next-strip .sf-result-next-item:last-child {
-              border-bottom: 0;
+            .sf-result-next-strip .sf-result-next-item > div {
+              min-height: 0;
+            }
+
+            .sf-result-next-strip .sf-result-next-item .sf-button {
+              margin-top: 12px;
             }
 
             .sf-result-follow-panel,
