@@ -12,9 +12,14 @@ const {
     buildPersonalizedDietRoutines,
     toDietGuide,
 } = require('./recommendation/dietGuideRecommendationService');
+const {
+    applyFocusMetric,
+    getConcernMetrics,
+    getFocusMetricOptions,
+    getMetricMeta,
+} = require('./recommendation/recommendationMetricUtils');
 const { toNumber } = require('../utils/number');
 
-// 추천 service는 최신 분석 또는 사용자가 선택한 분석 이력을 기준으로 추천 응답을 조합합니다.
 function createAnalysisNotFoundError() {
     const error = new Error('분석 이력을 찾을 수 없습니다.');
     error.status = 404;
@@ -36,6 +41,38 @@ async function findAnalysisContextForRecommendations(userId, analysisId = null) 
     return analysisContext;
 }
 
+function withFocusMetric(analysisContext, focusMetricCode = null) {
+    if (!analysisContext || !focusMetricCode) {
+        return analysisContext;
+    }
+
+    return {
+        ...analysisContext,
+        metrics: applyFocusMetric(getConcernMetrics(analysisContext.metrics || []), focusMetricCode),
+    };
+}
+
+async function getFocusOptions(userId, options = {}) {
+    const analysisContext = await findAnalysisContextForRecommendations(userId, options.analysisId);
+    const focusOptions = getFocusMetricOptions(analysisContext, options.focus);
+    const selectedOption = focusOptions.find((option) => option.selected) || null;
+
+    return {
+        source: analysisContext
+            ? options.analysisId ? 'selected_analysis' : 'latest_analysis'
+            : 'default',
+        summary: {
+            analysisId: analysisContext?.analysis.skin_analysis_id || null,
+            analyzedAt: analysisContext?.analysis.analyzed_at || analysisContext?.analysis.created_at || null,
+            totalScore: toNumber(analysisContext?.analysis.total_skin_score),
+            selectedMetricCode: selectedOption?.code || null,
+            selectedMetricName: selectedOption?.name || null,
+            message: '추천 화면에서 선택할 수 있는 관리 지표입니다.',
+        },
+        options: focusOptions,
+    };
+}
+
 async function getIngredientRecommendations(userId, options = {}) {
     const analysisContext = await findAnalysisContextForRecommendations(userId, options.analysisId);
     const result = await buildIngredientRecommendationResult(analysisContext, options);
@@ -50,7 +87,8 @@ async function getIngredientRecommendations(userId, options = {}) {
             source: analysisContext
                 ? options.analysisId ? 'selected_analysis' : 'latest_analysis'
                 : 'default',
-            message: options.analysisId && analysisContext
+            focusOptions: getFocusMetricOptions(analysisContext, options.focus),
+            message: options.analysisId && analysisContext && !options.focus
                 ? '선택한 분석 이력 기준으로 추천했습니다.'
                 : result.summary.message,
         },
@@ -58,7 +96,6 @@ async function getIngredientRecommendations(userId, options = {}) {
 }
 
 async function getDietGuideRecommendations(userId, options = {}) {
-    // 식습관 가이드는 최신 분석 또는 선택 분석 ID 기준으로 질문형 가이드와 체크 항목을 만듭니다.
     const latestAnalysis = await findAnalysisContextForRecommendations(userId, options.analysisId);
     const latestAnalysisId = latestAnalysis?.analysis.skin_analysis_id || null;
 
@@ -66,13 +103,14 @@ async function getDietGuideRecommendations(userId, options = {}) {
         return buildDefaultDietGuideResponse();
     }
 
-    const ingredientResult = await buildIngredientRecommendationResult(latestAnalysis);
-    const personalizedGuides = buildPersonalizedDietGuides(latestAnalysis, ingredientResult.ingredients);
-    const personalizedRoutines = buildPersonalizedDietRoutines(latestAnalysis, ingredientResult.ingredients);
-    const personalizedChecks = buildPersonalizedDietChecks(latestAnalysis, ingredientResult.ingredients);
+    const focusedAnalysis = withFocusMetric(latestAnalysis, options.focus);
+    const ingredientResult = await buildIngredientRecommendationResult(focusedAnalysis, options);
+    const personalizedGuides = buildPersonalizedDietGuides(focusedAnalysis, ingredientResult.ingredients);
+    const personalizedRoutines = buildPersonalizedDietRoutines(focusedAnalysis, ingredientResult.ingredients);
+    const personalizedChecks = buildPersonalizedDietChecks(focusedAnalysis, ingredientResult.ingredients);
     let dietGuides = await recommendationRepository.findDietGuidesByAnalysisId(latestAnalysisId);
 
-    if (dietGuides.length === 0) {
+    if (dietGuides.length === 0 && !options.focus) {
         dietGuides = await recommendationRepository.createDietGuidesForAnalysis(
             latestAnalysisId,
             personalizedGuides,
@@ -85,11 +123,17 @@ async function getDietGuideRecommendations(userId, options = {}) {
             analysisId: latestAnalysisId,
             analyzedAt: latestAnalysis.analysis.analyzed_at || latestAnalysis.analysis.created_at || null,
             totalScore: toNumber(latestAnalysis.analysis.total_skin_score),
-            guideSource: 'personalized',
+            guideSource: options.focus ? 'manual_focus' : 'personalized',
             guideCount: personalizedGuides.length,
             focusMetric: ingredientResult.summary.focusMetric || null,
+            focusOptions: getFocusMetricOptions(latestAnalysis, options.focus),
+            selectedMetricCode: ingredientResult.summary.selectedMetricCode,
+            selectedMetricName: ingredientResult.summary.selectedMetricName,
+            recommendationMode: options.focus ? 'manual' : 'auto',
             recommendedIngredients: ingredientResult.ingredients.slice(0, 3).map((ingredient) => ingredient.name),
-            message: options.analysisId ? '선택한 분석 이력 기준의 식습관 가이드입니다.' : null,
+            message: options.focus
+                ? `${ingredientResult.summary.selectedMetricName || getMetricMeta(options.focus).name} 지표를 선택해 식습관 가이드를 추천했습니다.`
+                : options.analysisId ? '선택한 분석 이력 기준의 식습관 가이드입니다.' : null,
         },
         guides: personalizedGuides,
         routines: personalizedRoutines,
@@ -98,13 +142,19 @@ async function getDietGuideRecommendations(userId, options = {}) {
 }
 
 async function getProductRecommendations(userId, options = {}) {
-    // 제품 추천은 먼저 추천 성분을 만든 뒤, 제품-성분 매칭으로 후보를 좁힙니다.
     const ingredientResult = await getIngredientRecommendations(userId, options);
-    return buildProductRecommendationResult(ingredientResult, options);
+    const result = await buildProductRecommendationResult(ingredientResult, options);
+
+    return {
+        ...result,
+        summary: {
+            ...result.summary,
+            focusOptions: ingredientResult.summary.focusOptions,
+        },
+    };
 }
 
 async function getRecommendationSnapshotForAnalysis(userId, analysisId) {
-    // 상세 리포트는 특정 분석 이력 기준으로 성분/제품/식습관 스냅샷을 다시 맞춰 가져옵니다.
     const analysisContext = await recommendationRepository.findAnalysisWithMetricsByUserIdAndAnalysisId(userId, analysisId);
 
     if (!analysisContext) {
@@ -145,6 +195,7 @@ async function getRecommendationSnapshotForAnalysis(userId, analysisId) {
 
 module.exports = {
     getDietGuideRecommendations,
+    getFocusOptions,
     getIngredientRecommendations,
     getProductRecommendations,
     getRecommendationSnapshotForAnalysis,
