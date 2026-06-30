@@ -32,7 +32,7 @@ import {
   updateMyPageProfile,
 } from "../api/mypageApi";
 import { AUTH_STORAGE_KEYS, removeSensitiveFields } from "../api/authSession";
-import { shouldShowAnalysisScore } from "../utils/analysisStatus";
+import { getScoreGradeLabel, shouldShowAnalysisScore } from "../utils/analysisStatus";
  // 프로필 수정 폼의 초기값입니다.
 
 const profileInitialForm = {
@@ -80,9 +80,9 @@ function formatDate(dateValue, emptyText = "아직 없음") {
     day: "numeric",
   });
 }
- // 점수가 없으면 기본 안내 문구를, 있으면 점수 문구를 보여줍니다.
+// scoreGrade가 있을 때만 점수 옆에 A~E 보조 등급을 붙이고, 없으면 기존 점수 문구를 유지합니다.
 
-function formatScore(score) {
+function formatScore(score, scoreGrade) {
   if (score === null || score === undefined || score === "") {
     return "분석 전";
   }
@@ -93,7 +93,8 @@ function formatScore(score) {
     return "분석 전";
   }
 
-  return `${Math.round(numberScore)}점`;
+  const scoreGradeLabel = getScoreGradeLabel(scoreGrade);
+  return `${Math.round(numberScore)}점${scoreGradeLabel ? ` · ${scoreGradeLabel}` : ""}`;
 }
  // 빈 값이 화면에 그대로 나오지 않도록 대체 문구를 제공합니다.
 
@@ -349,6 +350,12 @@ function MyPage() {
 
   const latestStatus = stats.latestStatus ?? stats.latest_status ?? stats.analysisStatus ?? stats.analysis_status;
   const latestScore = stats.latestTotalScore ?? stats.latest_total_score;
+  // A~E 등급은 최근 점수의 보조 정보이며 기존 피부 상태 라벨을 대신하지 않습니다.
+  const latestScoreGrade =
+    stats.latestScoreGrade ??
+    stats.latest_score_grade ??
+    stats.scoreGrade ??
+    stats.score_grade;
   const analysisCount = Number(stats.analysisCount ?? stats.analysis_count ?? 0);
   const hasAnalysisHistory = Number.isFinite(analysisCount) && analysisCount > 0;
   const mainConcernLabel = getMainConcernLabel(stats.mainConcern);
@@ -356,6 +363,7 @@ function MyPage() {
     score: latestScore,
     status: latestStatus,
     saved: stats.saved,
+    code: stats.code ?? stats.latestCode ?? stats.latest_code,
   });
 
   const profileName = getDisplayValue(profile.name, "사용자");
@@ -365,7 +373,7 @@ function MyPage() {
   const skinType = getSkinTypeLabel(profile.skinType ?? profile.skin_type);
   const joinedAt = formatDate(profile.createdAt ?? profile.created_at, "확인 필요");
   const latestScoreText = hasLatestScore
-    ? formatScore(latestScore)
+    ? formatScore(latestScore, latestScoreGrade)
     : hasAnalysisHistory
       ? "분석 후 표시"
       : "기록 없음";

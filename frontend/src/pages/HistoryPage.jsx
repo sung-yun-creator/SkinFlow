@@ -34,7 +34,7 @@ import {
   getHistoryLlmReport,
   getHistoryScoreTrends,
 } from "../api/historyApi";
-import { shouldShowAnalysisScore } from "../utils/analysisStatus";
+import { getScoreGradeLabel, shouldShowAnalysisScore } from "../utils/analysisStatus";
 import { safeCareText } from "../utils/safeCareText";
  // 이력 API 응답이 없을 때 화면이 깨지지 않도록 사용하는 기본 데이터 구조입니다.
 
@@ -159,6 +159,7 @@ function getDisplayableTrendScore(series, fallbackPoints, index) {
     score,
     status: point?.status ?? point?.analysisStatus ?? point?.analysis_status,
     saved: point?.saved,
+    code: point?.code,
   })
     ? score
     : null;
@@ -188,7 +189,9 @@ function ScoreTrendTooltip({ active, payload, label }) {
           <p key={item.dataKey} style={{ "--tooltip-color": item.color }}>
             <i aria-hidden="true" />
             <span>{item.name}</span>
-            <b>{Math.round(Number(item.value))}점</b>
+            <b>
+              {formatScoreWithGrade(item.value, row[`${item.dataKey}ScoreGrade`], "점수 없음")}
+            </b>
           </p>
         ))}
       </div>
@@ -220,6 +223,19 @@ function formatScore(score, emptyText = "분석 전") {
   if (numericScore === null) return emptyText;
 
   return `${numericScore}점`;
+}
+
+// scoreGrade가 실제 응답에 있을 때만 점수 옆에 A~E 보조 등급을 표시합니다.
+// 기존 양호/주의/관리필요 상태 배지는 별도 UI로 유지합니다.
+function formatScoreWithGrade(score, scoreGrade, emptyText = "분석 전") {
+  const scoreText = formatScore(score, emptyText);
+  const scoreGradeLabel = getScoreGradeLabel(scoreGrade);
+
+  if (getScoreNumber(score) === null || !scoreGradeLabel) {
+    return scoreText;
+  }
+
+  return `${scoreText} · ${scoreGradeLabel}`;
 }
  // 점수 값을 숫자로 변환하고 화면 기준에 맞게 보정합니다.
 
@@ -407,6 +423,18 @@ function getMetricScoreValue(metrics, keyword) {
     null
   );
 }
+
+// 각 지표의 scoreGrade는 점수 해석용 보조 정보로만 사용합니다.
+function getMetricScoreGradeValue(metrics, keyword) {
+  if (!Array.isArray(metrics) || metrics.length === 0) return null;
+
+  const matchedMetric = metrics.find((metric) => {
+    const name = getMetricName(metric);
+    return String(name).includes(keyword);
+  });
+
+  return matchedMetric?.scoreGrade ?? matchedMetric?.score_grade ?? null;
+}
  // 지표 객체에서 등급 값을 안전하게 꺼냅니다.
 
 function getMetricGradeValue(metrics, keyword) {
@@ -422,7 +450,10 @@ function getMetricGradeValue(metrics, keyword) {
  // 이력 카드에서 특정 지표의 점수를 찾습니다.
 
 function getMetricScore(metrics, keyword) {
-  return formatScore(getMetricScoreValue(metrics, keyword));
+  return formatScoreWithGrade(
+    getMetricScoreValue(metrics, keyword),
+    getMetricScoreGradeValue(metrics, keyword),
+  );
 }
  // 이력 상세에 보여줄 추천 요약 문구를 고릅니다.
 
@@ -517,6 +548,11 @@ function getRecordStatus(record) {
 
 function getRecordScore(record) {
   return record?.totalScore ?? record?.total_score ?? record?.totalSkinScore ?? record?.total_skin_score;
+}
+
+// 종합 점수의 A~E 보조 등급을 camelCase/snake_case 응답 모두에서 가져옵니다.
+function getRecordScoreGrade(record) {
+  return record?.scoreGrade ?? record?.score_grade;
 }
  // 검색어에 맞는 이력 카드만 남깁니다.
 
@@ -710,6 +746,8 @@ function HistoryPage() {
         row[`${definition.code}AnalysisId`] = getTrendPointValue(series, fallbackPoints, index, "analysisId");
         row[`${definition.code}AnalyzedAt`] = getTrendPointValue(series, fallbackPoints, index, "analyzedAt");
         row[`${definition.code}GradeName`] = getTrendPointValue(series, fallbackPoints, index, "gradeName");
+        // 툴팁에서 점수와 같은 시점의 A~E 보조 등급을 표시하도록 row에 함께 보관합니다.
+        row[`${definition.code}ScoreGrade`] = getTrendPointValue(series, fallbackPoints, index, "scoreGrade");
       });
 
       return row;
@@ -743,6 +781,7 @@ function HistoryPage() {
       score: selectedDetailScore,
       status: selectedDetailStatus,
       saved: visibleSelectedDetail?.saved,
+      code: visibleSelectedDetail?.code,
     });
   const selectedDetailTotalGradeMeta = getScoreGradeMeta(
     canShowSelectedDetailScore ? selectedDetailScore : null,
@@ -3127,6 +3166,7 @@ function HistoryPage() {
                     score: recordScore,
                     status: recordStatus,
                     saved: record.saved,
+                    code: record.code,
                   });
                   const recordGradeMeta = getScoreGradeMeta(
                     canShowRecordScore ? recordScore : null,
@@ -3154,7 +3194,9 @@ function HistoryPage() {
 
                       <div className="sf-record-side" style={getGradeStyle(recordGradeMeta)}>
                         <span className="sf-score-badge">
-                          {canShowRecordScore ? formatScore(recordScore, "점수 없음") : "점수 없음"}
+                          {canShowRecordScore
+                            ? formatScoreWithGrade(recordScore, getRecordScoreGrade(record), "점수 없음")
+                            : "점수 없음"}
                         </span>
                         <span className="sf-grade-pill">{recordGradeMeta.label}</span>
                         <div className="sf-record-actions">
@@ -3251,7 +3293,11 @@ function HistoryPage() {
                       <span>종합 점수</span>
                       <strong>
                         {canShowSelectedDetailScore
-                          ? formatScore(getRecordScore(visibleSelectedDetail), "점수 없음")
+                          ? formatScoreWithGrade(
+                              getRecordScore(visibleSelectedDetail),
+                              getRecordScoreGrade(visibleSelectedDetail),
+                              "점수 없음",
+                            )
                           : "점수 없음"}
                       </strong>
                       <small className="sf-detail-state-label">현재 상태</small>
