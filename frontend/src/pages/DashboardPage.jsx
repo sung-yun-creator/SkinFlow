@@ -528,17 +528,6 @@ function DashboardPage() {
             opacity: 0.92;
           }
 
-          .dashboard-preview-dot {
-            position: absolute;
-            left: 50%;
-            bottom: 43px;
-            width: 24px;
-            height: 24px;
-            border-radius: 999px;
-            background: rgba(15, 23, 42, 0.06);
-            transform: translateX(-50%);
-          }
-
           .dashboard-roi-box {
             position: absolute;
             display: grid;
@@ -925,7 +914,6 @@ function DashboardPage() {
 
               <div className="dashboard-preview-panel" aria-label="피부 분석 리포트 미리보기">
                 <div className="dashboard-preview-blob" aria-hidden="true" />
-                <div className="dashboard-preview-dot" aria-hidden="true" />
                 <span className="dashboard-roi-box is-zone" data-label="T-zone" />
                 <span className="dashboard-roi-box is-pigment" data-label="색소" />
                 <span className="dashboard-roi-box is-wrinkle" data-label="주름" />
