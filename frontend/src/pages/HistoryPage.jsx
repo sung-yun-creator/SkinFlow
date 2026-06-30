@@ -525,6 +525,19 @@ function getLlmReportErrorMessage(error) {
 function getRecordId(record) {
   return record?.analysisId || record?.analysis_id || record?.id || record?.resultId;
 }
+
+// 히스토리에서 고른 analysisId를 다음 화면 URL에 붙여 특정 분석 이력 기준을 계속 유지합니다.
+// ID가 없으면 기존 기본 경로를 그대로 사용해 최신 분석 기준 흐름으로 안전하게 이동합니다.
+function getAnalysisContextPath(path, analysisId) {
+  if (analysisId === null || analysisId === undefined || String(analysisId).trim() === "") {
+    return path;
+  }
+
+  const searchParams = new URLSearchParams();
+  searchParams.set("analysisId", String(analysisId).trim());
+
+  return `${path}?${searchParams.toString()}`;
+}
  // 이력 카드의 분석 날짜를 가져옵니다.
 
 function getRecordDate(record) {
@@ -723,6 +736,11 @@ function HistoryPage() {
   const hasSearchResults = filteredRecords.length > 0;
   const selectedDetailId = getRecordId(selectedDetail);
   const activeSelectedDetailId = selectedAnalysisId || selectedDetailId;
+  const selectedRecommendationPath = getAnalysisContextPath(
+    "/recommendations",
+    activeSelectedDetailId,
+  );
+  const selectedDietGuidePath = getAnalysisContextPath("/diet-guide", activeSelectedDetailId);
   const isSelectedDetailVisible =
     Boolean(selectedDetail) &&
     filteredRecords.some((record) => getRecordId(record) === selectedDetailId);
@@ -3602,10 +3620,10 @@ function HistoryPage() {
                   </div>
 
                   <div className="sf-detail-actions">
-                    <Button to="/recommendations" variant="secondary" size="sm">
+                    <Button to={selectedRecommendationPath} variant="secondary" size="sm">
                       맞춤 추천 보기
                     </Button>
-                    <Button to="/diet-guide" variant="secondary" size="sm">
+                    <Button to={selectedDietGuidePath} variant="secondary" size="sm">
                       식습관 가이드 보기
                     </Button>
                   </div>

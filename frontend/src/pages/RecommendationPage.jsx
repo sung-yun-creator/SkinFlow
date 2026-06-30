@@ -3,6 +3,7 @@
 // 이 파일은 화면 표시와 사용자 동작 처리를 담당하며, 백엔드/DB/AI 로직은 여기서 직접 수정하지 않습니다.
 // 주석은 코드 흐름 이해를 돕기 위한 설명이며 실제 동작에는 영향을 주지 않습니다.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   AlertCircle,
   ExternalLink,
@@ -26,8 +27,6 @@ import {
 const SHOW_CARE_NOTICE_KEY = "skinflow_show_care_notice";
 // 추천 이유 영역을 기본으로 펼칠지 저장하는 localStorage 키입니다.
 const EXPAND_RECOMMENDATION_REASON_KEY = "skinflow_expand_recommendation_reason";
-// 추천 페이지 재진입 시 사용자가 고른 기준을 복원하기 위한 localStorage 키입니다.
-const RECOMMENDATION_FOCUS_KEY = "skinflow_recommendation_focus";
 const RECOMMENDATION_FOCUS_OPTIONS = [
   { value: "", label: "자동 추천" },
   { value: "pigmentation", label: "색소침착" },
@@ -49,12 +48,6 @@ function readStoredSetting(key, fallbackValue) {
 
 function normalizeRecommendationFocus(value) {
   return value === "pigmentation" || value === "wrinkle" ? value : "";
-}
-
-function readStoredRecommendationFocus() {
-  if (typeof window === "undefined") return "";
-
-  return normalizeRecommendationFocus(window.localStorage.getItem(RECOMMENDATION_FOCUS_KEY));
 }
 
 function getRecommendationFocusLabel(focus) {
@@ -350,6 +343,14 @@ function getRecommendationSourceState(summary, itemCount = 0) {
     };
   }
 
+  if (isCompleted && sourceText === "selected_analysis") {
+    return {
+      tone: "personalized",
+      label: "선택한 분석 이력 기반",
+      message: summary?.message || "선택한 분석 이력을 기준으로 확인할 수 있는 추천입니다.",
+    };
+  }
+
   if (isCompleted && ["latest", "latest_analysis", "analysis", "personalized", "result", "completed"].includes(sourceText)) {
     return {
       tone: "personalized",
@@ -383,6 +384,11 @@ function RecommendationSectionState({ type, title, message }) {
  // 추천 화면 전체를 담당하는 React 컴포넌트입니다.
 
 function RecommendationPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  // focus는 사용자가 고른 색소침착/주름 기준이며, 값이 없으면 백엔드의 자동 추천 흐름을 사용합니다.
+  // analysisId는 히스토리에서 선택한 특정 분석 이력을 추천 API까지 이어 주는 값입니다.
+  const recommendationFocus = normalizeRecommendationFocus(searchParams.get("focus"));
+  const analysisId = String(searchParams.get("analysisId") || "").trim();
   // 성분 추천과 제품 추천은 각각 API 응답, 로딩, 에러, 추천 기준 정보를 따로 관리합니다.
   const [ingredients, setIngredients] = useState([]);
   const [products, setProducts] = useState([]);
@@ -391,7 +397,6 @@ function RecommendationPage() {
   const [ingredientError, setIngredientError] = useState("");
   const [productError, setProductError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [recommendationFocus, setRecommendationFocus] = useState(readStoredRecommendationFocus);
   const requestSequenceRef = useRef(0);
   const [showCareNotice] = useState(() => readStoredSetting(SHOW_CARE_NOTICE_KEY, true));
   const [expandRecommendationReason] = useState(() =>
@@ -407,8 +412,8 @@ function RecommendationPage() {
     setProductError("");
 
     const [ingredientResult, productResult] = await Promise.allSettled([
-      getIngredientRecommendations(recommendationFocus),
-      getProductRecommendations(recommendationFocus),
+      getIngredientRecommendations({ focus: recommendationFocus, analysisId }),
+      getProductRecommendations({ focus: recommendationFocus, analysisId }),
     ]);
 
     // focus를 빠르게 바꿨을 때 이전 요청이 현재 선택 결과를 덮어쓰지 않도록 최신 응답만 반영합니다.
@@ -434,16 +439,22 @@ function RecommendationPage() {
     }
 
     setIsLoading(false);
-  }, [recommendationFocus]);
+  }, [analysisId, recommendationFocus]);
 
-  // 허용된 수동 선택만 저장하고 자동 추천은 저장값을 비워 기존 기본 흐름으로 복원합니다.
-  useEffect(() => {
-    if (recommendationFocus) {
-      window.localStorage.setItem(RECOMMENDATION_FOCUS_KEY, recommendationFocus);
+  // 추천 기준 버튼은 focus만 바꾸고 analysisId는 그대로 둡니다.
+  // 이렇게 해야 특정 이력에서 들어온 사용자가 자동/수동 추천을 오가도 선택한 분석 기준이 유지됩니다.
+  function handleRecommendationFocusChange(nextFocus) {
+    const nextSearchParams = new URLSearchParams(searchParams);
+    const safeFocus = normalizeRecommendationFocus(nextFocus);
+
+    if (safeFocus) {
+      nextSearchParams.set("focus", safeFocus);
     } else {
-      window.localStorage.removeItem(RECOMMENDATION_FOCUS_KEY);
+      nextSearchParams.delete("focus");
     }
-  }, [recommendationFocus]);
+
+    setSearchParams(nextSearchParams);
+  }
 
   // 페이지가 열리면 성분 추천 API와 제품 추천 API를 호출해 화면 데이터를 준비합니다.
   useEffect(() => {
@@ -548,7 +559,9 @@ function RecommendationPage() {
 
   const summaryNote = useMemo(() => {
     if (isLoading) {
-      return "최근 분석 결과를 기준으로 추천 정보를 불러오는 중입니다.";
+      return analysisId
+        ? "선택한 분석 이력을 기준으로 추천 정보를 불러오는 중입니다."
+        : "최근 분석 결과를 기준으로 추천 정보를 불러오는 중입니다.";
     }
 
     if (ingredientError && productError) {
@@ -560,16 +573,19 @@ function RecommendationPage() {
     }
 
     if (sourceState.tone === "personalized") {
-      return "최근 분석 결과 기반으로 관리 우선 지표를 확인하고, 기능성 추천 성분과 연결되는 화장품 추천 제품을 보여드립니다.";
+      return `${sourceState.label}으로 관리 우선 지표를 확인하고, 기능성 추천 성분과 연결되는 화장품 추천 제품을 보여드립니다.`;
     }
 
     return sourceState.message;
-  }, [ingredientError, isLoading, productError, products.length, sourceState, visibleIngredients.length]);
+  }, [analysisId, ingredientError, isLoading, productError, products.length, sourceState, visibleIngredients.length]);
 
   const statusLabel = isLoading ? "불러오는 중" : ingredientError && productError ? "연결 확인" : sourceState.label;
-  const dietGuidePath = recommendationFocus
-    ? `/diet-guide?focus=${encodeURIComponent(recommendationFocus)}`
-    : "/diet-guide";
+  // 추천에서 식습관 가이드로 이동할 때도 같은 focus와 analysisId를 넘겨 관리 흐름이 끊기지 않게 합니다.
+  const dietGuideSearchParams = new URLSearchParams();
+  if (analysisId) dietGuideSearchParams.set("analysisId", analysisId);
+  if (recommendationFocus) dietGuideSearchParams.set("focus", recommendationFocus);
+  const dietGuideQueryString = dietGuideSearchParams.toString();
+  const dietGuidePath = dietGuideQueryString ? `/diet-guide?${dietGuideQueryString}` : "/diet-guide";
 
   // 아래 JSX는 추천 기준 요약, 성분 카드, 제품 카드, 추천 이유 안내를 화면에 그립니다.
   return (
@@ -1433,7 +1449,7 @@ function RecommendationPage() {
                     type="button"
                     key={option.value || "auto"}
                     aria-pressed={recommendationFocus === option.value}
-                    onClick={() => setRecommendationFocus(option.value)}
+                    onClick={() => handleRecommendationFocusChange(option.value)}
                   >
                     {option.label}
                   </button>

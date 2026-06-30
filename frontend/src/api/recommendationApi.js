@@ -299,16 +299,41 @@ function normalizeDietCheck(item) {
   };
 }
 
-// 수동 추천은 허용된 분석 지표만 focus query로 전달하고, 자동 추천은 기존 URL을 그대로 사용합니다.
-function getRecommendationPath(path, focus) {
-  const safeFocus = focus === "pigmentation" || focus === "wrinkle" ? focus : "";
+// focus는 색소침착/주름 중 사용자가 직접 고른 기준이고, analysisId는 특정 분석 이력을 가리킵니다.
+// 기존처럼 focus 문자열만 넘기는 호출도 유지하면서, 두 값을 함께 넘길 때는 객체 형태를 사용합니다.
+function normalizeRecommendationOptions(options) {
+  if (typeof options === "string") {
+    return { focus: options, analysisId: null };
+  }
 
-  return safeFocus ? `${path}?focus=${encodeURIComponent(safeFocus)}` : path;
+  return options && typeof options === "object" ? options : {};
+}
+
+// 자동 추천은 focus를 붙이지 않고, 특정 이력 기준 요청일 때만 analysisId를 query에 유지합니다.
+// URLSearchParams가 값 인코딩과 & 연결을 처리하므로 두 query가 함께 있어도 안전하게 URL을 만들 수 있습니다.
+function getRecommendationPath(path, options) {
+  const { focus, analysisId } = normalizeRecommendationOptions(options);
+  const safeFocus = focus === "pigmentation" || focus === "wrinkle" ? focus : "";
+  const safeAnalysisId =
+    analysisId === null || analysisId === undefined ? "" : String(analysisId).trim();
+  const searchParams = new URLSearchParams();
+
+  if (safeAnalysisId) {
+    searchParams.set("analysisId", safeAnalysisId);
+  }
+
+  if (safeFocus) {
+    searchParams.set("focus", safeFocus);
+  }
+
+  const queryString = searchParams.toString();
+
+  return queryString ? `${path}?${queryString}` : path;
 }
 
 // 기능성 성분 추천 목록을 가져와 화면에서 바로 렌더링 가능한 배열로 변환합니다.
-async function getIngredientRecommendations(focus) {
-  const response = await http.get(getRecommendationPath("/api/recommendations/ingredients", focus));
+async function getIngredientRecommendations(options) {
+  const response = await http.get(getRecommendationPath("/api/recommendations/ingredients", options));
 
   return {
     source: response?.source ?? response?.summary?.source ?? "unknown",
@@ -318,8 +343,8 @@ async function getIngredientRecommendations(focus) {
 }
 
 // 제품 추천 목록을 가져와 card 우선 구조와 상위 필드 구조를 함께 처리합니다.
-async function getProductRecommendations(focus) {
-  const response = await http.get(getRecommendationPath("/api/recommendations/products", focus));
+async function getProductRecommendations(options) {
+  const response = await http.get(getRecommendationPath("/api/recommendations/products", options));
 
   return {
     source: response?.source ?? response?.summary?.source ?? "unknown",
@@ -329,8 +354,8 @@ async function getProductRecommendations(focus) {
 }
 
 // 식습관 가이드, 루틴, 체크리스트를 한 번에 가져와 각 영역별 배열로 정리합니다.
-async function getDietGuideRecommendations(focus) {
-  const response = await http.get(getRecommendationPath("/api/recommendations/diet-guides", focus));
+async function getDietGuideRecommendations(options) {
+  const response = await http.get(getRecommendationPath("/api/recommendations/diet-guides", options));
 
   return {
     source: normalizeText(response?.source) || "unknown",
