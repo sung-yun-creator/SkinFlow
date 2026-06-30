@@ -7,7 +7,6 @@ import { Navigate } from "react-router-dom";
 import {
   ArrowRight,
   CheckCircle2,
-  ClipboardCheck,
   History,
   Info,
   Leaf,
@@ -410,13 +409,11 @@ function AnalysisResultPage() {
           }
 
           .sf-result-face-card,
-          .sf-result-summary-card,
-          .sf-result-next-card,
-          .sf-result-notice-card {
-            border: 1px solid rgba(226, 232, 240, 0.92);
+          .sf-result-summary-card {
+            border: 1px solid rgba(226, 232, 240, 0.95);
             border-radius: 28px;
-            background: rgba(255, 255, 255, 0.94);
-            box-shadow: 0 20px 52px rgba(15, 23, 42, 0.07);
+            background: #ffffff;
+            box-shadow: none;
           }
 
           .sf-result-face-card {
@@ -441,10 +438,7 @@ function AnalysisResultPage() {
 
           .sf-result-gradient-text {
             display: inline-block;
-            background: linear-gradient(90deg, #167d7f 0%, #14b8a6 52%, #22c5c8 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
+            color: #14b8a6;
           }
 
           .sf-result-face-card p,
@@ -465,10 +459,7 @@ function AnalysisResultPage() {
             overflow: hidden;
             border-radius: 24px;
             border: 1px solid rgba(226, 232, 240, 0.86);
-            background:
-              radial-gradient(circle at 82% 84%, rgba(20, 184, 166, 0.13), transparent 28%),
-              radial-gradient(circle at 18% 12%, rgba(22, 125, 127, 0.11), transparent 30%),
-              linear-gradient(135deg, #f0fdfa 0%, #ffffff 48%, #f8fafc 100%);
+            background: #f8fafc;
           }
 
           .sf-result-face-oval {
@@ -541,6 +532,57 @@ function AnalysisResultPage() {
             word-break: keep-all;
           }
 
+          .sf-result-face-next-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 16px;
+          }
+
+          .sf-result-face-next-item {
+            min-height: 148px;
+            padding: 14px;
+            border-radius: 20px;
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            background: #f8fafc;
+            transition: border-color 0.18s ease;
+          }
+
+          .sf-result-face-next-item:hover {
+            border-color: rgba(22, 125, 127, 0.24);
+          }
+
+          .sf-result-face-next-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 12px;
+          }
+
+          .sf-result-face-next-item h3 {
+            margin: 0 0 7px;
+            color: #0f172a;
+            font-size: 14px;
+            letter-spacing: -0.035em;
+          }
+
+          .sf-result-face-next-item p {
+            font-size: 12px;
+            font-weight: 750;
+            line-height: 1.58;
+          }
+
+          .sf-result-face-next-item .sf-button {
+            margin-top: 12px;
+          }
+
+          .sf-result-flow-index {
+            color: #94a3b8;
+            font-size: 11px;
+            font-weight: 950;
+          }
+
           .sf-result-summary-card {
             padding: 24px;
             display: grid;
@@ -579,9 +621,7 @@ function AnalysisResultPage() {
             overflow: hidden;
             border-radius: 22px;
             border: 1px solid rgba(226, 232, 240, 0.88);
-            background:
-              radial-gradient(circle at 100% 0%, var(--grade-bg), transparent 34%),
-              #f8fafc;
+            background: #f8fafc;
           }
 
           .sf-result-score-main {
@@ -748,13 +788,11 @@ function AnalysisResultPage() {
             padding: 18px;
             border-radius: 22px;
             border: 1px dashed rgba(20, 184, 166, 0.42);
-            background:
-              radial-gradient(circle at 100% 0%, rgba(20, 184, 166, 0.08), transparent 34%),
-              #f8fafc;
+            background: #f8fafc;
           }         
 
           .sf-result-empty-state .sf-result-icon-tile {
-            background: linear-gradient(135deg, #f0fdfa 0%, #ffffff 52%, #ecfeff 100%);
+            background: #ffffff;
           }
 
           .sf-result-empty-state strong {
@@ -781,9 +819,7 @@ function AnalysisResultPage() {
             padding: 18px;
             border-radius: 22px;
             color: #ffffff;
-            background:
-              radial-gradient(circle at 92% 12%, rgba(94, 234, 212, 0.18), transparent 28%),
-              linear-gradient(135deg, #0f172a 0%, #10262b 100%);
+            background: #0f172a;
             box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
           }
 
@@ -848,6 +884,21 @@ function AnalysisResultPage() {
             box-shadow: none;
           }
 
+          .sf-result-action-panel {
+            display: grid;
+            gap: 10px;
+            margin-top: 2px;
+          }
+
+          .sf-result-action-list {
+            display: grid;
+            gap: 9px;
+          }
+
+          .sf-result-action-panel .sf-result-notice-actions {
+            margin-top: 2px;
+          }
+
           .sf-result-icon-tile {
             width: 44px;
             height: 44px;
@@ -856,7 +907,7 @@ function AnalysisResultPage() {
             display: grid;
             place-items: center;
             color: #167d7f;
-            background: linear-gradient(135deg, #f2fbfb 0%, #ffffff 50%, #ecfeff 100%);
+            background: #ffffff;
             border: 1px solid rgba(226, 232, 240, 0.88);
             box-shadow: 0 10px 24px rgba(15, 23, 42, 0.055);
           }
@@ -913,16 +964,13 @@ function AnalysisResultPage() {
             padding: 16px;
             border-radius: 22px;
             border: 1px solid rgba(226, 232, 240, 0.88);
-            background:
-              radial-gradient(circle at 100% 0%, rgba(20, 184, 166, 0.055), transparent 34%),
-              #f8fafc;
-            transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+            background: #f8fafc;
+            transition: border-color 0.18s ease;
           }
 
           .sf-result-next-item:hover {
-            transform: translateY(-2px);
             border-color: rgba(22, 125, 127, 0.22);
-            box-shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
+            box-shadow: none;
           }
 
           .sf-result-next-head {
@@ -995,13 +1043,155 @@ function AnalysisResultPage() {
             margin-top: 16px;
           }
 
-          @media (max-width: 1040px) {
-            .sf-result-hero,
-            .sf-result-lower-grid {
+
+
+          /* 최종 제출용 캡처에서는 좌우가 너무 좁아 보이지 않도록 결과 화면 전용 최대 너비를 넓힙니다. */
+          .page-inner:has(.sf-result-page) {
+            max-width: 1280px;
+          }
+
+          /* PC에서는 얼굴 안내와 점수 요약을 좌우로 나눠 한 화면에서 비교하기 쉽게 배치합니다. */
+          .sf-result-page {
+            gap: 14px;
+          }
+
+          .sf-result-hero {
+            grid-template-columns: minmax(460px, 0.88fr) minmax(540px, 1.12fr);
+            gap: 14px;
+          }
+
+          .sf-result-face-card,
+          .sf-result-summary-card {
+            padding: 22px;
+            border-radius: 24px;
+          }
+
+          .sf-result-face-card h1 {
+            margin-bottom: 12px;
+            font-size: clamp(32px, 3.3vw, 44px);
+          }
+
+          .sf-result-face-map {
+            min-height: 220px;
+            margin-top: 16px;
+            background: #f8fafc;
+          }
+
+          .sf-result-face-oval {
+            width: 160px;
+            height: 212px;
+          }
+
+          .sf-result-score-help--face {
+            margin-top: 16px;
+          }
+
+          .sf-result-summary-card {
+            gap: 14px;
+          }
+
+          .sf-result-score-grid {
+            gap: 12px;
+          }
+
+          .sf-result-score-card {
+            min-height: 166px;
+            padding: 16px;
+            background: #f8fafc;
+          }
+
+          .sf-result-comment {
+            min-height: 172px;
+          }
+
+          /* 다음 화면 CTA는 전체 너비를 사용하고, 재분석·대시보드 버튼은 별도 보조 패널로 구분합니다. */
+          .sf-result-lower-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            align-items: stretch;
+          }
+
+          .sf-result-next-strip,
+          .sf-result-follow-panel,
+          .sf-result-final-disclaimer {
+            border: 1px solid rgba(226, 232, 240, 0.95);
+            border-radius: 24px;
+            background: #ffffff;
+            box-shadow: none;
+          }
+
+          .sf-result-next-strip {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            overflow: hidden;
+          }
+
+          .sf-result-next-strip .sf-result-next-item {
+            display: grid;
+            grid-template-columns: 42px 1fr;
+            gap: 12px;
+            min-height: 164px;
+            padding: 20px;
+            border: 0;
+            border-right: 1px solid rgba(226, 232, 240, 0.95);
+            border-radius: 0;
+            background: #ffffff;
+          }
+
+          .sf-result-next-strip .sf-result-next-item:last-child {
+            border-right: 0;
+          }
+
+          .sf-result-next-strip .sf-result-next-item h3 {
+            font-size: 16px;
+          }
+
+          .sf-result-next-strip .sf-result-next-item p {
+            font-size: 13px;
+            line-height: 1.65;
+          }
+
+          .sf-result-follow-panel {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(320px, 360px);
+            gap: 10px;
+            align-items: center;
+            padding: 12px;
+          }
+
+          .sf-result-follow-panel .sf-result-action-list {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+          }
+
+          .sf-result-follow-panel .sf-result-notice-actions {
+            margin-top: 0;
+          }
+
+          .sf-result-final-disclaimer {
+            display: grid;
+            grid-template-columns: 34px 1fr;
+            gap: 10px;
+            align-items: center;
+            padding: 14px 18px;
+            color: #334155;
+            font-size: 13px;
+            font-weight: 800;
+            line-height: 1.55;
+          }
+
+          .sf-result-final-disclaimer svg {
+            color: #167d7f;
+          }
+
+          @media (max-width: 1180px) {
+            .sf-result-hero {
               grid-template-columns: 1fr;
             }
           }
 
+          /* 모바일에서는 모든 결과 카드와 CTA를 1열로 내려 읽기 순서를 유지합니다. */
           @media (max-width: 760px) {
             .sf-result-page {
               gap: 12px;
@@ -1012,9 +1202,30 @@ function AnalysisResultPage() {
             .sf-result-face-card,
             .sf-result-summary-card,
             .sf-result-next-card,
-            .sf-result-notice-card {
+            .sf-result-notice-card,
+            .sf-result-follow-panel,
+            .sf-result-final-disclaimer {
               border-radius: 22px;
               padding: 16px;
+            }
+
+            .sf-result-next-strip {
+              grid-template-columns: 1fr;
+              border-radius: 22px;
+            }
+
+            .sf-result-next-strip .sf-result-next-item {
+              border-right: 0;
+              border-bottom: 1px solid rgba(226, 232, 240, 0.95);
+            }
+
+            .sf-result-next-strip .sf-result-next-item:last-child {
+              border-bottom: 0;
+            }
+
+            .sf-result-follow-panel,
+            .sf-result-follow-panel .sf-result-action-list {
+              grid-template-columns: 1fr;
             }
 
             .sf-result-face-card h1 {
@@ -1044,6 +1255,7 @@ function AnalysisResultPage() {
 
             .sf-result-score-grid,
             .sf-result-next-grid,
+            .sf-result-face-next-grid,
             .sf-result-notice-actions {
               grid-template-columns: 1fr;
             }
@@ -1101,6 +1313,31 @@ function AnalysisResultPage() {
             <p className="sf-result-roi-note">
               점선 영역은 관심 부위를 설명하는 시각 안내이며 실제 검출 위치나 크기를 의미하지 않습니다.
             </p>
+
+            {hasDisplayableMetrics && (
+              <div className="sf-result-score-help sf-result-score-help--face">
+                <div className="sf-result-score-help-main">
+                  <Info size={15} />
+                  <span>점수 의미 안내</span>
+                </div>
+                <div className="sf-result-score-help-list">
+                  <span>점수가 높을수록 현재 피부 상태가 양호하다는 의미입니다.</span>
+                  <span>점수가 낮은 항목은 관리 우선순위가 높게 표시됩니다.</span>
+                  <span>피부 관리 참고 정보이며 개인별 관리 방향을 돕기 위한 안내입니다.</span>
+                </div>
+                <div className="sf-result-grade-legend" aria-label="피부 상태 단계 안내">
+                  <span style={{ "--legend-color": "#167D7F", "--legend-bg": "rgba(22, 125, 127, 0.11)" }}>
+                    <i aria-hidden="true" /> 양호
+                  </span>
+                  <span style={{ "--legend-color": "#F59E0B", "--legend-bg": "rgba(245, 158, 11, 0.14)" }}>
+                    <i aria-hidden="true" /> 주의
+                  </span>
+                  <span style={{ "--legend-color": "#F43F5E", "--legend-bg": "rgba(244, 63, 94, 0.12)" }}>
+                    <i aria-hidden="true" /> 관리필요
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="sf-result-summary-card">
@@ -1147,28 +1384,7 @@ function AnalysisResultPage() {
                   </div>
                 ))}
                 </div>
-                <div className="sf-result-score-help">
-                  <div className="sf-result-score-help-main">
-                    <Info size={15} />
-                    <span>점수 의미 안내</span>
-                  </div>
-                  <div className="sf-result-score-help-list">
-                    <span>점수가 높을수록 현재 피부 상태가 양호하다는 의미입니다.</span>
-                    <span>점수가 낮은 항목은 관리 우선순위가 높게 표시됩니다.</span>
-                    <span>피부 관리 참고 정보이며 개인별 관리 방향을 돕기 위한 안내입니다.</span>
-                  </div>
-                  <div className="sf-result-grade-legend" aria-label="피부 상태 단계 안내">
-                    <span style={{ "--legend-color": "#167D7F", "--legend-bg": "rgba(22, 125, 127, 0.11)" }}>
-                      <i aria-hidden="true" /> 양호
-                    </span>
-                    <span style={{ "--legend-color": "#F59E0B", "--legend-bg": "rgba(245, 158, 11, 0.14)" }}>
-                      <i aria-hidden="true" /> 주의
-                    </span>
-                    <span style={{ "--legend-color": "#F43F5E", "--legend-bg": "rgba(244, 63, 94, 0.12)" }}>
-                      <i aria-hidden="true" /> 관리필요
-                    </span>
-                  </div>
-                </div>
+
               </>
             ) : (
               <div className="sf-result-empty-state">
@@ -1196,98 +1412,65 @@ function AnalysisResultPage() {
                     ))}
                   </ul>
                 )}
-                {hasDisplayableMetrics && (
-                  <div className="sf-result-comment-actions">
-                    <Button to="/recommendations" variant="secondary" size="sm">
-                      추천 성분 보기
-                    </Button>
-                    <Button to="/diet-guide" variant="secondary" size="sm">
-                      식습관 가이드 보기
-                    </Button>
-                  </div>
-                )}
               </div>
             </div>
 
-            <div className="sf-result-notice-item">
-              <Info size={18} />
-              <span>
-                SkinFlow의 분석 결과는 피부 관리 참고 정보이며, 개인별 관리 방향을 돕기 위한 안내입니다.
-              </span>
-            </div>
+
           </div>
         </section>
 
-        <section className="sf-result-lower-grid">
-          <div className="sf-result-next-card" hidden={!hasDisplayableMetrics}>
-            <div className="sf-result-card-head">
-              <div>
-                <span className="sf-result-section-label">다음 확인 화면</span>
-                <h2>분석 이후 이어지는 관리 흐름</h2>
-              </div>
-              <Badge>짧은 흐름</Badge>
-            </div>
-
-            <div className="sf-result-next-grid">
-              {nextCards.map((item, index) => {
+        {/* AI 요약은 결과 설명에 집중하고, 화면 이동 CTA는 이 하단 영역에 한 번만 제공합니다. */}
+        {hasDisplayableMetrics && (
+          <section className="sf-result-lower-grid" aria-label="분석 결과 이후 다음 행동">
+            <div className="sf-result-next-strip">
+              {nextCards.map((item) => {
                 const Icon = item.icon;
 
                 return (
                   <article className="sf-result-next-item" key={item.title}>
-                    <div className="sf-result-next-head">
-                      <span className="sf-result-icon-tile" aria-hidden="true">
-                        <Icon size={20} />
-                      </span>
-                      <span className="sf-result-next-badge">0{index + 1}</span>
+                    <span className="sf-result-icon-tile" aria-hidden="true">
+                      <Icon size={18} />
+                    </span>
+                    <div>
+                      <h3>{item.title}</h3>
+                      <p>{item.description}</p>
+                      <Button to={item.to} variant="secondary" size="sm">
+                        {item.badge} 보기
+                      </Button>
                     </div>
-
-                    <h3>{item.title}</h3>
-                    <p>{item.description}</p>
-                    <Button to={item.to} variant="secondary" size="sm">
-                      {item.badge} 보기
-                    </Button>
                   </article>
                 );
               })}
             </div>
-          </div>
 
-          <aside className={`sf-result-notice-card${hasDisplayableMetrics ? "" : " is-wide"}`}>
-            <div className="sf-result-card-head">
-              <div>
-                <span className="sf-result-section-label">결과 저장 상태</span>
-                <h2>{hasDisplayableMetrics ? "분석 결과 저장 완료" : isPending ? "AI 모델 연결 대기" : "실제 결과가 없습니다"}</h2>
+            <div className="sf-result-follow-panel">
+              <div className="sf-result-action-list">
+                {noticeItems.map((item) => (
+                  <div className="sf-result-notice-item" key={item}>
+                    <CheckCircle2 size={18} />
+                    <span>{item}</span>
+                  </div>
+                ))}
               </div>
-              <ClipboardCheck size={26} />
-            </div>
 
-            <p>
-              {hasDisplayableMetrics
-                ? "저장된 분석 결과를 기준으로 결과 화면을 구성했습니다."
-                : isPending
-                  ? "현재는 AI 모델이 실제 점수를 반환하지 않아 저장되지 않은 상태입니다."
-                  : "현재 저장된 분석 결과가 없어 점수 카드를 표시하지 않습니다. 분석 결과가 저장되면 이 화면에 반영됩니다."}
-            </p>
-
-            <div className="sf-result-notice-list">
-              {noticeItems.map((item) => (
-                <div className="sf-result-notice-item" key={item}>
-                  <CheckCircle2 size={18} />
-                  <span>{item}</span>
-                </div>
-              ))}
+              <div className="sf-result-notice-actions">
+                <Button to="/analysis/capture" variant="secondary" full>
+                  다시 분석 <RotateCcw size={17} />
+                </Button>
+                <Button to="/dashboard" full>
+                  대시보드 <ArrowRight size={17} />
+                </Button>
+              </div>
             </div>
+          </section>
+        )}
 
-            <div className="sf-result-notice-actions">
-              <Button to="/analysis/capture" variant="secondary" full>
-                다시 분석 <RotateCcw size={17} />
-              </Button>
-              <Button to="/dashboard" full>
-                대시보드 <ArrowRight size={17} />
-              </Button>
-            </div>
-          </aside>
-        </section>
+        <div className="sf-result-final-disclaimer">
+          <Info size={18} />
+          <span>
+            SkinFlow의 분석 결과는 피부 관리 참고 정보이며, 개인별 관리 방향을 돕기 위한 안내입니다.
+          </span>
+        </div>
       </div>
     </PageLayout>
   );

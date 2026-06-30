@@ -317,30 +317,11 @@ function DashboardPage() {
             overflow: visible;
           }
 
-          .dashboard-home-like::before {
-            content: "";
-            position: absolute;
-            left: max(-220px, -16vw);
-            top: 4%;
-            width: min(520px, 46vw);
-            height: min(520px, 46vw);
-            border-radius: 999px;
-            background: radial-gradient(circle, rgba(22, 125, 127, 0.14), transparent 64%);
-            filter: blur(8px);
-            pointer-events: none;
-          }
-
+          /* 화면 바깥으로 퍼지는 장식 안개만 숨기고, 우측 ROI 미리보기 배경은 유지합니다. */
+          .dashboard-home-like::before,
           .dashboard-home-like::after {
-            content: "";
-            position: absolute;
-            right: max(-240px, -18vw);
-            bottom: -14%;
-            width: min(620px, 50vw);
-            height: min(620px, 50vw);
-            border-radius: 999px;
-            background: radial-gradient(circle, rgba(34, 197, 200, 0.12), transparent 64%);
-            filter: blur(12px);
-            pointer-events: none;
+            content: none;
+            display: none;
           }
 
           .dashboard-landing-hero {
