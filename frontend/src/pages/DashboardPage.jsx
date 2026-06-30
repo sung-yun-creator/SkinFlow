@@ -12,7 +12,7 @@ import {
 import PageLayout from "../components/layout/PageLayout";
 import Button from "../components/common/Button";
 import { getDashboard } from "../api/dashboardApi";
-import { shouldShowAnalysisScore } from "../utils/analysisStatus";
+import { getScoreGradeLabel, shouldShowAnalysisScore } from "../utils/analysisStatus";
  // 대시보드 상단에서 SkinFlow 핵심 기능을 짧게 보여주는 라벨 목록입니다.
 
 const featureChips = ["색소침착 분석", "주름 분석", "맞춤 추천", "분석 이력"];
@@ -80,12 +80,11 @@ function getMetricList(latestAnalysis) {
 
   return Array.isArray(matchedList) ? matchedList : [];
 }
- // 지표 코드에 맞는 점수를 찾아 화면 표시용 숫자로 바꿉니다.
-
-function getMetricScore(latestAnalysis, metricCodes) {
+// 지표 코드에 맞는 응답 객체를 찾아 점수와 scoreGrade가 같은 지표를 기준으로 표시되게 합니다.
+function getMetricByCodes(latestAnalysis, metricCodes) {
   const metricList = getMetricList(latestAnalysis);
 
-  const matchedMetric = metricList.find((metric) => {
+  return metricList.find((metric) => {
     const rawCode = String(
       metric?.code ||
         metric?.metricCode ||
@@ -98,7 +97,12 @@ function getMetricScore(latestAnalysis, metricCodes) {
     ).toLowerCase();
 
     return metricCodes.some((code) => rawCode.includes(code));
-  });
+  }) || null;
+}
+ // 지표 코드에 맞는 점수를 찾아 화면 표시용 숫자로 바꿉니다.
+
+function getMetricScore(latestAnalysis, metricCodes) {
+  const matchedMetric = getMetricByCodes(latestAnalysis, metricCodes);
 
   const score = toScoreNumber(
     matchedMetric?.score ??
@@ -111,10 +115,13 @@ function getMetricScore(latestAnalysis, metricCodes) {
 
   return score;
 }
- // 점수가 있을 때는 점수 문구를, 없을 때는 분석 후 표시 문구를 반환합니다.
+// scoreGrade가 있을 때만 "73점 · B등급"으로 붙이고, 없으면 기존 점수 문구를 유지합니다.
 
-function getScoreLabel(score) {
-  return typeof score === "number" ? `${score}점` : "분석 후 표시";
+function getScoreLabel(score, scoreGrade) {
+  if (typeof score !== "number") return "분석 후 표시";
+
+  const scoreGradeLabel = getScoreGradeLabel(scoreGrade);
+  return `${score}점${scoreGradeLabel ? ` · ${scoreGradeLabel}` : ""}`;
 }
  // 피부 관리 단계 문구를 화면에 표시하기 좋게 정리합니다.
 
@@ -243,11 +250,22 @@ function DashboardPage() {
       summary.latestTotalScore ??
       summary.latest_total_score,
   );
+  // A~E 등급은 점수 옆 보조 정보로만 사용하며 상태 배지는 기존 양호/주의/관리필요를 유지합니다.
+  const totalScoreGrade =
+    latestAnalysis?.scoreGrade ??
+    latestAnalysis?.score_grade ??
+    summary.latestScoreGrade ??
+    summary.latest_score_grade;
+  const pigmentationMetric = getMetricByCodes(latestAnalysis, ["pigmentation", "색소침착"]);
+  const wrinkleMetric = getMetricByCodes(latestAnalysis, ["wrinkle", "wrinkles", "주름"]);
+  const pigmentationScoreGrade = pigmentationMetric?.scoreGrade ?? pigmentationMetric?.score_grade;
+  const wrinkleScoreGrade = wrinkleMetric?.scoreGrade ?? wrinkleMetric?.score_grade;
 
   const canShowLatestAnalysis = shouldShowAnalysisScore({
     score: totalScore,
     status: latestAnalysisStatus,
     saved: latestAnalysisSaved,
+    code: latestAnalysis?.code ?? summary.latestCode ?? summary.latest_code,
   });
   const displayTotalScore = canShowLatestAnalysis ? totalScore : null;
   const displayPigmentationScore = canShowLatestAnalysis ? pigmentationScore : null;
@@ -935,7 +953,7 @@ function DashboardPage() {
               <div className="dashboard-report-metrics">
                 <div className="dashboard-total-score-card">
                   <div>
-                    <strong>{isLoading ? "확인 중" : getScoreLabel(displayTotalScore)}</strong>
+                    <strong>{isLoading ? "확인 중" : getScoreLabel(displayTotalScore, totalScoreGrade)}</strong>
                     <span>종합 피부 점수</span>
                     <em className={`dashboard-grade-pill ${getGradeClass(displayTotalScore)}`}>
                       {isLoading ? "확인 중" : getGradeLabel(displayTotalScore)}
@@ -947,7 +965,7 @@ function DashboardPage() {
                   <div>
                     <div>
                       <span>색소침착</span>
-                      <strong>{isLoading ? "확인 중" : getScoreLabel(displayPigmentationScore)}</strong>
+                      <strong>{isLoading ? "확인 중" : getScoreLabel(displayPigmentationScore, pigmentationScoreGrade)}</strong>
                     </div>
                     <em className={`dashboard-small-pill ${getGradeClass(displayPigmentationScore)}`}>
                       {isLoading ? "확인 중" : getGradeLabel(displayPigmentationScore)}
@@ -956,7 +974,7 @@ function DashboardPage() {
                   <div>
                     <div>
                       <span>주름</span>
-                      <strong>{isLoading ? "확인 중" : getScoreLabel(displayWrinkleScore)}</strong>
+                      <strong>{isLoading ? "확인 중" : getScoreLabel(displayWrinkleScore, wrinkleScoreGrade)}</strong>
                     </div>
                     <em className={`dashboard-small-pill ${getGradeClass(displayWrinkleScore)}`}>
                       {isLoading ? "확인 중" : getGradeLabel(displayWrinkleScore)}

@@ -21,6 +21,7 @@ import PageLayout from "../components/layout/PageLayout";
 import Button from "../components/common/Button";
 import Card from "../components/common/Card";
 import { analyzeSkin, extractRoi } from "../api/analysisApi";
+import { isCompletedAnalysisResult } from "../utils/analysisStatus";
 
 
 // 분석 촬영 화면과 진행 화면은 서로 다른 라우트라서 진행 상태를 localStorage로 잠시 공유합니다.
@@ -56,10 +57,10 @@ function saveLatestAnalysisResult(payload) {
   localStorage.setItem(ANALYSIS_RESULT_KEY, JSON.stringify(resultPayload));
 }
 
-// 분석 API 응답은 완료(saved=true)와 대기(saved=false/pending)를 명확히 구분해야 합니다.
-// 대기 상태에서는 점수 화면으로 착각하지 않도록 진행률과 안내 문구만 저장합니다.
+// 분석 API 응답은 saved/status/code를 함께 확인해 완료와 AI 모델 대기 상태를 구분합니다.
+// saved=true라도 status가 completed가 아니면 최종 결과가 아니므로 100% 완료로 표시하지 않습니다.
 function getProgressFromAnalysisResult(analysisResult) {
-  if (analysisResult?.saved) {
+  if (isCompletedAnalysisResult(analysisResult)) {
     return {
       status: "analysis_completed",
       label: "분석 결과 저장 완료",
@@ -68,7 +69,11 @@ function getProgressFromAnalysisResult(analysisResult) {
     };
   }
 
-  if (analysisResult?.code === "AI_MODEL_PENDING" || analysisResult?.status === "pending") {
+  const normalizedCode = String(analysisResult?.code || "").trim().toLowerCase();
+  const normalizedStatus = String(analysisResult?.status || "").trim().toLowerCase();
+
+  // AI_MODEL_PENDING과 pending은 실패가 아니라 결과 생성 전 상태이므로 재시도 가능한 안내로 유지합니다.
+  if (normalizedCode === "ai_model_pending" || normalizedStatus === "pending") {
     return {
       status: "ai_model_pending",
       label: "AI 모델 연결 대기",

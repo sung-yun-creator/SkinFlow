@@ -33,6 +33,17 @@ function normalizeStatus(status) {
   return String(status || "").trim().toLowerCase();
 }
 
+// 분석 API 응답에서 완료 여부를 판단할 때 사용하는 상태 값을 한 기준으로 꺼냅니다.
+function getAnalysisResultStatus(analysisResult) {
+  return (
+    analysisResult?.analysisStatus ??
+    analysisResult?.analysis_status ??
+    analysisResult?.latestStatus ??
+    analysisResult?.latest_status ??
+    analysisResult?.status
+  );
+}
+
 // 화면에 표시할 점수를 숫자로 바꿔주는 함수입니다.
 // null, 빈 문자열, 숫자가 아닌 값은 화면에 보여주지 않도록 null로 돌려줍니다.
 // 숫자로 변환 가능한 값은 0~100 사이로 제한해 점수 UI가 깨지지 않게 합니다.
@@ -60,13 +71,45 @@ export function isIncompleteAnalysisStatus(status) {
   return INCOMPLETE_ANALYSIS_STATUSES.has(normalizeStatus(status));
 }
 
+// 실시간 분석 응답은 DB 저장 여부와 AI 처리 상태가 모두 확인되어야 최종 결과로 볼 수 있습니다.
+// saved=true만 내려온 중간 응답이나 AI_MODEL_PENDING 응답을 완료 화면으로 보내지 않기 위한 분기입니다.
+export function isCompletedAnalysisResult(analysisResult = {}) {
+  const status = normalizeStatus(getAnalysisResultStatus(analysisResult));
+  const code = normalizeStatus(analysisResult?.code);
+
+  if (code === "ai_model_pending") {
+    return false;
+  }
+
+  return analysisResult?.saved === true && status === "completed";
+}
+
+// scoreGrade는 점수 해석용 A~E 보조 등급이며 기존 양호/주의/관리필요 상태를 대체하지 않습니다.
+// 객체({ code: "B", label: "B등급" })와 문자열 응답을 모두 같은 "B등급" 형태로 정리합니다.
+export function getScoreGradeLabel(scoreGrade) {
+  const rawGrade =
+    scoreGrade && typeof scoreGrade === "object"
+      ? scoreGrade.label ?? scoreGrade.code
+      : scoreGrade;
+  const matchedGrade = String(rawGrade || "")
+    .trim()
+    .match(/^([a-e])(?:\s*등급)?$/i);
+
+  return matchedGrade ? `${matchedGrade[1].toUpperCase()}등급` : null;
+}
+
 // 최종적으로 화면에 분석 점수를 보여줘도 되는지 판단하는 함수입니다.
 // 페이지마다 같은 조건을 반복해서 쓰면 기준이 달라질 수 있기 때문에,
 // 이 함수 하나로 점수 표시 여부를 통일합니다.
-export function shouldShowAnalysisScore({ score, status, saved } = {}) {
+export function shouldShowAnalysisScore({ score, status, saved, code } = {}) {
   // saved가 false면 백엔드가 아직 분석 결과를 저장하지 못한 상태입니다.
   // 이 경우에는 점수가 있더라도 최종 결과처럼 보여주지 않습니다.
   if (saved === false) {
+    return false;
+  }
+
+  // AI_MODEL_PENDING은 오류가 아니라 모델 응답 대기 상태이므로 점수 대신 대기 안내만 보여줍니다.
+  if (normalizeStatus(code) === "ai_model_pending") {
     return false;
   }
 

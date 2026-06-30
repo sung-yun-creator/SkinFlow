@@ -18,6 +18,10 @@ import PageLayout from "../components/layout/PageLayout";
 import Button from "../components/common/Button";
 import Badge from "../components/common/Badge";
 import { AUTH_STORAGE_KEYS } from "../api/authSession";
+import {
+  getScoreGradeLabel,
+  isCompletedAnalysisResult,
+} from "../utils/analysisStatus";
   // 분석 진행 화면에서 저장한 최신 분석 결과를 꺼내기 위한 localStorage 키입니다.
 
 
@@ -113,35 +117,6 @@ function toScore(value) {
   return Math.max(0, Math.min(100, Math.round(score)));
 }
 
-// 완료된 분석 결과만 점수 카드로 보여주기 위한 안전 장치입니다.
-// 상태가 명시된 응답은 completed일 때만 허용하고, 상태가 없는 기존 응답은 호환 처리합니다.
-// pending/processing 상태를 완료처럼 표시하면 사용자가 실제 분석 결과로 오해할 수 있습니다.
-function isCompletedAnalysisResult(analysisResult) {
-  const status =
-    analysisResult?.analysisStatus ??
-    analysisResult?.analysis_status ??
-    analysisResult?.latestStatus ??
-    analysisResult?.latest_status ??
-    analysisResult?.status;
-  const code = analysisResult?.code;
-  const normalizedStatus = String(status || "").toLowerCase();
-  const normalizedCode = String(code || "").toLowerCase();
-
-  if (["ai_model_pending", "pending", "processing"].includes(normalizedStatus)) {
-    return false;
-  }
-
-  if (["ai_model_pending", "pending", "processing"].includes(normalizedCode)) {
-    return false;
-  }
-
-  if (status !== null && status !== undefined && String(status).trim() !== "") {
-    return normalizedStatus === "completed";
-  }
-
-  return true;
-}
-
 // 점수 카드 생성은 saved=true이고 위 완료 여부 확인을 통과한 결과에만 진행합니다.
 // 임시값이나 null 점수를 기본 점수로 채우지 않아 실제 응답 기준 UI를 유지합니다.
 // API 지표 배열을 결과 카드에서 바로 쓸 수 있는 형태로 바꿉니다.
@@ -164,6 +139,8 @@ function buildMetricCards(analysisResult) {
       label: "종합 점수",
       value: totalScore,
       status: analysisResult.grade?.name || "분석 완료",
+      // scoreGrade는 A~E 점수 보조 정보이며 아래 gradeMeta의 상태 라벨과 별도로 유지합니다.
+      scoreGrade: getScoreGradeLabel(analysisResult.scoreGrade ?? analysisResult.score_grade),
       gradeMeta: getScoreGradeMeta(totalScore, analysisResult.grade?.name),
       color: "#167D7F",
     });
@@ -194,6 +171,7 @@ function buildMetricCards(analysisResult) {
             label: metric.name || metric.metricName || metric.metric_name || metricCode || `지표 ${index + 1}`,
             value: metricScore,
             status: metricStatus,
+            scoreGrade: getScoreGradeLabel(metric.scoreGrade ?? metric.score_grade),
             gradeMeta: getScoreGradeMeta(metricScore, metricStatus),
             color: getMetricColor(metricCode, index),
           };
@@ -329,15 +307,18 @@ function AnalysisResultPage() {
   const analysisResult = latestAnalysis?.result || null;
   const hasSavedResult = Boolean(analysisResult?.saved);
   const normalizedResultStatus = String(
-    analysisResult?.code ||
-      analysisResult?.analysisStatus ||
+    analysisResult?.analysisStatus ||
       analysisResult?.analysis_status ||
       analysisResult?.latestStatus ||
       analysisResult?.latest_status ||
       analysisResult?.status ||
       ""
-  ).toLowerCase();
+  ).trim().toLowerCase();
+  const normalizedResultCode = String(analysisResult?.code || "").trim().toLowerCase();
+  const hasCompletedResult = isCompletedAnalysisResult(analysisResult);
+  // AI_MODEL_PENDING과 pending/processing은 오류가 아니라 결과 생성 전 상태로 안내합니다.
   const isPending =
+    normalizedResultCode === "ai_model_pending" ||
     normalizedResultStatus === "ai_model_pending" ||
     normalizedResultStatus === "pending" ||
     normalizedResultStatus === "processing";
@@ -347,7 +328,7 @@ function AnalysisResultPage() {
   );
 
   // 화면 표시 가능 여부를 따로 계산해 빈 상태, 대기 상태, 점수 표시 상태를 명확히 나눕니다.
-  const hasDisplayableMetrics = hasSavedResult && metricCards.length > 0;
+  const hasDisplayableMetrics = hasCompletedResult && metricCards.length > 0;
   const emptyResultMessage = isPending
     ? emptyResultMessages.pending
     : hasSavedResult
@@ -899,7 +880,8 @@ function AnalysisResultPage() {
             padding: 22px;
           }
 
-          .sf-result-next-card.is-wide {
+          .sf-result-next-card.is-wide,
+          .sf-result-notice-card.is-wide {
             grid-column: 1 / -1;
           }
 
@@ -1090,9 +1072,11 @@ function AnalysisResultPage() {
           <div className="sf-result-face-card">
             <Badge>{heroBadge}</Badge>
             <h1>
-              분석 결과를 바탕으로
+              {hasDisplayableMetrics ? "분석 결과를 바탕으로" : isPending ? "분석 결과를" : "피부 분석을"}
               <br />
-              <span className="sf-result-gradient-text">맞춤 관리를 이어가세요</span>
+              <span className="sf-result-gradient-text">
+                {hasDisplayableMetrics ? "맞춤 관리를 이어가세요" : isPending ? "준비하고 있습니다" : "다시 시작해 주세요"}
+              </span>
             </h1>
             <p>
               {hasDisplayableMetrics
@@ -1149,7 +1133,9 @@ function AnalysisResultPage() {
                         <strong>{metric.value}</strong>
                       </div>
                       <div className="sf-result-score-status">
-                        <span>현재 상태</span>
+                        <span>
+                          {metric.value}점{metric.scoreGrade ? ` · ${metric.scoreGrade}` : ""}
+                        </span>
                         <strong>{metric.gradeMeta.label}</strong>
                       </div>
                     </div>
@@ -1233,7 +1219,7 @@ function AnalysisResultPage() {
         </section>
 
         <section className="sf-result-lower-grid">
-          <div className={`sf-result-next-card ${hasDisplayableMetrics ? "" : "is-wide"}`}>
+          <div className="sf-result-next-card" hidden={!hasDisplayableMetrics}>
             <div className="sf-result-card-head">
               <div>
                 <span className="sf-result-section-label">다음 확인 화면</span>
@@ -1264,14 +1250,9 @@ function AnalysisResultPage() {
                 );
               })}
             </div>
-            {!hasDisplayableMetrics && (
-              <div className="sf-result-next-support">
-                실제 분석 결과가 저장되면 성분 추천, 제품 추천, 식습관 가이드가 분석 결과 기반으로 이어집니다.
-              </div>
-            )}
           </div>
 
-          <aside className="sf-result-notice-card">
+          <aside className={`sf-result-notice-card${hasDisplayableMetrics ? "" : " is-wide"}`}>
             <div className="sf-result-card-head">
               <div>
                 <span className="sf-result-section-label">결과 저장 상태</span>
