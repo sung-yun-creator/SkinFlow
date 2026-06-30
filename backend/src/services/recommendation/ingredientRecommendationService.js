@@ -120,15 +120,9 @@ function toIngredientRecommendation(ingredient, metric, index) {
     };
 }
 
-function buildIngredientRecommendations(ingredients, concernMetrics) {
+function buildIngredientRecommendations(ingredients, concernMetrics, options = {}) {
     // DB 성분이 있으면 DB를 우선 사용하고, 없을 때만 코드에 있는 기본 성분표를 사용합니다.
-    const sortedConcernMetrics = [...concernMetrics].sort((left, right) => {
-        const leftScore = left.score === null ? 999 : left.score;
-        const rightScore = right.score === null ? 999 : right.score;
-
-        return leftScore - rightScore;
-    });
-    const focusMetricCode = sortedConcernMetrics[0]?.code || 'pigmentation';
+    const focusMetricCode = concernMetrics[0]?.code || 'pigmentation';
     const sourceIngredients = ingredients.length > 0
         ? ingredients
         : INGREDIENT_REFERENCES.map((ingredient) => ({
@@ -140,7 +134,16 @@ function buildIngredientRecommendations(ingredients, concernMetrics) {
             metricCode: ingredient.type,
         }));
 
-    return sourceIngredients
+    const focusIngredients = options.focusOnly
+        ? sourceIngredients.filter((ingredient) => {
+            const metricCode = ingredient.metricCode || getIngredientMetricCode(ingredient, concernMetrics);
+
+            return metricCode === focusMetricCode;
+        })
+        : [];
+    const recommendationIngredients = focusIngredients.length > 0 ? focusIngredients : sourceIngredients;
+
+    return recommendationIngredients
         .map((ingredient, index) => {
             const metricCode = ingredient.metricCode || getIngredientMetricCode(ingredient, concernMetrics);
             const metric = concernMetrics.find((item) => item.code === metricCode)
@@ -208,7 +211,9 @@ async function buildIngredientRecommendationResult(analysisContext, options = {}
     }
 
     if (recommendations.length === 0) {
-        recommendations = buildIngredientRecommendations(ingredients, concernMetrics);
+        recommendations = buildIngredientRecommendations(ingredients, concernMetrics, {
+            focusOnly: isManualFocus,
+        });
 
         if (analysisId && ingredients.length > 0 && !isManualFocus) {
             const storedIngredients = await recommendationRepository.createIngredientRecommendationsForAnalysis(

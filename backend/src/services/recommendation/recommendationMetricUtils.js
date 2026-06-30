@@ -1,7 +1,19 @@
 const { METRIC_INGREDIENT_META } = require('../../constants/ingredientReference');
 const { toNumber } = require('../../utils/number');
 
-// 추천 도메인에서 공통으로 쓰는 분석 지표/점수 변환 유틸입니다.
+const SUPPORTED_FOCUS_METRICS = [
+    {
+        code: 'pigmentation',
+        label: '색소침착',
+        aliases: ['pigmentation', 'pigment', 'spot', 'spots', 'tone', 'color', 'darkspot', 'dark_spot', '색소', '색소침착'],
+    },
+    {
+        code: 'wrinkle',
+        label: '주름',
+        aliases: ['wrinkle', 'wrinkles', 'elastic', 'elasticity', 'firm', 'firmness', 'aging', '주름', '탄력'],
+    },
+];
+
 function getScoreBand(score) {
     const metricScore = Number(score);
 
@@ -32,7 +44,7 @@ function getScoreBand(score) {
     return {
         code: 'maintain',
         label: '유지 관리',
-        description: '상태 유지를 돕는 순한 관리 성분을 참고합니다.',
+        description: '현재 상태를 유지하는 데 도움이 되는 성분을 참고합니다.',
     };
 }
 
@@ -55,13 +67,12 @@ function getMetricMeta(metricCode) {
 }
 
 function getConcernMetrics(metrics) {
-    // 점수가 낮은 지표일수록 우선 관리 대상으로 보기 위해 추천 기준으로 변환합니다.
     const validMetrics = metrics
         .map((metric) => ({
-            code: metric.metric_code || null,
-            name: metric.metric_name || null,
-            score: toNumber(metric.metric_score),
-            grade: metric.grade_name || null,
+            code: metric.metric_code || metric.code || null,
+            name: metric.metric_name || metric.name || null,
+            score: toNumber(metric.metric_score ?? metric.score),
+            grade: metric.grade_name || metric.grade || null,
         }))
         .filter((metric) => metric.code && metric.score !== null);
 
@@ -74,18 +85,35 @@ function getConcernMetrics(metrics) {
 }
 
 function normalizeFocusMetric(focus) {
-    // 프론트에서 사용자가 색소침착/주름을 직접 선택하면 쿼리값을 내부 지표 코드로 맞춥니다.
     const normalizedFocus = String(focus || '').trim().toLowerCase();
 
-    if (['pigmentation', 'pigment', 'spot', 'tone', 'color', '색소', '색소침착'].includes(normalizedFocus)) {
-        return 'pigmentation';
+    if (!normalizedFocus) {
+        return null;
     }
 
-    if (['wrinkle', 'wrinkles', 'elastic', 'firm', '주름', '탄력'].includes(normalizedFocus)) {
-        return 'wrinkle';
+    const focusMetric = SUPPORTED_FOCUS_METRICS.find((metric) => metric.aliases.includes(normalizedFocus));
+
+    return focusMetric?.code || null;
+}
+
+function validateFocusMetric(focus) {
+    if (focus === undefined || focus === null || String(focus).trim() === '') {
+        return null;
     }
 
-    return null;
+    const focusMetricCode = normalizeFocusMetric(focus);
+
+    if (!focusMetricCode) {
+        const error = new Error('지원하지 않는 추천 선택값입니다. pigmentation 또는 wrinkle 중 하나를 선택해주세요.');
+        error.status = 400;
+        error.code = 'INVALID_RECOMMENDATION_FOCUS';
+        error.result = {
+            allowedFocus: SUPPORTED_FOCUS_METRICS.map((metric) => metric.code),
+        };
+        throw error;
+    }
+
+    return focusMetricCode;
 }
 
 function applyFocusMetric(concernMetrics, focusMetricCode) {
@@ -118,13 +146,40 @@ function uniqueByMetricCode(metrics) {
     });
 }
 
+function getFocusMetricOptions(analysisContext = null, selectedFocus = null) {
+    const concernMetrics = getConcernMetrics(analysisContext?.metrics || []);
+    const selectedMetricCode = selectedFocus || concernMetrics[0]?.code || null;
+
+    return SUPPORTED_FOCUS_METRICS.map((focusMetric) => {
+        const metric = concernMetrics.find((item) => item.code === focusMetric.code) || null;
+        const scoreBand = getScoreBand(metric?.score);
+        const meta = getMetricMeta(focusMetric.code);
+
+        return {
+            code: focusMetric.code,
+            label: focusMetric.label,
+            name: metric?.name || meta.name || focusMetric.label,
+            selected: focusMetric.code === selectedMetricCode,
+            available: Boolean(metric),
+            score: metric?.score ?? null,
+            grade: metric?.grade || null,
+            scoreBand: scoreBand.label,
+            scoreBandCode: scoreBand.code,
+            description: scoreBand.description,
+        };
+    });
+}
+
 module.exports = {
     applyFocusMetric,
     formatMetricScoreText,
     getConcernMetrics,
+    getFocusMetricOptions,
     getMetricMeta,
     getScoreBand,
     normalizeFocusMetric,
     normalizeText,
+    SUPPORTED_FOCUS_METRICS,
     uniqueByMetricCode,
+    validateFocusMetric,
 };
