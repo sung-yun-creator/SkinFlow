@@ -22,6 +22,7 @@ const SHOW_CARE_NOTICE_KEY = "skinflow_show_care_notice";
 
 const sourceLabelMap = {
   latest_analysis: "최근 분석 결과 기반 가이드",
+  selected_analysis: "선택한 분석 이력 기반 가이드",
   analysis_unsaved: "이력 반영 전 참고 가이드",
   default: "기본 식습관 가이드",
   fallback: "식습관 관리 가이드",
@@ -67,36 +68,44 @@ function getGuideSourceState(source, summary) {
   const defaultSources = ["default"];
   const safeGuideSources = ["fallback", "reference", "static", "seed", "unknown", ""];
   const isLatestAnalysis = primarySource === "latest_analysis" && !isSavedFalse;
-  const isUnsavedAnalysis = primarySource === "latest_analysis" && isSavedFalse;
+  const isSelectedAnalysis = primarySource === "selected_analysis" && !isSavedFalse;
+  const isAnalysisBased = isLatestAnalysis || isSelectedAnalysis;
+  const isUnsavedAnalysis = ["latest_analysis", "selected_analysis"].includes(primarySource) && isSavedFalse;
   const isDefaultGuide =
-    !isLatestAnalysis &&
+    !isAnalysisBased &&
     (defaultSources.includes(primarySource) || defaultSources.includes(guideSource));
   const isSafeGuide =
     isUnsavedAnalysis ||
-    (!isLatestAnalysis && (safeGuideSources.includes(primarySource) || safeGuideSources.includes(guideSource)));
+    (!isAnalysisBased && (safeGuideSources.includes(primarySource) || safeGuideSources.includes(guideSource)));
 
   const labelSource = isLatestAnalysis
     ? "latest_analysis"
-    : isUnsavedAnalysis
-      ? "analysis_unsaved"
-      : isDefaultGuide
-        ? "default"
-        : isSafeGuide
-          ? "unknown"
-          : guideSource || primarySource;
+    : isSelectedAnalysis
+      ? "selected_analysis"
+      : isUnsavedAnalysis
+        ? "analysis_unsaved"
+        : isDefaultGuide
+          ? "default"
+          : isSafeGuide
+            ? "unknown"
+            : guideSource || primarySource;
 
   return {
     label: getSourceLabel(labelSource),
     isLatestAnalysis,
+    isSelectedAnalysis,
+    isAnalysisBased,
     isDefaultGuide,
     isReference: isDefaultGuide || isSafeGuide,
     notice: isLatestAnalysis
       ? "최근 피부 분석 결과와 연결된 식습관 관리 방향입니다."
-      : isUnsavedAnalysis
-        ? "분석 결과가 아직 이력에 반영되기 전이므로 참고 정보로 표시합니다."
-        : isDefaultGuide
-          ? "현재 가이드는 기본 식습관 관리 참고 정보입니다. 피부 분석 후 더 구체적인 관리 방향을 확인할 수 있습니다."
-          : "피부 관리 방향을 확인하기 위한 식습관 참고 정보입니다.",
+      : isSelectedAnalysis
+        ? "선택한 분석 이력과 연결된 식습관 관리 방향입니다."
+        : isUnsavedAnalysis
+          ? "분석 결과가 아직 이력에 반영되기 전이므로 참고 정보로 표시합니다."
+          : isDefaultGuide
+            ? "현재 가이드는 기본 식습관 관리 참고 정보입니다. 피부 분석 후 더 구체적인 관리 방향을 확인할 수 있습니다."
+            : "피부 관리 방향을 확인하기 위한 식습관 참고 정보입니다.",
   };
 }
  // 빈 문구가 화면에 나오지 않도록 유효한 텍스트인지 확인합니다.
@@ -215,8 +224,10 @@ function getActionItemId(item, index) {
 
 function DietGuidePage() {
   const [searchParams] = useSearchParams();
-  // 맞춤추천에서 고른 기준을 URL로 이어 받아 새로고침 후에도 같은 가이드를 요청합니다.
+  // focus는 사용자가 직접 고른 관리 기준이고, analysisId는 히스토리에서 선택한 특정 분석 이력입니다.
+  // 두 값을 URL로 이어 받아 새로고침하거나 추천 화면으로 돌아가도 같은 기준을 유지합니다.
   const recommendationFocus = normalizeRecommendationFocus(searchParams.get("focus"));
+  const analysisId = String(searchParams.get("analysisId") || "").trim();
   // 가이드 목록, 루틴, 체크리스트, 사용자가 체크한 항목, 로딩/에러 상태를 관리합니다.
   const [dietGuide, setDietGuide] = useState({
     source: "unknown",
@@ -242,7 +253,7 @@ function DietGuidePage() {
         setIsLoading(true);
         setErrorMessage("");
 
-        const data = await getDietGuideRecommendations(recommendationFocus);
+        const data = await getDietGuideRecommendations({ focus: recommendationFocus, analysisId });
 
         if (isMounted) {
           setDietGuide(data);
@@ -270,7 +281,7 @@ function DietGuidePage() {
     return () => {
       isMounted = false;
     };
-  }, [recommendationFocus]);
+  }, [analysisId, recommendationFocus]);
 
   const { source, summary } = dietGuide;
   const guides = toSafeArray(dietGuide.guides);
@@ -279,13 +290,20 @@ function DietGuidePage() {
 
   const guideSourceState = getGuideSourceState(source, summary);
   const sourceLabel = guideSourceState.label;
-  const isLatestGuide = guideSourceState.isLatestAnalysis;
-  const heroTitle = isLatestGuide ? "분석 결과 기반" : "기본 관리 참고";
-  const heroDescription = isLatestGuide
-    ? "최근 피부 분석 흐름을 바탕으로 식습관 항목을 추천합니다. 색소침착과 주름 관리 방향을 함께 고려해 오늘 실천할 수 있는 항목을 확인해 보세요."
-    : "첫 분석 전에도 참고할 수 있는 기본 피부 관리 가이드입니다. 색소침착과 주름 관리 방향을 함께 고려해 오늘 실천할 수 있는 항목을 확인해 보세요.";
-  const checklistTitle = isLatestGuide ? "분석 결과 기반 추천 체크리스트" : "기본 피부 관리 체크리스트";
-  const checklistDescription = isLatestGuide
+  const isAnalysisBasedGuide = guideSourceState.isAnalysisBased;
+  const isSelectedAnalysisGuide = guideSourceState.isSelectedAnalysis;
+  const heroTitle = isSelectedAnalysisGuide
+    ? "선택한 분석 이력 기반"
+    : isAnalysisBasedGuide
+      ? "분석 결과 기반"
+      : "기본 관리 참고";
+  const heroDescription = isSelectedAnalysisGuide
+    ? "선택한 피부 분석 이력을 바탕으로 식습관 항목을 추천합니다. 색소침착과 주름 관리 방향을 함께 고려해 오늘 실천할 수 있는 항목을 확인해 보세요."
+    : isAnalysisBasedGuide
+      ? "최근 피부 분석 흐름을 바탕으로 식습관 항목을 추천합니다. 색소침착과 주름 관리 방향을 함께 고려해 오늘 실천할 수 있는 항목을 확인해 보세요."
+      : "첫 분석 전에도 참고할 수 있는 기본 피부 관리 가이드입니다. 색소침착과 주름 관리 방향을 함께 고려해 오늘 실천할 수 있는 항목을 확인해 보세요.";
+  const checklistTitle = isAnalysisBasedGuide ? "분석 결과 기반 추천 체크리스트" : "기본 피부 관리 체크리스트";
+  const checklistDescription = isAnalysisBasedGuide
     ? "피부 분석 결과와 연결된 식습관 관리 포인트입니다. 오늘 확인하고 실천할 항목을 한눈에 볼 수 있도록 정리했습니다."
     : "첫 분석 전 참고할 수 있는 식습관 관리 포인트입니다. 오늘 확인하고 실천할 항목을 한눈에 볼 수 있도록 정리했습니다.";
   const actionItems = createActionItems(checks).filter((item) => hasText(item.title));
@@ -294,20 +312,36 @@ function DietGuidePage() {
   const checkedVisibleCount = visibleActionIds.filter((id) => checkedActionIds.includes(id)).length;
   const guideCount = summary?.guideCount ?? guides.length;
   const totalScore = summary?.totalScore ?? summary?.total_skin_score;
-  const hasTotalScore = isLatestGuide && totalScore !== null && totalScore !== undefined && totalScore !== "";
-  const primaryAction = isLatestGuide
-    ? { to: "/recommendations", label: "추천 화면으로 이동" }
+  const hasTotalScore = isAnalysisBasedGuide && totalScore !== null && totalScore !== undefined && totalScore !== "";
+  // 맞춤추천으로 돌아갈 때도 현재 focus와 analysisId를 유지해 같은 분석 기준을 다시 요청합니다.
+  const recommendationSearchParams = new URLSearchParams();
+  if (analysisId) recommendationSearchParams.set("analysisId", analysisId);
+  if (recommendationFocus) recommendationSearchParams.set("focus", recommendationFocus);
+  const recommendationQueryString = recommendationSearchParams.toString();
+  const recommendationPath = recommendationQueryString
+    ? `/recommendations?${recommendationQueryString}`
+    : "/recommendations";
+  const primaryAction = isAnalysisBasedGuide
+    ? { to: recommendationPath, label: "추천 화면으로 이동" }
     : { to: "/analysis/capture", label: "피부 분석 시작하기" };
-  const secondaryAction = isLatestGuide
+  const secondaryAction = isAnalysisBasedGuide
     ? { to: "/history", label: "분석 이력 보기" }
-    : { to: "/recommendations", label: "추천 확인" };
-  const flowSourceLabel = isLatestGuide ? "최근 분석 결과 기반" : "분석 후 개인화 가능";
+    : { to: recommendationPath, label: "추천 확인" };
+  const flowSourceLabel = isSelectedAnalysisGuide
+    ? "선택한 분석 이력 기반"
+    : isAnalysisBasedGuide
+      ? "최근 분석 결과 기반"
+      : "분석 후 개인화 가능";
   const selectedMetricName = getFirstText(summary?.selectedMetricName);
   const recommendationModeLabel = getRecommendationModeLabel(summary?.recommendationMode);
   const referenceBasisSummary = getReferenceBasisSummary(summary);
   const summaryRecommendationReason = getFirstText(summary?.recommendationReason, summary?.recommendation_reason, summary?.reason);
   const hasRecentFiveBasis = hasRecentFiveRecommendationBasis(summary);
-  const fallbackBasisTitle = isLatestGuide ? "최근 분석 결과 기준" : "기본 관리 기준";
+  const fallbackBasisTitle = isSelectedAnalysisGuide
+    ? "선택한 분석 이력 기준"
+    : isAnalysisBasedGuide
+      ? "최근 분석 결과 기준"
+      : "기본 관리 기준";
   const basisTitle = selectedMetricName
     ? `${selectedMetricName} 기준`
     : fallbackBasisTitle;
@@ -317,7 +351,13 @@ function DietGuidePage() {
       ? referenceBasisSummary
     : guideSourceState.notice;
   const basisLabel = hasRecentFiveBasis ? "최근 5회 평균 기준" : recommendationModeLabel || sourceLabel;
-  const basisMetricText = selectedMetricName || (isLatestGuide ? "최근 분석 결과" : "기본 관리 기준");
+  const basisMetricText =
+    selectedMetricName ||
+    (isSelectedAnalysisGuide
+      ? "선택한 분석 이력"
+      : isAnalysisBasedGuide
+        ? "최근 분석 결과"
+        : "기본 관리 기준");
    // 사용자가 체크리스트를 눌렀을 때 완료/미완료 상태를 바꿉니다.
 
   const handleCheckToggle = (itemId) => {
@@ -1130,7 +1170,7 @@ function DietGuidePage() {
               </p>
 
               <div className="sf-diet-mini-flow" aria-label="식습관 가이드 구성">
-                <span className={isLatestGuide ? "is-active" : ""}>{flowSourceLabel}</span>
+                <span className={isAnalysisBasedGuide ? "is-active" : ""}>{flowSourceLabel}</span>
                 <i className="sf-diet-flow-arrow" aria-hidden="true">→</i>
                 <span>식습관 가이드</span>
                 <i className="sf-diet-flow-arrow" aria-hidden="true">→</i>
