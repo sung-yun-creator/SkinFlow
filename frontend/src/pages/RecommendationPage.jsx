@@ -2,7 +2,7 @@
 // 최근 분석 결과 기반 추천 또는 기본 참고 추천으로 기능성 성분과 제품을 보여주는 화면입니다.
 // 이 파일은 화면 표시와 사용자 동작 처리를 담당하며, 백엔드/DB/AI 로직은 여기서 직접 수정하지 않습니다.
 // 주석은 코드 흐름 이해를 돕기 위한 설명이며 실제 동작에는 영향을 주지 않습니다.
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   ExternalLink,
@@ -26,6 +26,13 @@ import {
 const SHOW_CARE_NOTICE_KEY = "skinflow_show_care_notice";
 // 추천 이유 영역을 기본으로 펼칠지 저장하는 localStorage 키입니다.
 const EXPAND_RECOMMENDATION_REASON_KEY = "skinflow_expand_recommendation_reason";
+// 추천 페이지 재진입 시 사용자가 고른 기준을 복원하기 위한 localStorage 키입니다.
+const RECOMMENDATION_FOCUS_KEY = "skinflow_recommendation_focus";
+const RECOMMENDATION_FOCUS_OPTIONS = [
+  { value: "", label: "자동 추천" },
+  { value: "pigmentation", label: "색소침착" },
+  { value: "wrinkle", label: "주름" },
+];
  // 설정 페이지에서 저장한 추천 설명 펼침 여부를 읽어오는 함수입니다.
 
 function readStoredSetting(key, fallbackValue) {
@@ -38,6 +45,20 @@ function readStoredSetting(key, fallbackValue) {
   if (storedValue === "false") return false;
 
   return storedValue;
+}
+
+function normalizeRecommendationFocus(value) {
+  return value === "pigmentation" || value === "wrinkle" ? value : "";
+}
+
+function readStoredRecommendationFocus() {
+  if (typeof window === "undefined") return "";
+
+  return normalizeRecommendationFocus(window.localStorage.getItem(RECOMMENDATION_FOCUS_KEY));
+}
+
+function getRecommendationFocusLabel(focus) {
+  return RECOMMENDATION_FOCUS_OPTIONS.find((option) => option.value === focus)?.label ?? "자동 추천";
 }
  // API 에러를 사용자가 이해하기 쉬운 문장으로 바꾸는 함수입니다.
 
@@ -370,6 +391,8 @@ function RecommendationPage() {
   const [ingredientError, setIngredientError] = useState("");
   const [productError, setProductError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [recommendationFocus, setRecommendationFocus] = useState(readStoredRecommendationFocus);
+  const requestSequenceRef = useRef(0);
   const [showCareNotice] = useState(() => readStoredSetting(SHOW_CARE_NOTICE_KEY, true));
   const [expandRecommendationReason] = useState(() =>
     readStoredSetting(EXPAND_RECOMMENDATION_REASON_KEY, true)
@@ -377,14 +400,19 @@ function RecommendationPage() {
 
   // 두 추천 API를 병렬 호출하고, Promise.allSettled로 한쪽 실패 시에도 다른 영역은 계속 보여줍니다.
   const loadRecommendations = useCallback(async () => {
+    const requestSequence = requestSequenceRef.current + 1;
+    requestSequenceRef.current = requestSequence;
     setIsLoading(true);
     setIngredientError("");
     setProductError("");
 
     const [ingredientResult, productResult] = await Promise.allSettled([
-      getIngredientRecommendations(),
-      getProductRecommendations(),
+      getIngredientRecommendations(recommendationFocus),
+      getProductRecommendations(recommendationFocus),
     ]);
+
+    // focus를 빠르게 바꿨을 때 이전 요청이 현재 선택 결과를 덮어쓰지 않도록 최신 응답만 반영합니다.
+    if (requestSequence !== requestSequenceRef.current) return;
 
     // 성분/제품 추천 API 응답은 각각 ingredients/products와 summary로 분리해 UI에 매핑합니다.
     if (ingredientResult.status === "fulfilled") {
@@ -406,7 +434,16 @@ function RecommendationPage() {
     }
 
     setIsLoading(false);
-  }, []);
+  }, [recommendationFocus]);
+
+  // 허용된 수동 선택만 저장하고 자동 추천은 저장값을 비워 기존 기본 흐름으로 복원합니다.
+  useEffect(() => {
+    if (recommendationFocus) {
+      window.localStorage.setItem(RECOMMENDATION_FOCUS_KEY, recommendationFocus);
+    } else {
+      window.localStorage.removeItem(RECOMMENDATION_FOCUS_KEY);
+    }
+  }, [recommendationFocus]);
 
   // 페이지가 열리면 성분 추천 API와 제품 추천 API를 호출해 화면 데이터를 준비합니다.
   useEffect(() => {
@@ -415,6 +452,7 @@ function RecommendationPage() {
 
     return () => {
       window.clearTimeout(timeoutId);
+      requestSequenceRef.current += 1;
     };
   }, [loadRecommendations]);
    // 추천 성분 중 실제 화면에 표시할 수 있는 항목만 정리한 목록입니다.
@@ -451,8 +489,13 @@ function RecommendationPage() {
       productSummary ||
       ingredientSummary ||
       {};
-    const selectedMetricName = getFirstDisplayText(basisSummary.selectedMetricName);
-    const modeLabel = getRecommendationModeLabel(basisSummary.recommendationMode);
+    const manualFocusLabel = recommendationFocus
+      ? getRecommendationFocusLabel(recommendationFocus)
+      : "";
+    const selectedMetricName = manualFocusLabel || getFirstDisplayText(basisSummary.selectedMetricName);
+    const modeLabel = manualFocusLabel
+      ? "사용자 선택 기준"
+      : getRecommendationModeLabel(basisSummary.recommendationMode);
     const rangeLabel = getRecommendationBasisRangeLabel(basisSummary);
     const summaryReason = getFirstDisplayText(
       basisSummary.recommendationReason,
@@ -464,11 +507,13 @@ function RecommendationPage() {
       selectedMetricName,
       modeLabel: modeLabel || sourceState.label,
       rangeLabel,
-      text: selectedMetricName
-        ? `현재 추천 기준: ${selectedMetricName}. ${modeLabel || sourceState.label}으로 제공되는 추천 가이드입니다.`
+      text: manualFocusLabel
+        ? `이 추천은 ${manualFocusLabel} 분석 결과를 기준으로 제공됩니다.`
+        : selectedMetricName
+          ? `현재 추천 기준: ${selectedMetricName}. ${modeLabel || sourceState.label}으로 제공되는 추천 가이드입니다.`
         : summaryReason || sourceState.message,
     };
-  }, [ingredientSummary, productSummary, sourceState]);
+  }, [ingredientSummary, productSummary, recommendationFocus, sourceState]);
    // 상단 요약 카드에 들어갈 항목들을 배열로 정리합니다.
 
   const summaryItems = useMemo(
@@ -522,6 +567,9 @@ function RecommendationPage() {
   }, [ingredientError, isLoading, productError, products.length, sourceState, visibleIngredients.length]);
 
   const statusLabel = isLoading ? "불러오는 중" : ingredientError && productError ? "연결 확인" : sourceState.label;
+  const dietGuidePath = recommendationFocus
+    ? `/diet-guide?focus=${encodeURIComponent(recommendationFocus)}`
+    : "/diet-guide";
 
   // 아래 JSX는 추천 기준 요약, 성분 카드, 제품 카드, 추천 이유 안내를 화면에 그립니다.
   return (
@@ -590,6 +638,52 @@ function RecommendationPage() {
 
         .sf-recommend-summary-card {
           padding: 22px;
+        }
+
+        .sf-focus-selector {
+          display: grid;
+          gap: 9px;
+          margin-bottom: 16px;
+        }
+
+        .sf-focus-options {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 8px;
+          padding: 5px;
+          border-radius: 16px;
+          background: #f1f5f9;
+        }
+
+        .sf-focus-option {
+          min-height: 40px;
+          padding: 9px 12px;
+          border: 1px solid transparent;
+          border-radius: 12px;
+          color: #64748b;
+          background: transparent;
+          font: inherit;
+          font-size: 13px;
+          font-weight: 900;
+          cursor: pointer;
+          transition: 160ms ease;
+        }
+
+        .sf-focus-option:hover {
+          color: #0f172a;
+          background: rgba(255, 255, 255, 0.72);
+        }
+
+        .sf-focus-option.is-active {
+          color: #167d7f;
+          background: #ffffff;
+          border-color: rgba(22, 125, 127, 0.18);
+          box-shadow: 0 7px 16px rgba(15, 23, 42, 0.06);
+        }
+
+        .sf-focus-option:focus-visible {
+          outline: 3px solid rgba(22, 125, 127, 0.22);
+          outline-offset: 2px;
         }
 
         .sf-recommend-summary-top {
@@ -1307,7 +1401,7 @@ function RecommendationPage() {
             </p>
 
             <div className="sf-recommend-actions">
-              <Button to="/diet-guide" size="lg">
+              <Button to={dietGuidePath} size="lg">
                 식습관 가이드 보기 <Leaf size={18} />
               </Button>
               <Button to="/history" variant="secondary" size="lg">
@@ -1328,6 +1422,23 @@ function RecommendationPage() {
               <span className="sf-status-pill">
                 <ShieldCheck size={14} /> {statusLabel}
               </span>
+            </div>
+
+            <div className="sf-focus-selector">
+              <span className="sf-recommend-label">추천 기준 선택</span>
+              <div className="sf-focus-options" role="group" aria-label="추천 기준 선택">
+                {RECOMMENDATION_FOCUS_OPTIONS.map((option) => (
+                  <button
+                    className={`sf-focus-option ${recommendationFocus === option.value ? "is-active" : ""}`}
+                    type="button"
+                    key={option.value || "auto"}
+                    aria-pressed={recommendationFocus === option.value}
+                    onClick={() => setRecommendationFocus(option.value)}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="sf-recommend-summary-grid">

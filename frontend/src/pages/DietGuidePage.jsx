@@ -3,6 +3,7 @@
 // 이 파일은 화면 표시와 사용자 동작 처리를 담당하며, 백엔드/DB/AI 로직은 여기서 직접 수정하지 않습니다.
 // 주석은 코드 흐름 이해를 돕기 위한 설명이며 실제 동작에는 영향을 주지 않습니다.
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   ArrowRight,
   CheckCircle2,
@@ -26,6 +27,10 @@ const sourceLabelMap = {
   fallback: "식습관 관리 가이드",
   unknown: "식습관 관리 가이드",
 };
+
+function normalizeRecommendationFocus(value) {
+  return value === "pigmentation" || value === "wrinkle" ? value : "";
+}
  // 설정 페이지에서 저장한 관리 안내 표시 여부를 읽어옵니다.
 
 function readStoredSetting(key, fallbackValue) {
@@ -209,6 +214,9 @@ function getActionItemId(item, index) {
  // 식습관 가이드 화면 전체를 담당하는 React 컴포넌트입니다.
 
 function DietGuidePage() {
+  const [searchParams] = useSearchParams();
+  // 맞춤추천에서 고른 기준을 URL로 이어 받아 새로고침 후에도 같은 가이드를 요청합니다.
+  const recommendationFocus = normalizeRecommendationFocus(searchParams.get("focus"));
   // 가이드 목록, 루틴, 체크리스트, 사용자가 체크한 항목, 로딩/에러 상태를 관리합니다.
   const [dietGuide, setDietGuide] = useState({
     source: "unknown",
@@ -234,7 +242,7 @@ function DietGuidePage() {
         setIsLoading(true);
         setErrorMessage("");
 
-        const data = await getDietGuideRecommendations();
+        const data = await getDietGuideRecommendations(recommendationFocus);
 
         if (isMounted) {
           setDietGuide(data);
@@ -262,7 +270,7 @@ function DietGuidePage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [recommendationFocus]);
 
   const { source, summary } = dietGuide;
   const guides = toSafeArray(dietGuide.guides);
@@ -304,7 +312,7 @@ function DietGuidePage() {
     ? `${selectedMetricName} 기준`
     : fallbackBasisTitle;
   const basisDescription = selectedMetricName
-    ? `이 가이드는 ${selectedMetricName} 분석 결과 기반으로 구성되었습니다.`
+    ? `현재 추천 기준: ${selectedMetricName}. 이 추천은 ${selectedMetricName} 분석 결과를 기준으로 제공됩니다.`
     : referenceBasisSummary
       ? referenceBasisSummary
     : guideSourceState.notice;
