@@ -2,7 +2,8 @@
 // 과거 분석 기록, 점수 추이 그래프, 상세 분석 정보, AI 요약 리포트를 보여주는 화면입니다.
 // 이 파일은 화면 표시와 사용자 동작 처리를 담당하며, 백엔드/DB/AI 로직은 여기서 직접 수정하지 않습니다.
 // 주석은 코드 흐름 이해를 돕기 위한 설명이며 실제 동작에는 영향을 주지 않습니다.
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowRight,
   CalendarDays,
@@ -12,6 +13,7 @@ import {
   LineChart as LineChartIcon,
   Search,
   Sparkles,
+  X,
 } from "lucide-react";
 import {
   CartesianGrid,
@@ -593,8 +595,9 @@ function HistoryPage() {
   const [isLlmReportLoading, setIsLlmReportLoading] = useState(false);
   const [llmReportError, setLlmReportError] = useState("");
   const [searchText, setSearchText] = useState("");
-  const detailSectionRef = useRef(null);
-  const recordSectionRef = useRef(null);
+  const detailDialogRef = useRef(null);
+  const detailTriggerRef = useRef(null);
+  const detailRequestIdRef = useRef(0);
 
   // 페이지 진입 시 이력 목록과 score-trends 그래프 데이터를 함께 불러옵니다.
   useEffect(() => {
@@ -727,6 +730,10 @@ function HistoryPage() {
   const shouldShowDetailSection = Boolean(
     activeSelectedDetailId || visibleSelectedDetail || isDetailLoading || detailError
   );
+  const selectedModalRecord =
+    visibleSelectedDetail ||
+    records.find((record) => getRecordId(record) === activeSelectedDetailId) ||
+    null;
 
   // labels를 기준으로 Recharts가 읽을 행 단위 데이터로 변환합니다.
   // 각 지표의 점수와 툴팁 메타 정보를 같은 row에 넣어 차트와 툴팁이 같은 기준을 사용합니다.
@@ -775,6 +782,7 @@ function HistoryPage() {
   const selectedDetailStatus = getRecordStatus(visibleSelectedDetail);
   const selectedDetailGradeStatus = getRecordGradeStatus(visibleSelectedDetail);
   const selectedDetailScore = getRecordScore(visibleSelectedDetail);
+  // completed가 아닌 결과는 저장 여부와 상태 게이트를 다시 확인해 모달에서도 점수나 완료 결과처럼 보이지 않게 합니다.
   const canShowSelectedDetailScore =
     Boolean(visibleSelectedDetail) &&
     shouldShowAnalysisScore({
@@ -818,21 +826,11 @@ function HistoryPage() {
     hasText(safeLlmReportBody.careGuide) ||
     hasText(safeLlmReportBody.disclaimer);
 
-  useEffect(() => {
-    if (!shouldShowDetailSection) return;
+  // 목록 아래로 시선을 이동시키는 대신 모달을 즉시 열고, 선택한 analysisId의 상세 정보와 AI 리포트를 함께 준비합니다.
 
-    const frameId = window.requestAnimationFrame(() => {
-      detailSectionRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    });
+  async function handleDetailClick(analysisId, triggerElement) {
+    detailTriggerRef.current = triggerElement || null;
 
-    return () => window.cancelAnimationFrame(frameId);
-  }, [shouldShowDetailSection, isDetailLoading, visibleSelectedDetail, detailError]);
-   // 사용자가 상세 보기를 눌렀을 때 분석 상세와 LLM 리포트를 불러옵니다.
-
-  async function handleDetailClick(analysisId) {
     if (!analysisId) {
       setDetailError("분석 ID가 없어 상세 정보를 불러올 수 없습니다.");
       setSelectedAnalysisId(null);
@@ -840,6 +838,9 @@ function HistoryPage() {
       setLlmReportError("");
       return;
     }
+
+    const requestId = detailRequestIdRef.current + 1;
+    detailRequestIdRef.current = requestId;
 
     try {
       setSelectedAnalysisId(analysisId);
@@ -854,6 +855,9 @@ function HistoryPage() {
         getHistoryDetail(analysisId),
         getHistoryLlmReport(analysisId),
       ]);
+
+      // 다른 이력을 다시 선택하거나 모달을 닫은 뒤 도착한 이전 응답은 현재 화면 상태를 덮어쓰지 않습니다.
+      if (detailRequestIdRef.current !== requestId) return;
 
       if (detailResult.status === "fulfilled") {
         setSelectedDetail(detailResult.value);
@@ -871,8 +875,10 @@ function HistoryPage() {
         setLlmReportError(getLlmReportErrorMessage(reportResult.reason));
       }
     } finally {
-      setIsDetailLoading(false);
-      setIsLlmReportLoading(false);
+      if (detailRequestIdRef.current === requestId) {
+        setIsDetailLoading(false);
+        setIsLlmReportLoading(false);
+      }
     }
   }
    // 상세 영역의 지표 이름을 화면용 라벨로 바꿉니다.
@@ -950,9 +956,9 @@ function HistoryPage() {
 
     return [...new Set(items)].slice(0, 4);
   }
-   // 상세 보기 영역을 닫거나 초기화할 때 관련 상태를 비웁니다.
-
-  function clearSelectedDetailState() {
+  // 모달을 닫을 때 선택 ID와 두 API의 표시 상태를 함께 정리해 이전 이력 내용이 다시 노출되지 않게 합니다.
+  const clearSelectedDetailState = useCallback(() => {
+    detailRequestIdRef.current += 1;
     setSelectedDetail(null);
     setSelectedAnalysisId(null);
     setIsDetailLoading(false);
@@ -960,7 +966,7 @@ function HistoryPage() {
     setLlmReport(null);
     setLlmReportError("");
     setIsLlmReportLoading(false);
-  }
+  }, []);
    // 검색 입력값이 바뀔 때 이력 검색어 상태를 갱신합니다.
 
   function handleSearchTextChange(nextSearchText) {
@@ -978,18 +984,38 @@ function HistoryPage() {
       clearSelectedDetailState();
     }
   }
-   // 상세 보기 영역을 닫는 버튼 동작을 처리합니다.
-
-  function handleCloseDetail() {
+  const handleCloseDetail = useCallback(() => {
     clearSelectedDetailState();
 
     window.requestAnimationFrame(() => {
-      recordSectionRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
+      detailTriggerRef.current?.focus();
     });
-  }
+  }, [clearSelectedDetailState]);
+
+  useEffect(() => {
+    if (!shouldShowDetailSection) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const focusFrameId = window.requestAnimationFrame(() => {
+      detailDialogRef.current?.focus();
+    });
+
+    function handleKeyDown(event) {
+      if (event.key === "Escape") {
+        handleCloseDetail();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.cancelAnimationFrame(focusFrameId);
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [handleCloseDetail, shouldShowDetailSection]);
 
 
   // 아래 JSX는 이력 요약, score-trends 그래프, 검색, 이력 카드, 상세 영역을 화면에 그립니다.
@@ -2948,6 +2974,170 @@ function HistoryPage() {
             grid-template-columns: 70px 1fr 42px;
           }
         }
+
+        .sf-history-detail-section {
+          position: fixed;
+          inset: 0;
+          z-index: 1200;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin: 0;
+          padding: 24px;
+          overflow: hidden;
+          background: rgba(15, 23, 42, 0.56);
+          backdrop-filter: blur(10px);
+        }
+
+        .sf-history-detail-dialog {
+          width: min(1180px, 100%);
+          max-height: calc(100dvh - 48px);
+          display: grid;
+          grid-template-rows: auto minmax(0, 1fr);
+          overflow: hidden;
+          border: 1px solid rgba(255, 255, 255, 0.76);
+          border-radius: 28px;
+          outline: none;
+          background: #f8fafc;
+          box-shadow: 0 32px 100px rgba(15, 23, 42, 0.34);
+        }
+
+        .sf-history-detail-dialog:focus-visible {
+          box-shadow:
+            0 0 0 3px rgba(22, 125, 127, 0.28),
+            0 32px 100px rgba(15, 23, 42, 0.34);
+        }
+
+        .sf-history-detail-modal-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 20px;
+          padding: 20px 22px;
+          background: rgba(255, 255, 255, 0.96);
+          border-bottom: 1px solid rgba(226, 232, 240, 0.92);
+        }
+
+        .sf-history-detail-modal-title {
+          min-width: 0;
+        }
+
+        .sf-history-detail-modal-title .sf-detail-kicker {
+          margin-bottom: 6px;
+        }
+
+        .sf-history-detail-modal-title h2 {
+          margin: 0;
+          color: #0f172a;
+          font-size: 23px;
+          font-weight: 950;
+          letter-spacing: -0.05em;
+        }
+
+        .sf-history-detail-modal-title p {
+          margin: 5px 0 0;
+          color: #64748b;
+          font-size: 12px;
+          font-weight: 750;
+          line-height: 1.5;
+          word-break: keep-all;
+        }
+
+        .sf-history-detail-modal-header .sf-detail-header-actions {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .sf-history-detail-modal-header .sf-detail-close-button {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 5px;
+          min-height: 36px;
+        }
+
+        .sf-history-detail-content {
+          display: grid;
+          grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+          gap: 16px;
+          align-items: start;
+          min-height: 0;
+          padding: 18px;
+          overflow-y: auto;
+          overscroll-behavior: contain;
+        }
+
+        .sf-history-detail-content .sf-detail-card,
+        .sf-history-detail-content .sf-llm-report-card {
+          width: 100%;
+          min-height: 0;
+          height: auto !important;
+          margin: 0;
+          border-radius: 24px;
+          box-shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
+        }
+
+        .sf-history-detail-dialog > .sf-detail-loading-card,
+        .sf-history-detail-dialog > .sf-detail-error-card {
+          width: auto;
+          max-width: none;
+          min-height: 260px;
+          margin: 18px;
+          overflow-y: auto;
+          box-shadow: none;
+        }
+
+        @media (max-width: 980px) {
+          .sf-history-detail-content {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        @media (max-width: 720px) {
+          .sf-history-detail-section {
+            padding: 0;
+            background: rgba(15, 23, 42, 0.64);
+          }
+
+          .sf-history-detail-dialog {
+            width: 100%;
+            height: 100dvh;
+            max-height: 100dvh;
+            border: 0;
+            border-radius: 0;
+          }
+
+          .sf-history-detail-modal-header {
+            align-items: flex-start;
+            gap: 12px;
+            padding: 16px;
+          }
+
+          .sf-history-detail-modal-title h2 {
+            font-size: 20px;
+          }
+
+          .sf-history-detail-modal-header .sf-status-badge {
+            display: none;
+          }
+
+          .sf-history-detail-content {
+            padding: 14px;
+          }
+
+          .sf-history-detail-content .sf-detail-card,
+          .sf-history-detail-content .sf-llm-report-card {
+            padding: 20px;
+            border-radius: 22px;
+          }
+
+          .sf-history-detail-dialog > .sf-detail-loading-card,
+          .sf-history-detail-dialog > .sf-detail-error-card {
+            min-height: 220px;
+            margin: 14px;
+          }
+        }
       `}</style>
 
       <div className="sf-history-page">
@@ -3025,7 +3215,7 @@ function HistoryPage() {
 
         </section>
 
-        <section className="sf-history-grid" ref={recordSectionRef}>
+        <section className="sf-history-grid">
           <Card className="sf-history-card sf-history-trend-card">
             <div className="sf-card-title-row">
               <div>
@@ -3203,7 +3393,7 @@ function HistoryPage() {
                           <button
                             type="button"
                             className={`sf-text-button${recordId === activeSelectedDetailId ? " is-active" : ""}`}
-                            onClick={() => handleDetailClick(recordId)}
+                            onClick={(event) => handleDetailClick(recordId, event.currentTarget)}
                             aria-pressed={recordId === activeSelectedDetailId}
                             disabled={isDetailLoading && recordId === activeSelectedDetailId}
                           >
@@ -3243,13 +3433,56 @@ function HistoryPage() {
           </Card>
         </section>
 
-        {shouldShowDetailSection && (
-          <section className="sf-history-detail-section" ref={detailSectionRef}>
+        {shouldShowDetailSection && createPortal(
+          <section
+            className="sf-history-detail-section"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) {
+                handleCloseDetail();
+              }
+            }}
+          >
+            <div
+              className="sf-history-detail-dialog"
+              ref={detailDialogRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="sf-history-detail-title"
+              tabIndex={-1}
+            >
+              <header className="sf-history-detail-modal-header">
+                <div className="sf-history-detail-modal-title">
+                  <span className="sf-detail-kicker">선택한 분석 상세</span>
+                  <h2 id="sf-history-detail-title">분석 상세 리포트</h2>
+                  <p>
+                    {selectedModalRecord
+                      ? `${formatDate(getRecordDate(selectedModalRecord))} · 피부 관리 참고 정보`
+                      : "선택한 이력의 상세 정보를 확인합니다."}
+                  </p>
+                </div>
+                <div className="sf-detail-header-actions">
+                  {selectedModalRecord && (
+                    <span className="sf-status-badge">
+                      {getStatusLabel(getRecordStatus(selectedModalRecord))}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    className="sf-detail-close-button"
+                    onClick={handleCloseDetail}
+                    aria-label="분석 상세 리포트 닫기"
+                  >
+                    <X size={16} aria-hidden="true" />
+                    <span>닫기</span>
+                  </button>
+                </div>
+              </header>
+
             {isDetailLoading ? (
               <div className="sf-detail-loading-card">
                 <span className="sf-detail-kicker">상세 분석 정보</span>
                 <strong>선택한 이력의 상세 결과를 불러오는 중입니다.</strong>
-                <p>아래 상세 분석 정보 영역으로 이동했습니다. 결과가 준비되면 이 자리에서 바로 확인할 수 있습니다.</p>
+                <p>분석 결과와 AI 요약 리포트를 함께 준비하고 있습니다.</p>
               </div>
             ) : detailError ? (
               <div className="sf-detail-error-card">
@@ -3266,25 +3499,13 @@ function HistoryPage() {
                 </button>
               </div>
             ) : visibleSelectedDetail ? (
-              <>
+              <div className="sf-history-detail-content">
                 <div className="sf-detail-card">
                   <div className="sf-card-title-row">
                     <div>
-                      <span className="sf-detail-kicker">선택한 분석 상세</span>
-                      <small>{formatDate(getRecordDate(visibleSelectedDetail))}</small>
+                      <small>분석 결과 기반 관리 포인트</small>
                       <h2>상세 분석 정보</h2>
-                      <p className="sf-detail-subcopy">선택한 이력의 상세 결과입니다. 분석 결과 기반 관리 포인트와 추천 흐름을 이어서 확인할 수 있습니다.</p>
-                    </div>
-                    <div className="sf-detail-header-actions">
-                      <span className="sf-status-badge">{getStatusLabel(selectedDetailStatus)}</span>
-                      <button
-                        type="button"
-                        className="sf-detail-close-button"
-                        onClick={handleCloseDetail}
-                        aria-label="상세 분석 정보 닫기"
-                      >
-                        닫기
-                      </button>
+                      <p className="sf-detail-subcopy">점수와 상태 배지는 서로 다른 기준의 참고 정보로 함께 표시됩니다.</p>
                     </div>
                   </div>
 
@@ -3470,9 +3691,11 @@ function HistoryPage() {
                     </>
                   )}
                 </div>
-              </>
+              </div>
             ) : null}
-          </section>
+            </div>
+          </section>,
+          document.body
         )}
 
         <section className="sf-history-bottom">
