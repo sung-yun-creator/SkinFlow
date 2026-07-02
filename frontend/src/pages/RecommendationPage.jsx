@@ -284,6 +284,55 @@ function formatReferenceBasis(referenceBasis) {
 }
  // 추천 기준 설명 영역에 보여줄 간단한 도움말을 만듭니다.
 
+function formatAnalysisDateTime(value) {
+  if (!hasText(value)) return "";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return date.toLocaleString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function getAnalysisContextMeta(summary, fallbackAnalysisId = "") {
+  if (!summary) return fallbackAnalysisId ? `분석 ID ${fallbackAnalysisId}` : "";
+
+  const referenceBasis = summary.referenceBasis ?? summary.reference_basis ?? {};
+  const analyzedAt = getFirstDisplayText(
+    referenceBasis.analyzedAt,
+    referenceBasis.analyzed_at,
+    summary.analyzedAt,
+    summary.analyzed_at,
+  );
+  const score = referenceBasis.totalScore ?? referenceBasis.total_score ?? summary.totalScore ?? summary.total_skin_score;
+  const grade = getFirstDisplayText(
+    referenceBasis.gradeName,
+    referenceBasis.grade_name,
+    referenceBasis.grade,
+    summary.gradeName,
+    summary.grade_name,
+    summary.grade,
+  );
+  const analysisId = referenceBasis.analysisId ?? referenceBasis.analysis_id ?? fallbackAnalysisId;
+  const scoreNumber = Number(score);
+  const parts = [];
+  const formattedDate = formatAnalysisDateTime(analyzedAt);
+
+  if (formattedDate) parts.push(formattedDate);
+  if (score !== null && score !== undefined && score !== "") {
+    parts.push(Number.isFinite(scoreNumber) ? `종합 ${Math.round(scoreNumber)}점` : `종합 ${score}점`);
+  }
+  if (grade) parts.push(grade);
+  if (!parts.length && analysisId) parts.push(`분석 ID ${analysisId}`);
+
+  return parts.join(" · ");
+}
+
 function getReferenceBasisHint(item) {
   // referenceBasis 객체는 그대로 렌더링하지 않고 표시 가능한 값만 조합합니다.
   return formatReferenceBasis(item?.referenceBasis ?? item?.reference_basis);
@@ -617,13 +666,13 @@ function RecommendationPage() {
     return sourceState.message;
   }, [analysisId, ingredientError, isLoading, productError, products.length, sourceState, visibleIngredients.length]);
 
-  const statusLabel = isLoading ? "불러오는 중" : ingredientError && productError ? "연결 확인" : sourceState.label;
   // 추천에서 식습관 가이드로 이동할 때도 같은 focus와 analysisId를 넘겨 관리 흐름이 끊기지 않게 합니다.
   const dietGuideSearchParams = new URLSearchParams();
   if (analysisId) dietGuideSearchParams.set("analysisId", analysisId);
   if (recommendationFocus) dietGuideSearchParams.set("focus", recommendationFocus);
   const dietGuideQueryString = dietGuideSearchParams.toString();
   const dietGuidePath = dietGuideQueryString ? `/diet-guide?${dietGuideQueryString}` : "/diet-guide";
+  const analysisContextMeta = getAnalysisContextMeta(productSummary || ingredientSummary, analysisId);
 
   // 아래 JSX는 추천 기준 요약, 성분 카드, 제품 카드, 추천 이유 안내를 화면에 그립니다.
   return (
@@ -827,18 +876,21 @@ function RecommendationPage() {
           letter-spacing: -0.05em;
         }
 
-        .sf-status-pill {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-          padding: 8px 12px;
-          border-radius: 999px;
-          color: #167d7f;
-          background: rgba(22, 125, 127, 0.1);
-          font-size: 12px;
-          font-weight: 950;
-          white-space: nowrap;
+        .sf-status-stack {
+          display: grid;
+          justify-items: end;
+          align-self: end;
+          min-width: 0;
+          padding-bottom: 1px;
+        }
+
+        .sf-analysis-context-meta {
+          color: #334155;
+          font-size: 14px;
+          font-weight: 900;
+          line-height: 1.45;
+          text-align: right;
+          word-break: keep-all;
         }
 
         .sf-source-pill {
@@ -1577,7 +1629,7 @@ function RecommendationPage() {
                 식습관 가이드 보기 <Leaf size={18} />
               </Button>
               <Button to="/history" variant="secondary" size="lg">
-                분석 이력에서 확인
+                분석 이력 다시보기
               </Button>
             </div>
           </Card>
@@ -1597,9 +1649,9 @@ function RecommendationPage() {
                   </h2>
                 </div>
               </div>
-              <span className="sf-status-pill">
-                <ShieldCheck size={14} /> {statusLabel}
-              </span>
+              <div className="sf-status-stack">
+                {analysisContextMeta && <span className="sf-analysis-context-meta">{analysisContextMeta}</span>}
+              </div>
             </div>
 
             <div className="sf-focus-selector">
