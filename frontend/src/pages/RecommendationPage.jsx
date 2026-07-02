@@ -10,6 +10,7 @@ import {
   FlaskConical,
   Leaf,
   LoaderCircle,
+  MessageCircle,
   PackageCheck,
   ShieldCheck,
   Sparkles,
@@ -27,6 +28,7 @@ import {
 const SHOW_CARE_NOTICE_KEY = "skinflow_show_care_notice";
 // 추천 이유 영역을 기본으로 펼칠지 저장하는 localStorage 키입니다.
 const EXPAND_RECOMMENDATION_REASON_KEY = "skinflow_expand_recommendation_reason";
+const CHATBOT_QUESTION_EVENT = "skinflow:chatbot-question";
 const RECOMMENDATION_FOCUS_OPTIONS = [
   { value: "", label: "자동 추천" },
   { value: "pigmentation", label: "색소침착" },
@@ -108,6 +110,20 @@ function getIngredientDisplayName(item) {
   const displayName = item?.name ?? item?.ingredientName ?? item?.title ?? "";
 
   return typeof displayName === "string" ? displayName : String(displayName);
+}
+
+function askChatbotAboutIngredient(ingredientName) {
+  const name = String(ingredientName || "").trim();
+
+  if (!name || typeof window === "undefined") {
+    return;
+  }
+
+  window.dispatchEvent(new CustomEvent(CHATBOT_QUESTION_EVENT, {
+    detail: {
+      message: `${name} 성분이 피부에 어떤 도움을 주는지 쉽게 설명해줘.`,
+    },
+  }));
 }
  // 같은 성분명이 중복 표시되지 않도록 정리합니다.
 
@@ -1291,6 +1307,31 @@ function RecommendationPage() {
           font-weight: 900;
         }
 
+        .sf-ingredient-chat-button {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          width: fit-content;
+          min-height: 34px;
+          margin-top: 10px;
+          padding: 0 11px;
+          border: 1px solid rgba(22, 125, 127, 0.2);
+          border-radius: 999px;
+          color: #0f766e;
+          background: rgba(22, 125, 127, 0.07);
+          font-size: 12px;
+          font-weight: 900;
+          cursor: pointer;
+          transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+        }
+
+        .sf-ingredient-chat-button:hover {
+          transform: translateY(-1px);
+          border-color: rgba(22, 125, 127, 0.34);
+          background: rgba(22, 125, 127, 0.11);
+        }
+
         .sf-product-link {
           display: inline-flex;
           align-items: center;
@@ -1692,6 +1733,14 @@ function RecommendationPage() {
                             </span>
                           ))}
                         </div>
+                        <button
+                          className="sf-ingredient-chat-button"
+                          type="button"
+                          onClick={() => askChatbotAboutIngredient(ingredientName)}
+                        >
+                          <MessageCircle size={14} />
+                          챗봇에게 물어보기
+                        </button>
                       </div>
 
                       <div className={`sf-match-score ${hasMatchScore(matchScore) ? "" : "is-pending"}`}>
