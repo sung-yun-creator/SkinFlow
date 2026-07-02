@@ -636,8 +636,8 @@ function AnalysisResultPage() {
           .sf-result-roi-wrinkle {
             width: 66px;
             height: 44px;
-            right: 18%;
-            top: 45%;
+            left: calc(50% + 18px);
+            top: 36%;
             border-color: #f59e0b;
           }
 
