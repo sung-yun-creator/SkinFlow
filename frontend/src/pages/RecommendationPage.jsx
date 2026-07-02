@@ -28,6 +28,7 @@ import {
 const SHOW_CARE_NOTICE_KEY = "skinflow_show_care_notice";
 // 추천 이유 영역을 기본으로 펼칠지 저장하는 localStorage 키입니다.
 const EXPAND_RECOMMENDATION_REASON_KEY = "skinflow_expand_recommendation_reason";
+const RECOMMENDATION_FOCUS_STORAGE_KEY = "skinflow_recommendation_focus";
 const CHATBOT_QUESTION_EVENT = "skinflow:chatbot-question";
 const RECOMMENDATION_FOCUS_OPTIONS = [
   { value: "", label: "자동 추천" },
@@ -50,6 +51,25 @@ function readStoredSetting(key, fallbackValue) {
 
 function normalizeRecommendationFocus(value) {
   return value === "pigmentation" || value === "wrinkle" ? value : "";
+}
+
+function readStoredRecommendationFocus() {
+  if (typeof window === "undefined") return "";
+
+  return normalizeRecommendationFocus(window.localStorage.getItem(RECOMMENDATION_FOCUS_STORAGE_KEY));
+}
+
+function writeStoredRecommendationFocus(focus) {
+  if (typeof window === "undefined") return;
+
+  const safeFocus = normalizeRecommendationFocus(focus);
+
+  if (safeFocus) {
+    window.localStorage.setItem(RECOMMENDATION_FOCUS_STORAGE_KEY, safeFocus);
+    return;
+  }
+
+  window.localStorage.removeItem(RECOMMENDATION_FOCUS_STORAGE_KEY);
 }
 
 function getRecommendationFocusLabel(focus) {
@@ -403,7 +423,8 @@ function RecommendationPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   // focus는 사용자가 고른 색소침착/주름 기준이며, 값이 없으면 백엔드의 자동 추천 흐름을 사용합니다.
   // analysisId는 히스토리에서 선택한 특정 분석 이력을 추천 API까지 이어 주는 값입니다.
-  const recommendationFocus = normalizeRecommendationFocus(searchParams.get("focus"));
+  const queryRecommendationFocus = normalizeRecommendationFocus(searchParams.get("focus"));
+  const recommendationFocus = queryRecommendationFocus || readStoredRecommendationFocus();
   const analysisId = String(searchParams.get("analysisId") || "").trim();
   // 성분 추천과 제품 추천은 각각 API 응답, 로딩, 에러, 추천 기준 정보를 따로 관리합니다.
   const [ingredients, setIngredients] = useState([]);
@@ -469,6 +490,7 @@ function RecommendationPage() {
       nextSearchParams.delete("focus");
     }
 
+    writeStoredRecommendationFocus(safeFocus);
     setSearchParams(nextSearchParams);
   }
 

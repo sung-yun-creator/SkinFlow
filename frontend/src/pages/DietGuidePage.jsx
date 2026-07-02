@@ -18,12 +18,14 @@ import { getDietGuideRecommendations } from "../api/recommendationApi";
  // 설정 페이지에서 피부 관리 참고 안내 표시 여부를 저장하는 localStorage 키입니다.
 
 const SHOW_CARE_NOTICE_KEY = "skinflow_show_care_notice";
+const RECOMMENDATION_FOCUS_STORAGE_KEY = "skinflow_recommendation_focus";
  // 백엔드 source 코드를 사용자가 이해하기 쉬운 가이드 출처 문구로 바꾸는 표입니다.
 
 const sourceLabelMap = {
   latest_analysis: "최근 분석 결과 기반 가이드",
   selected_analysis: "선택한 분석 이력 기반 가이드",
   analysis_unsaved: "이력 반영 전 참고 가이드",
+  manual_focus: "선택 기준 식습관 가이드",
   default: "기본 식습관 가이드",
   fallback: "식습관 관리 가이드",
   unknown: "식습관 관리 가이드",
@@ -31,6 +33,25 @@ const sourceLabelMap = {
 
 function normalizeRecommendationFocus(value) {
   return value === "pigmentation" || value === "wrinkle" ? value : "";
+}
+
+function readStoredRecommendationFocus() {
+  if (typeof window === "undefined") return "";
+
+  return normalizeRecommendationFocus(window.localStorage.getItem(RECOMMENDATION_FOCUS_STORAGE_KEY));
+}
+
+function writeStoredRecommendationFocus(focus) {
+  if (typeof window === "undefined") return;
+
+  const safeFocus = normalizeRecommendationFocus(focus);
+
+  if (safeFocus) {
+    window.localStorage.setItem(RECOMMENDATION_FOCUS_STORAGE_KEY, safeFocus);
+    return;
+  }
+
+  window.localStorage.removeItem(RECOMMENDATION_FOCUS_STORAGE_KEY);
 }
  // 설정 페이지에서 저장한 관리 안내 표시 여부를 읽어옵니다.
 
@@ -69,6 +90,7 @@ function getGuideSourceState(source, summary) {
   const safeGuideSources = ["fallback", "reference", "static", "seed", "unknown", ""];
   const isLatestAnalysis = primarySource === "latest_analysis" && !isSavedFalse;
   const isSelectedAnalysis = primarySource === "selected_analysis" && !isSavedFalse;
+  const isManualFocus = guideSource === "manual_focus" || normalizeSourceValue(summary?.recommendationMode) === "manual";
   const isAnalysisBased = isLatestAnalysis || isSelectedAnalysis;
   const isUnsavedAnalysis = ["latest_analysis", "selected_analysis"].includes(primarySource) && isSavedFalse;
   const isDefaultGuide =
@@ -78,9 +100,11 @@ function getGuideSourceState(source, summary) {
     isUnsavedAnalysis ||
     (!isAnalysisBased && (safeGuideSources.includes(primarySource) || safeGuideSources.includes(guideSource)));
 
-  const labelSource = isLatestAnalysis
-    ? "latest_analysis"
-    : isSelectedAnalysis
+  const labelSource = isManualFocus
+    ? "manual_focus"
+    : isLatestAnalysis
+      ? "latest_analysis"
+      : isSelectedAnalysis
       ? "selected_analysis"
       : isUnsavedAnalysis
         ? "analysis_unsaved"
@@ -94,10 +118,13 @@ function getGuideSourceState(source, summary) {
     label: getSourceLabel(labelSource),
     isLatestAnalysis,
     isSelectedAnalysis,
+    isManualFocus,
     isAnalysisBased,
     isDefaultGuide,
     isReference: isDefaultGuide || isSafeGuide,
-    notice: isLatestAnalysis
+    notice: isManualFocus
+      ? "사용자가 선택한 관리 기준에 맞춘 식습관 참고 가이드입니다."
+      : isLatestAnalysis
       ? "최근 피부 분석 결과와 연결된 식습관 관리 방향입니다."
       : isSelectedAnalysis
         ? "선택한 분석 이력과 연결된 식습관 관리 방향입니다."
@@ -226,7 +253,8 @@ function DietGuidePage() {
   const [searchParams] = useSearchParams();
   // focus는 사용자가 직접 고른 관리 기준이고, analysisId는 히스토리에서 선택한 특정 분석 이력입니다.
   // 두 값을 URL로 이어 받아 새로고침하거나 추천 화면으로 돌아가도 같은 기준을 유지합니다.
-  const recommendationFocus = normalizeRecommendationFocus(searchParams.get("focus"));
+  const queryRecommendationFocus = normalizeRecommendationFocus(searchParams.get("focus"));
+  const recommendationFocus = queryRecommendationFocus || readStoredRecommendationFocus();
   const analysisId = String(searchParams.get("analysisId") || "").trim();
   // 가이드 목록, 루틴, 체크리스트, 사용자가 체크한 항목, 로딩/에러 상태를 관리합니다.
   const [dietGuide, setDietGuide] = useState({
@@ -240,6 +268,12 @@ function DietGuidePage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [checkedActionIds, setCheckedActionIds] = useState([]);
   const [showCareNotice] = useState(() => readStoredSetting(SHOW_CARE_NOTICE_KEY, true));
+
+  useEffect(() => {
+    if (queryRecommendationFocus) {
+      writeStoredRecommendationFocus(queryRecommendationFocus);
+    }
+  }, [queryRecommendationFocus]);
 
   // 페이지가 열리면 식습관 가이드 API를 호출해 가이드/루틴/체크리스트를 준비합니다.
   useEffect(() => {
@@ -290,9 +324,13 @@ function DietGuidePage() {
 
   const guideSourceState = getGuideSourceState(source, summary);
   const sourceLabel = guideSourceState.label;
+  const selectedMetricName = getFirstText(summary?.selectedMetricName);
   const isAnalysisBasedGuide = guideSourceState.isAnalysisBased;
   const isSelectedAnalysisGuide = guideSourceState.isSelectedAnalysis;
-  const heroTitle = isSelectedAnalysisGuide
+  const isManualFocusGuide = guideSourceState.isManualFocus;
+  const heroTitle = isManualFocusGuide && selectedMetricName
+    ? `${selectedMetricName} 기준`
+    : isSelectedAnalysisGuide
     ? "선택한 분석 이력 기반"
     : isAnalysisBasedGuide
       ? "분석 결과 기반"
@@ -332,7 +370,6 @@ function DietGuidePage() {
     : isAnalysisBasedGuide
       ? "최근 분석 결과 기반"
       : "분석 후 개인화 가능";
-  const selectedMetricName = getFirstText(summary?.selectedMetricName);
   const recommendationModeLabel = getRecommendationModeLabel(summary?.recommendationMode);
   const referenceBasisSummary = getReferenceBasisSummary(summary);
   const summaryRecommendationReason = getFirstText(summary?.recommendationReason, summary?.recommendation_reason, summary?.reason);
@@ -346,7 +383,7 @@ function DietGuidePage() {
     ? `${selectedMetricName} 기준`
     : fallbackBasisTitle;
   const basisDescription = selectedMetricName
-    ? `현재 추천 기준: ${selectedMetricName}. 이 추천은 ${selectedMetricName} 분석 결과를 기준으로 제공됩니다.`
+    ? "사용자가 선택한 관리 기준에 맞춰 식습관 가이드를 제공합니다."
     : referenceBasisSummary
       ? referenceBasisSummary
     : guideSourceState.notice;
