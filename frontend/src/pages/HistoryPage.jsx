@@ -782,11 +782,6 @@ function HistoryPage() {
   const hasSearchResults = filteredRecords.length > 0;
   const selectedDetailId = getRecordId(selectedDetail);
   const activeSelectedDetailId = selectedAnalysisId || selectedDetailId;
-  const selectedRecommendationPath = getAnalysisContextPath(
-    "/recommendations",
-    activeSelectedDetailId,
-  );
-  const selectedDietGuidePath = getAnalysisContextPath("/diet-guide", activeSelectedDetailId);
   const isSelectedDetailVisible =
     Boolean(selectedDetail) &&
     filteredRecords.some((record) => getRecordId(record) === selectedDetailId);
@@ -798,6 +793,15 @@ function HistoryPage() {
     visibleSelectedDetail ||
     records.find((record) => getRecordId(record) === activeSelectedDetailId) ||
     null;
+  const selectedContextAnalysisId =
+    getRecordId(visibleSelectedDetail) ||
+    getRecordId(selectedModalRecord) ||
+    activeSelectedDetailId;
+  const selectedRecommendationPath = getAnalysisContextPath(
+    "/recommendations",
+    selectedContextAnalysisId,
+  );
+  const selectedDietGuidePath = getAnalysisContextPath("/diet-guide", selectedContextAnalysisId);
 
   // labels를 기준으로 Recharts가 읽을 행 단위 데이터로 변환합니다.
   // 각 지표의 점수와 툴팁 메타 정보를 같은 row에 넣어 차트와 툴팁이 같은 기준을 사용합니다.

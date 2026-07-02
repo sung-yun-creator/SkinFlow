@@ -190,6 +190,55 @@ function formatReferenceBasis(referenceBasis) {
 }
  // 추천 기준 요약 문구를 만듭니다.
 
+function formatAnalysisDateTime(value) {
+  if (!hasText(value)) return "";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return date.toLocaleString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function getAnalysisContextMeta(summary, fallbackAnalysisId = "") {
+  if (!summary) return fallbackAnalysisId ? `분석 ID ${fallbackAnalysisId}` : "";
+
+  const referenceBasis = summary.referenceBasis ?? summary.reference_basis ?? {};
+  const analyzedAt = getFirstText(
+    referenceBasis.analyzedAt,
+    referenceBasis.analyzed_at,
+    summary.analyzedAt,
+    summary.analyzed_at,
+  );
+  const score = referenceBasis.totalScore ?? referenceBasis.total_score ?? summary.totalScore ?? summary.total_skin_score;
+  const grade = getFirstText(
+    referenceBasis.gradeName,
+    referenceBasis.grade_name,
+    referenceBasis.grade,
+    summary.gradeName,
+    summary.grade_name,
+    summary.grade,
+  );
+  const analysisId = referenceBasis.analysisId ?? referenceBasis.analysis_id ?? fallbackAnalysisId;
+  const scoreNumber = Number(score);
+  const parts = [];
+  const formattedDate = formatAnalysisDateTime(analyzedAt);
+
+  if (formattedDate) parts.push(formattedDate);
+  if (score !== null && score !== undefined && score !== "") {
+    parts.push(Number.isFinite(scoreNumber) ? `종합 ${Math.round(scoreNumber)}점` : `종합 ${score}점`);
+  }
+  if (grade) parts.push(grade);
+  if (!parts.length && analysisId) parts.push(`분석 ID ${analysisId}`);
+
+  return parts.join(" · ");
+}
+
 function getReferenceBasisSummary(summary) {
   return formatReferenceBasis(summary?.referenceBasis ?? summary?.reference_basis);
 }
@@ -363,13 +412,14 @@ function DietGuidePage() {
     ? { to: recommendationPath, label: "추천 화면으로 이동" }
     : { to: "/analysis/capture", label: "피부 분석 시작하기" };
   const secondaryAction = isAnalysisBasedGuide
-    ? { to: "/history", label: "분석 이력 보기" }
+    ? { to: "/history", label: "분석 이력 다시보기" }
     : { to: recommendationPath, label: "추천 확인" };
   const flowSourceLabel = isSelectedAnalysisGuide
     ? "선택한 분석 이력 기반"
     : isAnalysisBasedGuide
       ? "최근 분석 결과 기반"
       : "분석 후 개인화 가능";
+  const analysisContextMeta = getAnalysisContextMeta(summary, analysisId);
   const recommendationModeLabel = getRecommendationModeLabel(summary?.recommendationMode);
   const referenceBasisSummary = getReferenceBasisSummary(summary);
   const summaryRecommendationReason = getFirstText(summary?.recommendationReason, summary?.recommendation_reason, summary?.reason);
@@ -576,6 +626,16 @@ function DietGuidePage() {
           font-size: 23px;
           line-height: 1.15;
           letter-spacing: 0;
+        }
+
+        .sf-analysis-context-meta {
+          display: block;
+          margin-top: 5px;
+          color: #334155;
+          font-size: 14px;
+          font-weight: 900;
+          line-height: 1.45;
+          word-break: keep-all;
         }
 
         .sf-diet-source-box {
@@ -1090,17 +1150,19 @@ function DietGuidePage() {
         .sf-routine-item strong {
           display: block;
           color: #0f172a;
-          font-size: 14.5px;
+          font-size: 17px;
+          font-weight: 950;
           line-height: 1.35;
           letter-spacing: 0;
         }
 
         .sf-routine-item > div > span {
           display: block;
-          margin-top: 6px;
+          margin-top: 7px;
           color: #64748b;
-          font-size: 12px;
-          line-height: 1.55;
+          font-size: 14.5px;
+          font-weight: 750;
+          line-height: 1.58;
           word-break: keep-all;
         }
 
@@ -1233,6 +1295,7 @@ function DietGuidePage() {
               <div>
                 <span className="sf-diet-label">분석 연결 상태</span>
                 <h2>{sourceLabel}</h2>
+                {analysisContextMeta && <span className="sf-analysis-context-meta">{analysisContextMeta}</span>}
               </div>
             </div>
 
@@ -1248,7 +1311,7 @@ function DietGuidePage() {
                 </div>
                 {hasTotalScore && (
                   <div className="sf-diet-source-item">
-                    <span className="sf-diet-label">최근 점수</span>
+                    <span className="sf-diet-label">종합 점수</span>
                     <strong>{totalScore}점</strong>
                   </div>
                 )}
