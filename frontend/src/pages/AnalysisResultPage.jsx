@@ -2,8 +2,8 @@
 // 분석이 완료된 결과를 localStorage에서 읽어 종합 점수, 지표별 점수, 추천 이동 흐름을 보여주는 화면입니다.
 // 이 파일은 화면 표시와 사용자 동작 처리를 담당하며, 백엔드/DB/AI 로직은 여기서 직접 수정하지 않습니다.
 // 주석은 코드 흐름 이해를 돕기 위한 설명이며 실제 동작에는 영향을 주지 않습니다.
-import { useMemo } from "react";
-import { Navigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Navigate, useSearchParams } from "react-router-dom";
 import {
   ArrowRight,
   CheckCircle2,
@@ -17,6 +17,7 @@ import PageLayout from "../components/layout/PageLayout";
 import Button from "../components/common/Button";
 import Badge from "../components/common/Badge";
 import { AUTH_STORAGE_KEYS } from "../api/authSession";
+import { getHistoryDetail } from "../api/historyApi";
 import {
   getScoreGradeLabel,
   isCompletedAnalysisResult,
@@ -33,6 +34,32 @@ function readLatestAnalysisResult() {
   } catch {
     return null;
   }
+}
+
+function mapHistoryDetailToAnalysisResult(detail) {
+  if (!detail) return null;
+
+  return {
+    saved: true,
+    analysisId: detail.analysisId ?? detail.analysis_id ?? null,
+    analyzedAt: detail.analyzedAt ?? detail.analyzed_at ?? null,
+    totalScore: detail.totalScore ?? detail.total_score ?? detail.totalSkinScore ?? null,
+    status: detail.status || "completed",
+    analysisStatus: detail.status || "completed",
+    grade: {
+      name: detail.gradeName || detail.grade_name || "분석 완료",
+    },
+    gradeName: detail.gradeName || detail.grade_name || null,
+    scoreGrade: detail.scoreGrade ?? detail.score_grade ?? null,
+    summary: detail.summary || null,
+    metrics: Array.isArray(detail.metrics)
+      ? detail.metrics.map((metric) => ({
+          ...metric,
+          metricScore: metric.score ?? metric.metricScore ?? metric.metric_score,
+          gradeName: metric.gradeName ?? metric.grade_name ?? metric.grade ?? null,
+        }))
+      : [],
+  };
 }
 
 function hasLoginToken() {
@@ -298,12 +325,58 @@ const emptyResultNoticeItems = [
 
 function AnalysisResultPage() {
   const isLoggedIn = hasLoginToken();
+  const [searchParams] = useSearchParams();
+  const requestedAnalysisId = String(searchParams.get("analysisId") || "").trim();
+  const [historyAnalysisResult, setHistoryAnalysisResult] = useState(null);
+  const [isHistoryResultLoading, setIsHistoryResultLoading] = useState(false);
+  const [historyResultError, setHistoryResultError] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadHistoryAnalysisResult() {
+      if (!isLoggedIn || !requestedAnalysisId) {
+        setHistoryAnalysisResult(null);
+        setHistoryResultError("");
+        setIsHistoryResultLoading(false);
+        return;
+      }
+
+      setIsHistoryResultLoading(true);
+      setHistoryResultError("");
+
+      try {
+        const detail = await getHistoryDetail(requestedAnalysisId);
+
+        if (!isMounted) return;
+
+        setHistoryAnalysisResult(mapHistoryDetailToAnalysisResult(detail));
+      } catch (error) {
+        if (!isMounted) return;
+
+        console.error("분석 이력 결과 조회 실패:", error);
+        setHistoryAnalysisResult(null);
+        setHistoryResultError("선택한 분석 이력의 결과를 불러오지 못했습니다.");
+      } finally {
+        if (isMounted) {
+          setIsHistoryResultLoading(false);
+        }
+      }
+    }
+
+    loadHistoryAnalysisResult();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isLoggedIn, requestedAnalysisId]);
+
   // 이 화면은 API를 다시 호출하지 않고 localStorage에 저장된 최신 분석 결과를 읽어 표시합니다.
   const latestAnalysis = useMemo(
     () => (isLoggedIn ? readLatestAnalysisResult() : null),
     [isLoggedIn],
   );
-  const analysisResult = latestAnalysis?.result || null;
+  const analysisResult = requestedAnalysisId ? historyAnalysisResult : latestAnalysis?.result || null;
   const hasSavedResult = Boolean(analysisResult?.saved);
   const normalizedResultStatus = String(
     analysisResult?.analysisStatus ||
@@ -386,8 +459,57 @@ function AnalysisResultPage() {
         ]
         : emptyResultNoticeItems;
 
+  const nextActionCards = useMemo(() => {
+    if (!requestedAnalysisId) return nextCards;
+
+    return nextCards.map((item) => {
+      if (item.to !== "/recommendations" && item.to !== "/diet-guide") {
+        return item;
+      }
+
+      const search = new URLSearchParams();
+      search.set("analysisId", requestedAnalysisId);
+
+      return {
+        ...item,
+        to: `${item.to}?${search.toString()}`,
+      };
+    });
+  }, [requestedAnalysisId]);
+
   if (!isLoggedIn) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (isHistoryResultLoading) {
+    return (
+      <PageLayout>
+        <div className="sf-result-page" style={{ paddingTop: 16 }}>
+          <div className="sf-result-summary-card" style={{ padding: 24 }}>
+            <Badge>분석 결과</Badge>
+            <h2 style={{ margin: "12px 0 8px" }}>선택한 분석 결과를 불러오는 중입니다</h2>
+            <p style={{ margin: 0, color: "#64748b" }}>분석 이력에 저장된 점수와 지표를 준비하고 있습니다.</p>
+          </div>
+        </div>
+      </PageLayout>
+    );
+  }
+
+  if (requestedAnalysisId && historyResultError) {
+    return (
+      <PageLayout>
+        <div className="sf-result-page" style={{ paddingTop: 16 }}>
+          <div className="sf-result-summary-card" style={{ padding: 24 }}>
+            <Badge>분석 결과</Badge>
+            <h2 style={{ margin: "12px 0 8px" }}>분석 결과를 불러오지 못했습니다</h2>
+            <p style={{ margin: "0 0 16px", color: "#64748b" }}>{historyResultError}</p>
+            <Button to="/history" variant="secondary">
+              분석 이력으로 돌아가기
+            </Button>
+          </div>
+        </div>
+      </PageLayout>
+    );
   }
 
   // 아래 JSX는 결과 없음 상태, 분석 대기 상태, 완료 결과 상태를 나누어 화면에 표시합니다.
@@ -1436,7 +1558,7 @@ function AnalysisResultPage() {
         {hasDisplayableMetrics && (
           <section className="sf-result-lower-grid" aria-label="분석 결과 이후 다음 행동">
             <div className="sf-result-next-strip">
-              {nextCards.map((item) => {
+              {nextActionCards.map((item) => {
                 const Icon = item.icon;
 
                 return (

@@ -36,7 +36,28 @@ function ChatWidget() {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef(null);
+  const bodyRef = useRef(null);
+  const bottomRef = useRef(null);
   const isLoggedIn = useMemo(() => hasLoginToken(), []);
+
+  const scrollToLatestMessage = useCallback((behavior = "smooth") => {
+    window.setTimeout(() => {
+      if (bottomRef.current) {
+        bottomRef.current.scrollIntoView({ block: "end", behavior });
+        return;
+      }
+
+      if (bodyRef.current) {
+        bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
+      }
+    }, 0);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      scrollToLatestMessage(messages.length > 0 ? "smooth" : "auto");
+    }
+  }, [isOpen, isLoading, messages.length, scrollToLatestMessage]);
 
   // 로그인하지 않은 사용자는 채팅 위젯을 보지 않도록 합니다.
   // 보호 API 호출을 줄이고, 비로그인 사용자가 헷갈리지 않게 하는 처리입니다.
@@ -94,6 +115,7 @@ function ChatWidget() {
       }
 
       setIsOpen(true);
+      scrollToLatestMessage();
       window.setTimeout(() => submitMessage(nextMessage), 0);
     }
 
@@ -102,7 +124,7 @@ function ChatWidget() {
     return () => {
       window.removeEventListener(CHATBOT_QUESTION_EVENT, handleExternalQuestion);
     };
-  }, [isLoggedIn, submitMessage]);
+  }, [isLoggedIn, scrollToLatestMessage, submitMessage]);
 
   if (!isLoggedIn) {
     return null;
@@ -376,7 +398,7 @@ function ChatWidget() {
             피부 관리 참고 정보이며, 개인별 상태에 따라 다를 수 있습니다.
           </p>
 
-          <div className="sf-chatbot-body">
+          <div className="sf-chatbot-body" ref={bodyRef}>
             {messages.length === 0 && (
               <div className="sf-chatbot-empty">성분, 루틴, 보습, 자외선 차단처럼 피부 관리와 관련된 질문을 남겨 주세요.</div>
             )}
@@ -386,6 +408,7 @@ function ChatWidget() {
               </div>
             ))}
             {isLoading && <div className="sf-chatbot-message bot">답변을 준비하고 있습니다.</div>}
+            <div ref={bottomRef} aria-hidden="true" />
           </div>
 
           <form className="sf-chatbot-input" onSubmit={(event) => {

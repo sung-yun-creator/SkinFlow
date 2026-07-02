@@ -4,6 +4,7 @@
 // 주석은 코드 흐름 이해를 돕기 위한 설명이며 실제 동작에는 영향을 주지 않습니다.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { Link } from "react-router-dom";
 import {
   ArrowRight,
   CalendarDays,
@@ -179,12 +180,14 @@ function ScoreTrendTooltip({ active, payload, label }) {
 
   const row = visiblePayload[0]?.payload || {};
   const analyzedAt = row.totalAnalyzedAt || row.pigmentationAnalyzedAt || row.wrinkleAnalyzedAt;
+  const analysisId = row.totalAnalysisId || row.pigmentationAnalysisId || row.wrinkleAnalysisId;
   const gradeName = row.totalGradeName || row.pigmentationGradeName || row.wrinkleGradeName;
 
   return (
     <div className="sf-trend-tooltip">
-      <strong>{label}</strong>
-      {analyzedAt && <span>{formatDate(analyzedAt, "분석일 확인")}</span>}
+      <strong>{row.displayLabel || label}</strong>
+      {analyzedAt && <span>{formatTrendDateTime(analyzedAt)}</span>}
+      {analysisId && <span>분석 ID {analysisId}</span>}
       {gradeName && <em>{gradeName}</em>}
       <div>
         {visiblePayload.map((item) => (
@@ -215,6 +218,49 @@ function formatDate(dateValue, emptyText = "아직 없음") {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
+  });
+}
+
+function formatTrendLabel(dateValue, fallbackLabel, index) {
+  if (!dateValue) {
+    return fallbackLabel || `${index + 1}회차`;
+  }
+
+  const date = new Date(dateValue);
+
+  if (Number.isNaN(date.getTime())) {
+    return fallbackLabel || `${index + 1}회차`;
+  }
+
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${month}.${day}`;
+}
+
+function getTrendPointKey(dateValue, analysisId, index) {
+  const date = new Date(dateValue);
+  const timeKey = Number.isNaN(date.getTime()) ? "unknown" : String(date.getTime());
+  const idKey = analysisId === null || analysisId === undefined || analysisId === "" ? index : analysisId;
+
+  return `${timeKey}-${idKey}`;
+}
+
+function formatTrendDateTime(dateValue, emptyText = "분석일 확인") {
+  if (!dateValue) return emptyText;
+
+  const date = new Date(dateValue);
+
+  if (Number.isNaN(date.getTime())) {
+    return emptyText;
+  }
+
+  return date.toLocaleString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
  // 점수가 없을 때 빈칸 대신 안내 문구를 보여줍니다.
@@ -761,7 +807,16 @@ function HistoryPage() {
     const fallbackPoints = Array.isArray(scoreTrendData.points) ? scoreTrendData.points : [];
 
     return labels.map((label, index) => {
-      const row = { label };
+      const primarySeries = getTrendSeriesByCode(scoreTrendData.series, "total");
+      const analyzedAt = getTrendPointValue(primarySeries, fallbackPoints, index, "analyzedAt");
+      const analysisId = getTrendPointValue(primarySeries, fallbackPoints, index, "analysisId");
+      const displayLabel = formatTrendLabel(analyzedAt, label, index);
+      const row = {
+        label: getTrendPointKey(analyzedAt, analysisId, index),
+        displayLabel,
+        rawLabel: label,
+        analysisId,
+      };
 
       trendSeriesDefinitions.forEach((definition) => {
         const series = getTrendSeriesByCode(scoreTrendData.series, definition.code);
@@ -1629,33 +1684,45 @@ function HistoryPage() {
         }
 
         .sf-trend-guide {
-          margin: 8px 4px 0;
+          margin: 6px 4px 0;
+          padding-top: 8px;
           display: flex;
           flex-wrap: wrap;
           align-items: center;
-          gap: 7px;
+          gap: 6px 12px;
           color: #64748b;
           font-size: 11px;
-          font-weight: 850;
+          font-weight: 800;
           line-height: 1.35;
+          border-top: 1px solid rgba(226, 232, 240, 0.72);
         }
 
-        .sf-trend-guide span,
         .sf-trend-guide em {
-          min-height: 26px;
-          padding: 6px 9px;
-          border-radius: 999px;
-          background: #ffffff;
-          border: 1px solid rgba(226, 232, 240, 0.92);
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
           font-style: normal;
           white-space: nowrap;
         }
 
-        .sf-trend-guide span {
-          color: #167d7f;
-          background: rgba(22, 125, 127, 0.08);
-          border-color: rgba(22, 125, 127, 0.16);
-          font-weight: 950;
+        .sf-trend-guide em::before {
+          content: "";
+          width: 6px;
+          height: 6px;
+          border-radius: 999px;
+          background: #94a3b8;
+        }
+
+        .sf-trend-guide em:nth-child(1)::before {
+          background: #167d7f;
+        }
+
+        .sf-trend-guide em:nth-child(2)::before {
+          background: #f59e0b;
+        }
+
+        .sf-trend-guide em:nth-child(3)::before {
+          background: #f43f5e;
         }
 
         .sf-trend-tooltip strong,
@@ -1922,6 +1989,9 @@ function HistoryPage() {
 
 
         .sf-record-actions .sf-text-button {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
           min-width: 74px;
           min-height: 28px;
           padding: 0 11px;
@@ -1930,6 +2000,8 @@ function HistoryPage() {
           color: #167d7f;
           background: rgba(22, 125, 127, 0.075);
           box-shadow: 0 8px 18px rgba(22, 125, 127, 0.08);
+          text-decoration: none;
+          white-space: nowrap;
         }
 
         .sf-record-actions .sf-text-button:hover {
@@ -3270,6 +3342,9 @@ function HistoryPage() {
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.28)" vertical={false} />
                       <XAxis
                         dataKey="label"
+                        tickFormatter={(value) =>
+                          scoreTrendChartData.find((item) => item.label === value)?.displayLabel || value
+                        }
                         tick={{ fill: "#64748B", fontSize: 11, fontWeight: 800 }}
                         axisLine={false}
                         tickLine={false}
@@ -3316,7 +3391,6 @@ function HistoryPage() {
                     </RechartsLineChart>
                   </ResponsiveContainer>
                   <div className="sf-trend-guide" aria-label="점수 추이 기준 안내">
-                    <span>완료된 분석 기준</span>
                     <em>80점 이상 양호</em>
                     <em>60~79점 주의</em>
                     <em>60점 미만 관리필요</em>
@@ -3408,6 +3482,12 @@ function HistoryPage() {
                         </span>
                         <span className="sf-grade-pill">{recordGradeMeta.label}</span>
                         <div className="sf-record-actions">
+                          <Link
+                            className="sf-text-button"
+                            to={getAnalysisContextPath("/analysis/result", recordId)}
+                          >
+                            분석결과
+                          </Link>
                           <button
                             type="button"
                             className={`sf-text-button${recordId === activeSelectedDetailId ? " is-active" : ""}`}
@@ -3418,8 +3498,8 @@ function HistoryPage() {
                             {recordId === activeSelectedDetailId
                               ? isDetailLoading
                                 ? "불러오는 중"
-                                : "상세 확인 중"
-                              : "상세 보기"}
+                                : "상세 리포트"
+                              : "상세 리포트"}
                           </button>
                         </div>
                       </div>
