@@ -201,6 +201,7 @@ async function buildIngredientRecommendationResult(analysisContext, options = {}
     let ingredientSource = ingredients.length > 0 ? 'database' : 'fallback';
     let recommendations = [];
 
+    // 수동 focus 선택은 화면에서만 즉시 비교하는 용도라 저장된 추천을 재사용하거나 새로 저장하지 않습니다.
     if (analysisId && !isManualFocus) {
         const storedIngredients = await recommendationRepository.findIngredientRecommendationsByAnalysisId(analysisId);
 
@@ -215,6 +216,7 @@ async function buildIngredientRecommendationResult(analysisContext, options = {}
             focusOnly: isManualFocus,
         });
 
+        // 자동 추천만 DB에 저장해 최신 분석의 기본 추천 스냅샷으로 재사용합니다.
         if (analysisId && ingredients.length > 0 && !isManualFocus) {
             const storedIngredients = await recommendationRepository.createIngredientRecommendationsForAnalysis(
                 analysisId,

@@ -20,6 +20,7 @@ const {
 } = require('./recommendation/recommendationMetricUtils');
 const { toNumber } = require('../utils/number');
 
+// 추천 service는 최신 분석 또는 선택한 분석 이력을 기준으로 성분/제품/식습관 응답을 조합합니다.
 function createAnalysisNotFoundError() {
     const error = new Error('분석 이력을 찾을 수 없습니다.');
     error.status = 404;
@@ -41,6 +42,7 @@ async function findAnalysisContextForRecommendations(userId, analysisId = null) 
     return analysisContext;
 }
 
+// 식습관 가이드처럼 분석 context를 직접 넘기는 흐름에서 수동 focus를 먼저 반영해 지표 순서를 맞춥니다.
 function withFocusMetric(analysisContext, focusMetricCode = null) {
     if (!analysisContext || !focusMetricCode) {
         return analysisContext;
@@ -52,6 +54,7 @@ function withFocusMetric(analysisContext, focusMetricCode = null) {
     };
 }
 
+// 프론트 선택 UI가 사용할 focus 옵션 목록과 현재 자동/수동 선택 상태를 제공합니다.
 async function getFocusOptions(userId, options = {}) {
     const analysisContext = await findAnalysisContextForRecommendations(userId, options.analysisId);
     const focusOptions = getFocusMetricOptions(analysisContext, options.focus);
@@ -110,6 +113,7 @@ async function getDietGuideRecommendations(userId, options = {}) {
     const personalizedChecks = buildPersonalizedDietChecks(focusedAnalysis, ingredientResult.ingredients);
     let dietGuides = await recommendationRepository.findDietGuidesByAnalysisId(latestAnalysisId);
 
+    // 사용자가 직접 선택한 focus 결과는 DB에 저장하지 않고, 자동 추천일 때만 기본 식습관 가이드를 저장합니다.
     if (dietGuides.length === 0 && !options.focus) {
         dietGuides = await recommendationRepository.createDietGuidesForAnalysis(
             latestAnalysisId,
