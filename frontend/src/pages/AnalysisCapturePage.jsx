@@ -565,7 +565,12 @@ function AnalysisCapturePage() {
     canvas.height = height;
 
     const context = canvas.getContext("2d");
+    // 캔버스 방향을 초기화한 뒤 미리보기와 같은 방향으로 좌우 보정합니다.
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    context.translate(canvas.width, 0);
+    context.scale(-1, 1);
     context.drawImage(video, 0, 0, width, height);
+    context.setTransform(1, 0, 0, 1, 0, 0);
 
     try {
       const blob = await new Promise((resolve, reject) => {
@@ -1087,6 +1092,7 @@ function AnalysisCapturePage() {
 
           .sf-webcam-panel video {
             object-fit: cover;
+            transform: scaleX(-1);
             opacity: 0;
             transition: opacity 0.18s ease;
           }
