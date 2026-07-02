@@ -12,6 +12,7 @@ import {
   History,
   Info,
   LineChart as LineChartIcon,
+  Printer,
   Search,
   Sparkles,
   X,
@@ -657,6 +658,7 @@ function HistoryPage() {
   const detailDialogRef = useRef(null);
   const detailTriggerRef = useRef(null);
   const detailRequestIdRef = useRef(0);
+  const printCleanupRef = useRef(null);
 
   // 페이지 진입 시 이력 목록과 score-trends 그래프 데이터를 함께 불러옵니다.
   useEffect(() => {
@@ -1068,6 +1070,44 @@ function HistoryPage() {
       detailTriggerRef.current?.focus();
     });
   }, [clearSelectedDetailState]);
+
+  function handlePrintDetail() {
+    if (!visibleSelectedDetail) return;
+
+    printCleanupRef.current?.();
+
+    const printClassName = "sf-print-history-detail";
+    let fallbackTimerId = null;
+
+    const cleanupPrintMode = () => {
+      document.body.classList.remove(printClassName);
+      window.removeEventListener("afterprint", cleanupPrintMode);
+
+      if (fallbackTimerId !== null) {
+        window.clearTimeout(fallbackTimerId);
+      }
+
+      if (printCleanupRef.current === cleanupPrintMode) {
+        printCleanupRef.current = null;
+      }
+    };
+
+    printCleanupRef.current = cleanupPrintMode;
+    document.body.classList.add(printClassName);
+    window.addEventListener("afterprint", cleanupPrintMode, { once: true });
+
+    try {
+      window.print();
+    } finally {
+      if (printCleanupRef.current === cleanupPrintMode) {
+        fallbackTimerId = window.setTimeout(cleanupPrintMode, 1000);
+      }
+    }
+  }
+
+  useEffect(() => () => {
+    printCleanupRef.current?.();
+  }, []);
 
   useEffect(() => {
     if (!shouldShowDetailSection) return undefined;
@@ -3232,6 +3272,113 @@ function HistoryPage() {
             margin: 14px;
           }
         }
+
+        .sf-detail-print-button {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 5px;
+          min-height: 36px;
+          padding: 0 12px;
+          border: 1px solid #167d7f;
+          border-radius: 999px;
+          background: #167d7f;
+          color: #ffffff;
+          font-size: 12px;
+          font-weight: 850;
+          cursor: pointer;
+          transition: background 160ms ease, border-color 160ms ease;
+        }
+
+        .sf-detail-print-button:hover {
+          border-color: #0f6668;
+          background: #0f6668;
+        }
+
+        .sf-detail-print-button:focus-visible {
+          outline: 3px solid rgba(22, 125, 127, 0.24);
+          outline-offset: 2px;
+        }
+
+        @media print {
+          @page {
+            size: auto;
+            margin: 14mm;
+          }
+
+          body.sf-print-history-detail {
+            overflow: visible !important;
+            background: #ffffff !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+
+          body.sf-print-history-detail > *:not(.sf-history-detail-section) {
+            display: none !important;
+          }
+
+          body.sf-print-history-detail .sf-history-detail-section {
+            position: static !important;
+            inset: auto !important;
+            display: block !important;
+            padding: 0 !important;
+            overflow: visible !important;
+            background: transparent !important;
+            backdrop-filter: none !important;
+          }
+
+          body.sf-print-history-detail .sf-history-report-print-area {
+            display: block !important;
+            width: 100% !important;
+            max-height: none !important;
+            overflow: visible !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+            background: #ffffff !important;
+            box-shadow: none !important;
+          }
+
+          body.sf-print-history-detail .sf-history-detail-modal-header {
+            padding: 0 0 8mm !important;
+            border-bottom: 1px solid #cbd5e1 !important;
+            background: #ffffff !important;
+          }
+
+          body.sf-print-history-detail .sf-history-detail-modal-title h2 {
+            font-size: 22pt !important;
+          }
+
+          body.sf-print-history-detail .sf-history-detail-modal-header .sf-detail-header-actions,
+          body.sf-print-history-detail .sf-detail-actions {
+            display: none !important;
+          }
+
+          body.sf-print-history-detail .sf-history-detail-content {
+            display: block !important;
+            min-height: 0 !important;
+            padding: 8mm 0 0 !important;
+            overflow: visible !important;
+            overscroll-behavior: auto !important;
+          }
+
+          body.sf-print-history-detail .sf-history-detail-content .sf-detail-card,
+          body.sf-print-history-detail .sf-history-detail-content .sf-llm-report-card {
+            width: 100% !important;
+            max-height: none !important;
+            margin: 0 0 8mm !important;
+            overflow: visible !important;
+            border-radius: 12px !important;
+            box-shadow: none !important;
+            break-inside: auto;
+          }
+
+          body.sf-print-history-detail .sf-detail-metrics > div,
+          body.sf-print-history-detail .sf-detail-insight-item,
+          body.sf-print-history-detail .sf-llm-report-section {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+        }
       `}</style>
 
       <div className="sf-history-page">
@@ -3545,7 +3692,7 @@ function HistoryPage() {
             }}
           >
             <div
-              className="sf-history-detail-dialog"
+              className="sf-history-detail-dialog sf-history-report-print-area"
               ref={detailDialogRef}
               role="dialog"
               aria-modal="true"
@@ -3567,6 +3714,17 @@ function HistoryPage() {
                     <span className="sf-status-badge">
                       {getStatusLabel(getRecordStatus(selectedModalRecord))}
                     </span>
+                  )}
+                  {visibleSelectedDetail && (
+                    <button
+                      type="button"
+                      className="sf-detail-print-button"
+                      onClick={handlePrintDetail}
+                      aria-label="분석 상세 리포트 PDF 출력"
+                    >
+                      <Printer size={16} aria-hidden="true" />
+                      <span>PDF 출력</span>
+                    </button>
                   )}
                   <button
                     type="button"
