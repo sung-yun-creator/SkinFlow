@@ -719,21 +719,16 @@ function RecommendationPage() {
           word-break: keep-all;
         }
 
-        /* 주요 CTA는 첫 버튼을 강조하고 나머지 행동은 같은 줄에 정렬해 떠 보이지 않게 합니다. */
+        /* 주요 CTA와 보조 CTA를 같은 줄에 정렬합니다. */
         .sf-recommend-actions {
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 10px;
-          margin-top: auto;
-          padding-top: 20px;
+          margin-top: clamp(40px, 5vw, 56px);
         }
 
         .sf-recommend-actions .sf-button {
           width: 100%;
-        }
-
-        .sf-recommend-actions .sf-button:first-child {
-          grid-column: 1 / -1;
         }
 
         .sf-recommend-summary-card {
@@ -1488,10 +1483,6 @@ function RecommendationPage() {
             grid-template-columns: 1fr;
           }
 
-          .sf-recommend-actions .sf-button:first-child {
-            grid-column: auto;
-          }
-
           .sf-recommend-summary-top {
             flex-direction: column;
             align-items: flex-start;
@@ -1587,9 +1578,6 @@ function RecommendationPage() {
               </Button>
               <Button to="/history" variant="secondary" size="lg">
                 분석 이력에서 확인
-              </Button>
-              <Button variant="secondary" size="lg" onClick={loadRecommendations} disabled={isLoading}>
-                추천 다시 불러오기
               </Button>
             </div>
           </Card>
