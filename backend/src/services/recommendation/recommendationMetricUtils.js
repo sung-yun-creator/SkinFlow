@@ -1,6 +1,7 @@
 const { METRIC_INGREDIENT_META } = require('../../constants/ingredientReference');
 const { toNumber } = require('../../utils/number');
 
+// 프론트가 직접 고를 수 있는 추천 기준입니다. code는 API 쿼리와 내부 지표 코드로 함께 사용합니다.
 const SUPPORTED_FOCUS_METRICS = [
     {
         code: 'pigmentation',
@@ -14,6 +15,7 @@ const SUPPORTED_FOCUS_METRICS = [
     },
 ];
 
+// 점수 구간을 추천 문구와 우선순위 계산에서 함께 쓰는 관리 강도 라벨로 바꿉니다.
 function getScoreBand(score) {
     const metricScore = Number(score);
 
@@ -66,6 +68,7 @@ function getMetricMeta(metricCode) {
     };
 }
 
+// 분석 metric row와 이미 정규화된 metric 객체를 같은 형태로 맞춰 추천 로직이 공통으로 쓰게 합니다.
 function getConcernMetrics(metrics) {
     const validMetrics = metrics
         .map((metric) => ({
@@ -84,6 +87,7 @@ function getConcernMetrics(metrics) {
         ];
 }
 
+// 한글/영문 별칭을 API 내부 지표 코드로 통일합니다.
 function normalizeFocusMetric(focus) {
     const normalizedFocus = String(focus || '').trim().toLowerCase();
 
@@ -96,6 +100,7 @@ function normalizeFocusMetric(focus) {
     return focusMetric?.code || null;
 }
 
+// focus 쿼리가 들어온 경우에는 잘못된 값을 조용히 무시하지 않고 프론트가 알 수 있게 400으로 막습니다.
 function validateFocusMetric(focus) {
     if (focus === undefined || focus === null || String(focus).trim() === '') {
         return null;
@@ -116,6 +121,7 @@ function validateFocusMetric(focus) {
     return focusMetricCode;
 }
 
+// 수동 선택값이 있으면 해당 지표를 맨 앞으로 보내 성분/제품/식습관 추천 기준을 맞춥니다.
 function applyFocusMetric(concernMetrics, focusMetricCode) {
     if (!focusMetricCode) {
         return concernMetrics;
@@ -146,6 +152,7 @@ function uniqueByMetricCode(metrics) {
     });
 }
 
+// focus-options API와 추천 summary에서 사용할 선택지 목록을 분석 점수와 함께 만듭니다.
 function getFocusMetricOptions(analysisContext = null, selectedFocus = null) {
     const concernMetrics = getConcernMetrics(analysisContext?.metrics || []);
     const selectedMetricCode = selectedFocus || concernMetrics[0]?.code || null;

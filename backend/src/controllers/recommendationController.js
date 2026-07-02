@@ -6,6 +6,7 @@ const {
 } = require('../services/recommendationService');
 const { validateFocusMetric } = require('../services/recommendation/recommendationMetricUtils');
 
+// recommendation controller는 analysisId/focus 쿼리를 검증한 뒤 service 결과를 그대로 응답합니다.
 function parseOptionalAnalysisId(value) {
     if (value === undefined || value === null || String(value).trim() === '') {
         return null;
@@ -23,10 +24,12 @@ function parseOptionalAnalysisId(value) {
     return analysisId;
 }
 
+// focus는 색소침착/주름 수동 선택값이며, 비어 있으면 기존 자동 추천 흐름을 사용합니다.
 function parseOptionalFocus(value) {
     return validateFocusMetric(value);
 }
 
+// 프론트가 드롭다운/버튼 UI를 만들 수 있도록 선택 가능한 추천 기준과 현재 선택 상태를 내려줍니다.
 async function listFocusOptions(req, res) {
     const focusOptions = await getFocusOptions(req.user.userId, {
         analysisId: parseOptionalAnalysisId(req.query.analysisId),
