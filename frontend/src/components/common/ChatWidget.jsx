@@ -2,7 +2,7 @@
 // 로그인한 사용자가 화면 어디서든 간단한 피부 관리 질문을 보낼 수 있는 채팅 위젯입니다.
 // PageLayout에 포함되어 있어 대부분의 주요 페이지에서 공통으로 표시됩니다.
 // 답변은 참고용 안내이며, 의료적 판단처럼 보이지 않도록 사용자가 이해하기 쉬운 흐름을 우선합니다.
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MessageCircle, Send, Sparkles, X } from "lucide-react";
 import { sendChatMessage } from "../../api/chatApi";
 import { AUTH_STORAGE_KEYS } from "../../api/authSession";
@@ -16,6 +16,8 @@ const QUICK_QUESTIONS = [
 ];
 
 // 채팅은 로그인 사용자에게만 보여주기 때문에 토큰이 있는지 먼저 확인합니다.
+const CHATBOT_QUESTION_EVENT = "skinflow:chatbot-question";
+
 function hasLoginToken() {
   if (typeof window === "undefined") {
     return false;
@@ -38,13 +40,9 @@ function ChatWidget() {
 
   // 로그인하지 않은 사용자는 채팅 위젯을 보지 않도록 합니다.
   // 보호 API 호출을 줄이고, 비로그인 사용자가 헷갈리지 않게 하는 처리입니다.
-  if (!isLoggedIn) {
-    return null;
-  }
-
   // 사용자가 직접 입력하거나 예시 질문을 눌렀을 때 메시지를 전송합니다.
   // 빈 메시지이거나 이미 답변을 기다리는 중이면 중복 요청을 막습니다.
-  async function submitMessage(nextMessage = message) {
+  const submitMessage = useCallback(async (nextMessage = message) => {
     const trimmedMessage = nextMessage.trim();
 
     if (!trimmedMessage || isLoading) {
@@ -81,6 +79,33 @@ function ChatWidget() {
       setIsLoading(false);
       window.setTimeout(() => inputRef.current?.focus(), 0);
     }
+  }, [isLoading, message]);
+
+  useEffect(() => {
+    if (!isLoggedIn || typeof window === "undefined") {
+      return undefined;
+    }
+
+    function handleExternalQuestion(event) {
+      const nextMessage = typeof event.detail?.message === "string" ? event.detail.message.trim() : "";
+
+      if (!nextMessage) {
+        return;
+      }
+
+      setIsOpen(true);
+      window.setTimeout(() => submitMessage(nextMessage), 0);
+    }
+
+    window.addEventListener(CHATBOT_QUESTION_EVENT, handleExternalQuestion);
+
+    return () => {
+      window.removeEventListener(CHATBOT_QUESTION_EVENT, handleExternalQuestion);
+    };
+  }, [isLoggedIn, submitMessage]);
+
+  if (!isLoggedIn) {
+    return null;
   }
 
   // Enter 키로 메시지를 보낼 수 있게 하는 키보드 UX 처리입니다.
